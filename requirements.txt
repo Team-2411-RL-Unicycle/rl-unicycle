@@ -1,0 +1,25 @@
+# Requirements Feb 17th 2024
+
+contourpy==1.1.1
+cycler==0.12.1
+fonttools==4.48.1
+importlib-metadata==7.0.1
+importlib-resources==6.1.1
+kiwisolver==1.4.5
+matplotlib==3.7.4
+moteus==0.3.67
+msgpack==1.0.7
+numpy==1.24.4
+packaging==23.2
+pillow==10.2.0
+pkg_resources==0.0.0
+pyelftools==0.30
+pyparsing==3.1.1
+pyserial==3.5
+python-can==4.3.1
+python-dateutil==2.8.2
+six==1.16.0
+smbus2==0.4.3
+typing_extensions==4.9.0
+wrapt==1.16.0
+zipp==3.17.0
