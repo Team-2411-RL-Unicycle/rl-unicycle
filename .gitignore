@@ -1,1 +1,4 @@
-venv_moteus/
+venv_moteus/*
+venv_moteus
+__pycache__/
+
