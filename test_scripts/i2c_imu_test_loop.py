@@ -2,7 +2,7 @@ import sys, os
 import asyncio
 import time
 import numpy as np
-import LoopTimer as LoopTimer
+import robot.LoopTimer as LoopTimer
 import matplotlib.pyplot as plt
 
 async def read_imu_data(imu):  # 100 Hz control loop  # Initialize the IMU

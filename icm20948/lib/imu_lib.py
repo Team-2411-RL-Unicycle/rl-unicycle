@@ -12,20 +12,6 @@ except ImportError:
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Set the minimum logging level
-
-# Create a console handler and set level to debug
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-# Create a formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Add formatter to console_handler
-console_handler.setFormatter(formatter)
-
-# Add console_handler to logger
-logger.addHandler(console_handler)
 
 '''
 The ICM-20948 is a 9-axis IMU Library for I2C communication with the Jetson Nano

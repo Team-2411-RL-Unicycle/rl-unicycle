@@ -1,19 +1,13 @@
 import os
 import sys
 import time
-import queue 
 from icm20948.lib.imu_lib import ICM20948
-from communication.mqtt import MQTTClient
-import LoopTimer as lt  #
+import robot.LoopTimer as lt  
 
 class RobotSystem:
     LOOP_TIME = 1/100  # 100 Hz control loop period
-    JITTER_OFFSET = 2e-6  # Loop time offset to smooth time average with jitter
 
-    def __init__(self, send_queue, receive_queue):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        sys.path.append(current_dir)
-        
+    def __init__(self, send_queue, receive_queue):       
         self.send_queue = send_queue
         self.receive_queue = receive_queue
 
@@ -29,6 +23,9 @@ class RobotSystem:
         self.itr = int(0)  # Cycle counter
         self.stopwatch_i2c = lt.LoopTimer(550)
         self.stopwatch_mqtt = lt.LoopTimer(550)
+        
+    def start(self):
+        self.control_loop()
 
     def control_loop(self):
         loop_period = .01
@@ -56,15 +53,13 @@ class RobotSystem:
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
             
-            #TODO Send all robot information to mqtt comms thread      
-            
-          
+            #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 
             self.send_loop_time(loop_period*1e6)
 
-            end_time = loop_start_time + RobotSystem.LOOP_TIME - RobotSystem.JITTER_OFFSET
+            end_time = loop_start_time + RobotSystem.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
 

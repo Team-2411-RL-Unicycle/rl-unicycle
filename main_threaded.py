@@ -1,8 +1,9 @@
 import sys, os, ctypes
 import queue
 import threading
-import robot_system as rs
+from robot.robot_system import RobotSystem
 from communication.mqtt import MQTTClient
+import log.logging_config as logging_config
 
 # Define constants for the scheduling policy
 SCHED_FIFO = 1  # FIFO real-time policy
@@ -17,38 +18,36 @@ def set_realtime_priority(priority=99):
     if libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param)) != 0:
         raise ValueError("Failed to set real-time priority. Check permissions.")
 
-def start_robot(robot):
-    robot.control_loop()
-    
-def start_mqtt(mqtt_client):
-    mqtt_client.communication_loop()
-
 def main():
+    logging_config.setup_logging()
     set_realtime_priority()
-    # Create thread-safe queues for pub sub to mqtt handler
-    mqtt_send_queue = queue.Queue()
-    mqtt_receive_queue = queue.Queue()
-    
-    # Initialize MQTT client with queues
-    mqtt_client = MQTTClient(mqtt_send_queue, mqtt_receive_queue)
 
-    # Initialize the robot system with the telemetry queue
-    robot = rs.RobotSystem(mqtt_send_queue, mqtt_receive_queue)
-    
-    # Start the control loop in its own thread
-    control_thread = threading.Thread(target=start_robot, args=(robot,), daemon=True)
+    # Create thread-safe queues for MQTT communication
+    telemetry_queue = queue.Queue()
+    command_queue = queue.Queue()
+
+    # Initialize MQTT client and robot system with queues
+    # The Queues act as inter-thread communication buffers
+    mqtt_client = MQTTClient(telemetry_queue, command_queue)
+    robot = RobotSystem(telemetry_queue, command_queue)
+
+    # Start the control loop and MQTT communication in their own daemon threads
+    # This calls the start method in each of them serving as thread entry point
+    # See the start method in each class for implementation
+    control_thread = threading.Thread(target=robot.start, daemon=True)
+    mqtt_thread = threading.Thread(target=mqtt_client.start, daemon=True)
     control_thread.start()
-
-    # Pass the MQTT client and the receive queue to the telemetry thread
-    mqtt_thread = threading.Thread(target=start_mqtt, args=(mqtt_client,), daemon=True)
     mqtt_thread.start()
- 
+
     try:
-        control_thread.join()
-        mqtt_thread.join()
+        # Use thread.join() with a timeout to keep the main thread responsive
+        while True:
+            control_thread.join(timeout=1)
+            mqtt_thread.join(timeout=1)
     except KeyboardInterrupt:
         print("Shutdown signal received")
     finally:
+        # Perform necessary cleanup
         robot.shutdown()
         mqtt_client.shutdown()
         print("Cleanup complete. Exiting program.")
