@@ -97,7 +97,7 @@ class ICM20948:
         # The WhoAmI register contains the device ID for the IMU model, this verifies correct device connected.
         who_am_i = self.read(self.reg.WHO_AM_I)
         if who_am_i == self.CHIP_ID:
-            print("ICM-20948 is online!")
+            logger.info("ICM-20948 is online!")
         else:
             raise RuntimeError(
                 "ICM-20948 initialization failed: WHO_AM_I mismatch. "

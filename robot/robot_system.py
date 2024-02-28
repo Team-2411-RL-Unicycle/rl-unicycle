@@ -1,8 +1,10 @@
-import os
-import sys
 import time
 from icm20948.lib.imu_lib import ICM20948
 import robot.LoopTimer as lt  
+import logging
+
+# Create a logger
+logger = logging.getLogger(__name__)
 
 class RobotSystem:
     LOOP_TIME = 1/100  # 100 Hz control loop period
@@ -38,8 +40,8 @@ class RobotSystem:
             self.stopwatch_i2c.stop()    
             
             if self.itr % 500 == 0:
-                print(f'Average sensor read {self.stopwatch_i2c.average_time()}')
-                print(f' Max sensor read {max(self.stopwatch_i2c.get_execution_times())}')
+                logger.debug(f'Average sensor read {self.stopwatch_i2c.average_time()}')
+                logger.debug(f' Max sensor read {max(self.stopwatch_i2c.get_execution_times())}')
 
             #TODO Fuse sensor data or create a robot state estimate
         
@@ -64,13 +66,19 @@ class RobotSystem:
             loop_period = time.time() - loop_start_time
 
     def precise_delay_until(self, end_time):
+        """
+        Sleep until the specified end time, then return the delay time (overshoot)
+        """
+        
+        # Lower accuracy sleep loop
         while True:
             now = time.time()
             remaining = end_time - now
             if remaining <= 0.0005:
                 break
             time.sleep(remaining / 2)
-
+            
+        # Busy-while loop to get accurate cutoff at end
         while True:
             delay = time.time() - end_time
             if delay >= 0:

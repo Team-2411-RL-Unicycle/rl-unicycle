@@ -1,8 +1,9 @@
 import paho.mqtt.client as mqtt
 import json
-import threading
+import logging
 import time
-import asyncio
+
+logger = logging.getLogger(__name__)
 
 class MQTTClient:
     COMMAND_TOPIC = "robot/commands"
@@ -25,7 +26,7 @@ class MQTTClient:
         self.client.loop_start()
                     
     def on_connect(self, client, userdata, flags, rc):
-        print("Connected with result code " + str(rc))
+        logger.info("Connected with result code " + str(rc))
         self.client.subscribe(self.COMMAND_TOPIC)  # Subscribe to a topic for commands
 
     def on_message(self, client, userdata, msg):
