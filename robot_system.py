@@ -1,0 +1,107 @@
+import os
+import sys
+import time
+import queue 
+from icm20948.lib.imu_lib import ICM20948
+from communication.mqtt import MQTTClient
+import LoopTimer as lt  #
+
+class RobotSystem:
+    LOOP_TIME = 1/100  # 100 Hz control loop period
+    JITTER_OFFSET = 2e-6  # Loop time offset to smooth time average with jitter
+
+    def __init__(self, send_queue, receive_queue):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(current_dir)
+        
+        self.send_queue = send_queue
+        self.receive_queue = receive_queue
+
+        # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
+        imu1 = 'imu1.ini'
+        self.imu = ICM20948(config_file=imu1)
+
+        #TODO Initialize all actuators
+        self.xmotor = None
+        self.ymotor = None
+        self.zmotor = None
+
+        self.itr = int(0)  # Cycle counter
+        self.stopwatch_i2c = lt.LoopTimer(550)
+        self.stopwatch_mqtt = lt.LoopTimer(550)
+
+    def control_loop(self):
+        loop_period = .01
+        while True:
+            loop_start_time = time.time()
+            self.itr += 1
+
+            self.stopwatch_i2c.start()
+            ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
+            self.stopwatch_i2c.stop()    
+            
+            if self.itr % 500 == 0:
+                print(f'Average sensor read {self.stopwatch_i2c.average_time()}')
+                print(f' Max sensor read {max(self.stopwatch_i2c.get_execution_times())}')
+
+            #TODO Fuse sensor data or create a robot state estimate
+        
+            #TODO Check for new commands in receive queue 
+                # remote changes to robot parameters)     
+                
+            #TODO Update robot state and parameters
+            
+            #TODO Process a control decision using agent
+            
+            ## FIXED TIME EVENT (50-70% of way through loop period)
+            #TODO Apply control decision to robot actuators
+            
+            #TODO Send all robot information to mqtt comms thread      
+            
+          
+            if (self.itr % 20) == 0:
+                self.send_imu_data(ax, ay, az, gx, gy, gz)
+                
+            self.send_loop_time(loop_period*1e6)
+
+            end_time = loop_start_time + RobotSystem.LOOP_TIME - RobotSystem.JITTER_OFFSET
+            loop_delay = self.precise_delay_until(end_time)
+            loop_period = time.time() - loop_start_time
+
+    def precise_delay_until(self, end_time):
+        while True:
+            now = time.time()
+            remaining = end_time - now
+            if remaining <= 0.0005:
+                break
+            time.sleep(remaining / 2)
+
+        while True:
+            delay = time.time() - end_time
+            if delay >= 0:
+                return delay
+            
+            
+    def send_imu_data(self, ax, ay, az, gx, gy, gz):
+        topic = "robot/sensors/imu"
+        data = {
+            "accel_x": ax,
+            "accel_y": ay,
+            "accel_z": az,
+            "gyro_x" : gx,
+            "gyro_y" : gy,
+            "gyro_z" : gz,
+        }
+        self.send_queue.put((topic, data))
+    
+    def send_loop_time(self, loop_time):
+        topic = "robot/control/loop_time"
+        data = {
+            "loop_time": loop_time
+        }
+        self.send_queue.put((topic, data))      
+
+    def shutdown(self):
+        # Shutdown the robot system 
+        self.imu.close()      
+        pass
