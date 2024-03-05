@@ -32,6 +32,7 @@ class MQTTClient:
     def on_message(self, client, userdata, msg):
         # Assuming the message payload is JSON-formatted
         command = json.loads(msg.payload)
+        logger.debug(f"Command recieved: {command}")
         self.receive_queue.put(command)  # Add the received command to the receive queue
 
     def setup_callbacks(self):

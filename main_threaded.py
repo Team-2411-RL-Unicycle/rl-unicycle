@@ -1,9 +1,10 @@
-import sys, os, ctypes
+import os
+import ctypes
 import queue
 import threading
 from robot.robot_system import RobotSystem
 from communication.mqtt import MQTTClient
-import log.logging_config as logging_config
+import logging.config
 
 # Define constants for the scheduling policy
 SCHED_FIFO = 1  # FIFO real-time policy
@@ -17,9 +18,22 @@ def set_realtime_priority(priority=99):
     # Set the scheduling policy to FIFO and priority for the entire process (0 refers to the current process)
     if libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param)) != 0:
         raise ValueError("Failed to set real-time priority. Check permissions.")
+    
+def setup_logging():
+    # Get the directory of the current script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    # Construct the path to logging.ini relative to the current script
+    logging_ini_path = os.path.join(dir_path, 'log/logging.ini')
+    # Use the logging_ini_path to load the configuration (edit this file to configure logger settings)
+    logging.config.fileConfig(logging_ini_path, disable_existing_loggers=False)
+
 
 def main():
-    logging_config.setup_logging()
+    setup_logging()
+    logger = logging.getLogger()
+    logger.debug("Logger initalized")
+    
+    # Escalate the process priority to max level
     set_realtime_priority()
 
     # Create thread-safe queues for MQTT communication
@@ -45,12 +59,12 @@ def main():
             control_thread.join(timeout=1)
             mqtt_thread.join(timeout=1)
     except KeyboardInterrupt:
-        print("Shutdown signal received")
+        logger.info("Shutdown signal received")
     finally:
         # Perform necessary cleanup
         robot.shutdown()
         mqtt_client.shutdown()
-        print("Cleanup complete. Exiting program.")
+        logger.info("Cleanup complete. Exiting program.")
 
 if __name__ == '__main__':
     main()

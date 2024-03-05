@@ -154,7 +154,7 @@ class ICM20948:
         if accel_range not in [2, 4, 8, 16]:
             raise ValueError("Accel range must be 2, 4, 8, or 16")
         self._accel_range = accel_range      
-        logger.info(f"Setting accel range to {self._accel_range}")
+        logger.debug(f"Setting accel range to {self._accel_range}")
         
         # Data sheet mapping of the ACCEL_FS_SEL bits
         fs_sel_values = {
@@ -206,7 +206,7 @@ class ICM20948:
         }  
         
         # Log the DLPF configuration setting
-        logger.info(f"Setting accel low pass filter to {dlpfcfg_vals[self._accel_LPF_CFG]} Hz" 
+        logger.debug(f"Setting accel low pass filter to {dlpfcfg_vals[self._accel_LPF_CFG]} Hz" 
                     f" with {'enabled' if self._accel_LPF else 'disabled'} DLPF")
         
         try:
@@ -235,7 +235,7 @@ class ICM20948:
         if gyro_range not in [250, 500, 1000, 2000]:
             raise ValueError("Gyro range must be 250, 500, 1000, or 2000")
         self._gyro_range = gyro_range
-        logger.info(f"Setting gyro range to {self._gyro_range}")
+        logger.debug(f"Setting gyro range to {self._gyro_range}")
         
         try:
             self.select_register_bank(2)
@@ -271,7 +271,7 @@ class ICM20948:
         }  
         
         # Log the DLPF configuration setting
-        logger.info(
+        logger.debug(
             f"Setting gyro low pass filter to {dlpfcfg_vals[self._gyro_LPF_CFG]} Hz "
             f" with {'enabled' if self._gyro_LPF else 'disabled'} DLPF"
         )
