@@ -1,5 +1,6 @@
 import time
 from icm20948.lib.imu_lib import ICM20948
+from fusion.fusion import AHRSfusion
 import robot.LoopTimer as lt  
 import logging
 
@@ -16,6 +17,9 @@ class RobotSystem:
         # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
         imu1 = 'imu1.ini'
         self.imu = ICM20948(config_file=imu1)
+        
+        # Init sensor fusion
+        self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1/self.LOOP_TIME))
 
         #TODO Initialize all actuators
         self.xmotor = None
@@ -24,7 +28,8 @@ class RobotSystem:
 
         self.itr = int(0)  # Cycle counter
         self.stopwatch_i2c = lt.LoopTimer(550)
-        self.stopwatch_mqtt = lt.LoopTimer(550)
+        
+        self.gx_test = 0
         
     def start(self):
         self.control_loop()
@@ -44,8 +49,10 @@ class RobotSystem:
                 logger.debug(f' Max sensor read {max(self.stopwatch_i2c.get_execution_times())}')
 
             #TODO Fuse sensor data or create a robot state estimate
-            # Use 
-        
+            # Imported library from fusion/fusion.py which pulls from https://github.com/xioTechnologies/Fusion
+            euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
+            self.gx_test = self.gx_test + .01*gx #integrate the new reading to test gyro drift
+            
             #TODO Check for new commands in receive queue 
                 # remote changes to robot parameters)     
                 
@@ -59,7 +66,11 @@ class RobotSystem:
             #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
-                
+                self.send_euler_angles(euler_angles)
+                print(f'Euler angles {euler_angles}')
+                print(f'gyro integral = {self.gx_test}')
+                print(f'accel_error = {internal_states[0]}')
+                  
             self.send_loop_time(loop_period*1e6)
 
             end_time = loop_start_time + RobotSystem.LOOP_TIME
@@ -95,6 +106,15 @@ class RobotSystem:
             "gyro_x" : gx,
             "gyro_y" : gy,
             "gyro_z" : gz,
+        }
+        self.send_queue.put((topic, data))
+        
+    def send_euler_angles(self, euler_angles):
+        topic = "robot/state/angles"
+        data = {
+            "euler_x": float(euler_angles[0]),  # Convert to Python float
+            "euler_y": float(euler_angles[1]),  # Convert to Python float
+            "euler_z": float(euler_angles[2])   # Convert to Python float
         }
         self.send_queue.put((topic, data))
     
