@@ -86,7 +86,7 @@ class RobotSystem:
         while True:
             now = time.time()
             remaining = end_time - now
-            if remaining <= 0.0005:
+            if remaining <= 0.0007:
                 break
             time.sleep(remaining / 2)
             
