@@ -71,6 +71,9 @@ class RobotSystem:
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
+
+                logger.debug(f'gyro integral = {self.gx_test}')
+                logger.debug(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
 
@@ -87,7 +90,7 @@ class RobotSystem:
         while True:
             now = time.time()
             remaining = end_time - now
-            if remaining <= 0.0005:
+            if remaining <= 0.0007:
                 break
             time.sleep(remaining / 2)
             
