@@ -1,8 +1,10 @@
 import time
 from icm20948.lib.imu_lib import ICM20948
-from fusion.fusion import AHRSfusion
+from fusion.AHRSfusion import AHRSfusion
 import robot.LoopTimer as lt  
+from motors.MN6007 import MN6007
 import logging
+
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -22,7 +24,7 @@ class RobotSystem:
         self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1/self.LOOP_TIME))
 
         #TODO Initialize all actuators
-        self.xmotor = None
+        self.xmotor = MN6007()
         self.ymotor = None
         self.zmotor = None
 
@@ -59,6 +61,8 @@ class RobotSystem:
             #TODO Update robot state and parameters
             
             #TODO Process a control decision using agent
+            q = self.xmotor.set_position(self.itr, 0)
+            print(q)
             
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
@@ -67,9 +71,6 @@ class RobotSystem:
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
-                print(f'Euler angles {euler_angles}')
-                print(f'gyro integral = {self.gx_test}')
-                print(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
 
@@ -127,5 +128,6 @@ class RobotSystem:
 
     def shutdown(self):
         # Shutdown the robot system 
-        self.imu.close()      
+        self.imu.close()     
+        self.xmotor.stop() 
         pass
