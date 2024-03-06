@@ -207,7 +207,7 @@ class ICM20948:
         
         # Log the DLPF configuration setting
         logger.debug(f"Setting accel low pass filter to {dlpfcfg_vals[self._accel_LPF_CFG]} Hz" 
-                    f" with {'enabled' if self._accel_LPF else 'disabled'} DLPF")
+                    f" with {'ENABLED' if self._accel_LPF else 'DISABLED'} DLPF")
         
         try:
             self.select_register_bank(2)
@@ -230,20 +230,34 @@ class ICM20948:
         except Exception as e:
             logger.error(f"Error setting accel low pass filter: {e}")
               
-    def set_gyro_range(self, gyro_range=250):
-        """Set the range of the gyroscope"""
+    def set_gyro_range(self, gyro_range=250):                
         if gyro_range not in [250, 500, 1000, 2000]:
             raise ValueError("Gyro range must be 250, 500, 1000, or 2000")
-        self._gyro_range = gyro_range
+        self._gyro_range = gyro_range 
         logger.debug(f"Setting gyro range to {self._gyro_range}")
+        
+        # Data sheet mapping of the ACCEL_FS_SEL bits
+        fs_sel_values = {
+            250:  0b00,  # ±250deg/s
+            500:  0b01,  # ±500deg/s
+            1000: 0b10,  # ±1000deg/s 
+            2000: 0b11  # ±2000deg/s
+            }       
+        fs_sel = fs_sel_values[gyro_range] 
         
         try:
             self.select_register_bank(2)
-            time.sleep(.001)
-            self.write(self.reg.GYRO_CONFIG_1, self._gyro_range)  
-        except Exception as e:
-            logger.error(f"Error setting gyro range: {e}")
+            # Read the current value of the GYRO_CONFIG register
+            reg_read = self.read(self.reg.GYRO_CONFIG_1)            
+            # Clear the ACCEL_FS_SEL bits (2:1) and set them according to the calculated value
+            reg_val = (reg_read & 0b11111001) | (fs_sel << 1) 
+            logger.debug(f"Setting gyro range register to {reg_val:02X}")
             
+            # Write the new configuration back to the GYRO_CONFIG register
+            self.write(self.reg.GYRO_CONFIG_1, reg_val)
+        except Exception as e:
+            logger.error(f"Error setting gyro range: {e}")          
+                          
     def set_gyro_LPF(self, dlpf_cfg=0, enable=True):
         """Enable or disable the gyroscope low pass filter and set its configuration.
 
