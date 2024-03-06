@@ -67,9 +67,9 @@ class RobotSystem:
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
-                print(f'Euler angles {euler_angles}')
-                print(f'gyro integral = {self.gx_test}')
-                print(f'accel_error = {internal_states[0]}')
+
+                logger.debug(f'gyro integral = {self.gx_test}')
+                logger.debug(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
 
