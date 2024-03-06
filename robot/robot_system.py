@@ -1,6 +1,6 @@
 import time
 from icm20948.lib.imu_lib import ICM20948
-from fusion.fusion import AHRSfusion
+from fusion.AHRSfusion import AHRSfusion
 import robot.LoopTimer as lt  
 import logging
 
