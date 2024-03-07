@@ -27,6 +27,8 @@ def setup_logging():
     logging.config.fileConfig(logging_ini_path, disable_existing_loggers=False)
 
 def start_mqtt_process(telemetry_queue, command_queue):
+    # Set a lower real-time priority for this process
+    set_realtime_priority(priority=70)
     mqtt_client = MQTTClient(telemetry_queue, command_queue)
     mqtt_client.start()  # This should be a blocking call that runs the MQTT client
 

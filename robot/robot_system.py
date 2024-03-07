@@ -62,7 +62,6 @@ class RobotSystem:
             
             #TODO Process a control decision using agent
             q = self.xmotor.set_position(self.itr, 0)
-            print(q)
             
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
@@ -72,8 +71,8 @@ class RobotSystem:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
 
-                logger.debug(f'gyro integral = {self.gx_test}')
-                logger.debug(f'accel_error = {internal_states[0]}')
+                # logger.debug(f'gyro integral = {self.gx_test}')
+                # logger.debug(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
 
