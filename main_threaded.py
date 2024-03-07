@@ -1,7 +1,6 @@
 import os
 import ctypes
-import queue
-import threading
+import multiprocessing
 from robot.robot_system import RobotSystem
 from communication.mqtt import MQTTClient
 import logging.config
@@ -27,6 +26,9 @@ def setup_logging():
     # Use the logging_ini_path to load the configuration (edit this file to configure logger settings)
     logging.config.fileConfig(logging_ini_path, disable_existing_loggers=False)
 
+def start_mqtt_process(telemetry_queue, command_queue):
+    mqtt_client = MQTTClient(telemetry_queue, command_queue)
+    mqtt_client.start()  # This should be a blocking call that runs the MQTT client
 
 def main():
     setup_logging()
@@ -36,34 +38,30 @@ def main():
     # Escalate the process priority to max level
     set_realtime_priority()
 
-    # Create thread-safe queues for MQTT communication
-    telemetry_queue = queue.Queue()
-    command_queue = queue.Queue()
+    # Use multiprocessing.Manager to create queues that can be shared between processes
+    manager = multiprocessing.Manager()
+    telemetry_queue = manager.Queue()
+    command_queue = manager.Queue()
 
-    # Initialize MQTT client and robot system with queues
-    # The Queues act as inter-thread communication buffers
-    mqtt_client = MQTTClient(telemetry_queue, command_queue)
     robot = RobotSystem(telemetry_queue, command_queue)
+    # Start the MQTT communication in its own process
+    mqtt_process = multiprocessing.Process(target=start_mqtt_process, 
+                                            args=(telemetry_queue, 
+                                            command_queue), 
+                                            daemon=True)
+    mqtt_process.start()
 
-    # Start the control loop and MQTT communication in their own daemon threads
-    # This calls the start method in each of them serving as thread entry point
-    # See the start method in each class for implementation
-    control_thread = threading.Thread(target=robot.start, daemon=True)
-    mqtt_thread = threading.Thread(target=mqtt_client.start, daemon=True)
-    control_thread.start()
-    mqtt_thread.start()
-
+    # Start the control loop in the main process (or as a thread if required)
     try:
-        # Use thread.join() with a timeout to keep the main thread responsive
-        while True:
-            control_thread.join(timeout=1)
-            mqtt_thread.join(timeout=1)
+        robot.start()  # Assuming this is a blocking call; otherwise, handle it similarly to mqtt_client
     except KeyboardInterrupt:
         logger.info("Shutdown signal received")
     finally:
         # Perform necessary cleanup
         robot.shutdown()
-        mqtt_client.shutdown()
+        # Terminate the MQTT process
+        mqtt_process.terminate()
+        mqtt_process.join()
         logger.info("Cleanup complete. Exiting program.")
 
 if __name__ == '__main__':
