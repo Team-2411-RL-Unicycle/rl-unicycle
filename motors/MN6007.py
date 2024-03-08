@@ -1,21 +1,46 @@
 import time
 import moteus
+from moteus.moteus import Register 
+import math
+import asyncio
 import logging
+
 
 # Create a logger
 logger = logging.getLogger(__name__)
 
 class MN6007:
-    MAX_ALLOWABLE_ACCEL = 3.0
-    MAX_ALLOWABLE_VEL = 8.0
-    def __init__(self):
-        self.controller = moteus.Controller(transport=None)
-
-    def start(self):
-        # Clear faults
-        self.controller.set_stop()
+    MAX_ALLOWABLE_ACCEL = 20.0
+    MAX_ALLOWABLE_VEL = 20.0
         
-    def set_position(self, position, velocity, accel_limit = 3.0, velocity_limit = 8.0, query = True):
+    def __init__(self):
+        # Transport = None searches out for the first available CANFD Device
+        self._c = moteus.Controller(transport=None)        
+        # Motor system state (Dictionary of register values)
+        self.state = None        
+
+    async def start(self):
+        # Clear faults
+        await self._c.set_stop()
+        
+    async def update_state(self):
+        # Query the motor state
+        state = await self._c.set_position(position=math.nan, query=True)
+        # Parse the state and update the motor object's state
+        self.parse_state(state)
+        
+    def parse_state(self, result):
+            # Convert the Result object's values to a dictionary and update the state
+            self.state = {Register(key).name: value for key, value in result.values.items()}
+            
+    def formatted_state(self):
+        formatted_state = "MODE: {MODE: >4}, POSITION: {POSITION: >7.4f}, VELOCITY: {VELOCITY: >7.4f}, " \
+                          "TORQUE: {TORQUE: >7.4f}, VOLTAGE: {VOLTAGE: >5.1f}, TEMPERATURE: {TEMPERATURE: >5.1f}, " \
+                          "FAULT: {FAULT: >4}".format(**self.state)
+
+        return formatted_state
+    
+    async def set_position(self, position, velocity, accel_limit = 3.0, velocity_limit = 8.0, query = True):
         '''
         Send a position or velocity command to the motor
         '''
@@ -26,7 +51,7 @@ class MN6007:
             velocity_limit = self.MAX_ALLOWABLE_VEL
             logger.warning(f'Velocity limit set too high. Setting to {self.MAX_ALLOWABLE_VEL}')
     
-        feedback = self.controller.set_position(
+        feedback = await self._c.set_position(
             position=position,
             velocity=velocity,
             accel_limit=accel_limit,
@@ -34,14 +59,51 @@ class MN6007:
             query=query,
         )
         
+        self.parse_state(feedback)
+        
         return feedback
 
-    def stop(self):
+    async def stop(self):
         # Ensure controller is stopped and resources are cleaned up properly
-        if self.controller:
-            self.controller.set_stop()
+        if self._c:
+            await self._c.set_stop()
 
-# Usage
+
+async def test_loop(actuator):
+    while True:
+        
+        await actuator.update_state()
+        await asyncio.sleep(.1)
+        print(actuator.formatted_state())
+    
+
+
+async def main(actuator):
+    await actuator.start()   
+
+    iter = 0.0
+    while True:
+        iter = iter + 1
+        setpoint = iter * .01
+        results = await actuator.set_position(
+            position=setpoint,
+            velocity=0
+        )
+        results = actuator.parse_state(results)
+        print(actuator.formatted_state())
+        await asyncio.sleep(0.01)
+
+# Test usage
 if __name__ == '__main__':
     actuator = MN6007()
-    actuator.start()
+    loop = asyncio.get_event_loop()
+    
+    try:
+        loop.run_until_complete(main(actuator))
+    except KeyboardInterrupt:
+        print("Exiting...")
+        # Since loop.run_until_complete is no longer running here, we cannot use 'await' directly
+        # We need to create a new task to run the stop coroutine
+        loop.run_until_complete(actuator.stop())
+    finally:
+        loop.close()

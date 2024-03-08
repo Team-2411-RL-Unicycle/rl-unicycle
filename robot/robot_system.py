@@ -2,6 +2,7 @@ import time
 from icm20948.lib.imu_lib import ICM20948
 from fusion.AHRSfusion import AHRSfusion
 import robot.LoopTimer as lt  
+import moteus
 from motors.MN6007 import MN6007
 import logging
 
@@ -22,21 +23,22 @@ class RobotSystem:
         
         # Init sensor fusion
         self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1/self.LOOP_TIME))
-
-        #TODO Initialize all actuators
+        
+        #Initialize all actuators
         self.xmotor = MN6007()
-        self.ymotor = None
-        self.zmotor = None
-
+        
+        # Performance monitoring        
+        self.stopwatch_i2c = lt.LoopTimer(550)        
+        self.gx_integral = 0
+        
         self.itr = int(0)  # Cycle counter
-        self.stopwatch_i2c = lt.LoopTimer(550)
         
-        self.gx_test = 0
-        
-    def start(self):
-        self.control_loop()
+    async def start(self):
+        # Init actuators
+        await self.xmotor.start()
+        await self.control_loop()
 
-    def control_loop(self):
+    async def control_loop(self):
         loop_period = .01
         while True:
             loop_start_time = time.time()
@@ -53,23 +55,26 @@ class RobotSystem:
             #TODO Fuse sensor data or create a robot state estimate
             # Imported library from fusion/fusion.py which pulls from https://github.com/xioTechnologies/Fusion
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
-            self.gx_test = self.gx_test + .01*gx #integrate the new reading to test gyro drift
-            
+            self.gx_integral = self.gx_integral + .01*gx #integrate the new reading to test gyro drift
+                  
             #TODO Check for new commands in receive queue 
-                # remote changes to robot parameters)     
+            self.recieve_commands()  
                 
             #TODO Update robot state and parameters
-            
+         
             #TODO Process a control decision using agent
-            q = self.xmotor.set_position(self.itr, 0)
-            
+            # Match a proportional response to the detected angle
+            setpoint = euler_angles[0] / 360
+                        
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
+            await self.xmotor.set_position(position=setpoint, velocity=0, accel_limit = 20)
             
             #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
+                self.send_motor_state(self.xmotor.state)
 
                 # logger.debug(f'gyro integral = {self.gx_test}')
                 # logger.debug(f'accel_error = {internal_states[0]}')
@@ -99,6 +104,13 @@ class RobotSystem:
             if delay >= 0:
                 return delay
             
+    async def shutdown(self):
+        # Shutdown the robot system 
+        self.imu.close()     
+        await self.xmotor.stop() 
+            
+    ############# IN/OUT Interface ################################ 
+    #TODO Move all this communication interface to a different file 
             
     def send_imu_data(self, ax, ay, az, gx, gy, gz):
         topic = "robot/sensors/imu"
@@ -116,10 +128,15 @@ class RobotSystem:
         topic = "robot/state/angles"
         data = {
             "euler_x": float(euler_angles[0]),  # Convert to Python float
-            "euler_y": float(euler_angles[1]),  # Convert to Python float
-            "euler_z": float(euler_angles[2])   # Convert to Python float
+            "euler_y": float(euler_angles[1]),  
+            "euler_z": float(euler_angles[2])   
         }
         self.send_queue.put((topic, data))
+        
+    def send_motor_state(self, motor_state):
+            topic = "robot/sensors/motor"
+            data = motor_state        
+            self.send_queue.put((topic, data))
     
     def send_loop_time(self, loop_time):
         topic = "robot/control/loop_time"
@@ -127,9 +144,14 @@ class RobotSystem:
             "loop_time": loop_time
         }
         self.send_queue.put((topic, data))      
+        
+    def recieve_commands(self):
+        while not self.receive_queue.empty():
+            message = self.receive_queue.get()
+            #TODO Add a message handler to perform actions based on message
+            
+            logger.info(f'Command recieved: {message}')
+            self.receive_queue.task_done()
 
-    def shutdown(self):
-        # Shutdown the robot system 
-        self.imu.close()     
-        self.xmotor.stop() 
-        pass
+
+

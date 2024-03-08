@@ -1,6 +1,7 @@
 import os
 import ctypes
 import multiprocessing
+import asyncio
 from robot.robot_system import RobotSystem
 from communication.mqtt import MQTTClient
 import logging.config
@@ -54,17 +55,20 @@ def main():
     mqtt_process.start()
 
     # Start the control loop in the main process (or as a thread if required)
+    loop = asyncio.get_event_loop()
     try:
-        robot.start()  # Assuming this is a blocking call; otherwise, handle it similarly to mqtt_client
+        # Schedule and run the RobotSystem.start coroutine
+        loop.run_until_complete(robot.start())
     except KeyboardInterrupt:
         logger.info("Shutdown signal received")
     finally:
-        # Perform necessary cleanup
-        robot.shutdown()
+        # Schedule and run the RobotSystem.shutdown coroutine
+        loop.run_until_complete(robot.shutdown())
         # Terminate the MQTT process
         mqtt_process.terminate()
         mqtt_process.join()
         logger.info("Cleanup complete. Exiting program.")
+        loop.close()
 
 if __name__ == '__main__':
     main()
