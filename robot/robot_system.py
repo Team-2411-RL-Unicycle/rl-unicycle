@@ -41,6 +41,7 @@ class RobotSystem:
     async def control_loop(self):
         loop_period = .01
         while True:
+            # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
 
@@ -56,19 +57,21 @@ class RobotSystem:
             # Imported library from fusion/fusion.py which pulls from https://github.com/xioTechnologies/Fusion
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
             self.gx_integral = self.gx_integral + .01*gx #integrate the new reading to test gyro drift
-                  
-            #TODO Check for new commands in receive queue 
-            self.recieve_commands()  
                 
             #TODO Update robot state and parameters
          
             #TODO Process a control decision using agent
             # Match a proportional response to the detected angle
-            setpoint = euler_angles[0] / 360
+            
                         
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
-            await self.xmotor.set_position(position=setpoint, velocity=0, accel_limit = 20)
+            # SET POSITION
+            # setpoint = euler_angles[0] / 360
+            # await self.xmotor.set_position(position=setpoint, velocity=0, accel_limit = 200)
+            # SET TORQUE
+            setpoint = 0.2 * euler_angles[0] / 360
+            await self.xmotor.set_torque(torque=setpoint)
             
             #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
@@ -80,6 +83,9 @@ class RobotSystem:
                 # logger.debug(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
+            
+            #TODO Check for new commands in receive queue 
+            self.recieve_commands()  
 
             end_time = loop_start_time + RobotSystem.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
