@@ -2,8 +2,8 @@ import asyncio
 import math
 import moteus
 
-async def main():
-    c = moteus.Controller()
+async def main(c):
+
     await c.set_stop()
 
     while True:
@@ -19,9 +19,17 @@ async def main():
         # at least every 100ms or the controller will fault
         await asyncio.sleep(0.05)
 
+async def stop(c):
     await c.set_stop()
-
+    
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    c = moteus.Controller()
+    try: 
+        asyncio.run(main(c))
+    except KeyboardInterrupt: 
+        asyncio.run(stop(c))
+        print("Exiting...")
+        
+        
 
