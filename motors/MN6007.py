@@ -35,20 +35,33 @@ class MN6007:
         """
         try:
             await asyncio.wait_for(self._c.set_stop(), self.TIMEOUT_SECONDS)
-            logger.info("Motor initialized successfully")
+            logger.info("Canfd communication started")
         except asyncio.TimeoutError:
             logger.error("Failed to initialize motor: Timeout while connecting to the moteus driver. Please check the connection.")
             # Initiate robot shutdown sequence here or raise an exception to be handled by the caller
             self.stop()
             raise RuntimeError("Failed to initialize motor: Operation timed out.")
+        
+        await self.update_state()
 
         
     async def update_state(self):
-        # Query the motor state
-        # Throw exception if stuck in await function
-        state = await self._c.set_position(position=math.nan, query=True)
-        # Parse the state and update the motor object's state
-        self.parse_state(state)
+        """
+        Queries and updates the motor state. If the operation does not complete
+        within the specified timeout, logs an error and raises a TimeoutError.
+
+        Raises:
+            asyncio.TimeoutError: If the operation times out.
+        """
+        try:
+            state = await asyncio.wait_for(
+                self._c.set_position(position=math.nan, query=True),
+                self.TIMEOUT_SECONDS
+            )
+            self.parse_state(state)
+        except asyncio.TimeoutError:
+            logger.error("Failed to update motor state: Operation timed out.")
+            raise  # Re-raise the exception for the caller to handle
                 
     def parse_state(self, result):
         # Convert the Result object's values to a dictionary and update the state
@@ -84,30 +97,62 @@ class MN6007:
         
         return feedback
     
-    async def set_torque(self, torque = 0.0, min_torque = -0.3, max_torque = 0.3, query = True):
-        '''
-        Send a torque command to the motor
-        '''
+    async def set_torque(self, torque=0.0, min_torque=-0.3, max_torque=0.3, query=True):
+        """
+        Sends a torque command to the motor. If the operation does not complete within the
+        specified timeout, logs an error and raises a TimeoutError.
+
+        Args:
+            torque: Desired torque for the motor.
+            min_torque: Minimum allowable torque.
+            max_torque: Maximum allowable torque.
+            query: Whether to query the motor state after setting the torque.
+
+        Raises:
+            asyncio.TimeoutError: If the operation times out.
+        """
         if abs(torque) > self.MAX_ALLOWABLE_TORQUE:
-            logger.warning(f'Torque set outside bounds. Attempted to set to {torque:.2f}N*m. Setting to {self.MAX_ALLOWABLE_TORQUE * (1 if torque > 0.0 else -1)}')
-            torque = self.MAX_ALLOWABLE_TORQUE * (1 if torque > 0.0 else -1)
-        feedback = await self._c.set_position(
-            position=math.nan,
-            kp_scale=0.0,
-            kd_scale=0.0,
-            feedforward_torque=torque,
-            maximum_torque=self.MAX_ALLOWABLE_TORQUE,     
-            query=query,
-        )
-        
-        self.parse_state(feedback)
-        
-        return feedback
+            error_msg = f'Torque set outside bounds. Attempted to set to {torque:.2f}N*m. Bounds are +/- {self.MAX_ALLOWABLE_TORQUE}'
+            logger.error(error_msg)
+            # Something went wrong, turn off the motor and robot
+            self.stop()
+            raise ValueError(error_msg)
+
+        try:
+            feedback = await asyncio.wait_for(
+                self._c.set_position(
+                    position=math.nan,
+                    kp_scale=0.0,
+                    kd_scale=0.0,
+                    feedforward_torque=torque,
+                    maximum_torque=self.MAX_ALLOWABLE_TORQUE,
+                    query=query,
+                ),
+                self.TIMEOUT_SECONDS
+            )
+            self.parse_state(feedback)
+        except asyncio.TimeoutError:
+            logger.error("Failed to set motor torque: Operation timed out.")
+            raise  # Re-raise the exception for the caller to handle
 
     async def stop(self):
-        # Ensure controller is stopped and resources are cleaned up properly
-        if self._c:
-            await self._c.set_stop()
+            # Ensure controller is stopped and resources are cleaned up properly
+            if self._c:
+                attempts = 0
+                max_attempts = 3  # Try stopping multiple times if failed to stop
+
+                while attempts < max_attempts:
+                    try:
+                        await asyncio.wait_for(self._c.set_stop(), self.TIMEOUT_SECONDS)
+                        logger.debug("Motor successfully stopped")
+                        break  # Exit the loop if the stop operation was successful
+                    except asyncio.TimeoutError:
+                        attempts += 1  # Increment the attempt counter
+                        logger.error(f"Motor stop operation timed out, attempt {attempts} of {max_attempts}")
+
+                        if attempts == max_attempts:
+                            logger.critical("Failed to stop the motor after multiple attempts")
+                            raise
 
 ##################################################################
 # Testing functions
