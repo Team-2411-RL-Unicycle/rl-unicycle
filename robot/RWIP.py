@@ -2,7 +2,6 @@ import time
 from icm20948.lib.imu_lib import ICM20948
 from fusion.AHRSfusion import AHRSfusion
 import robot.LoopTimer as lt  
-import moteus
 from motors.MN6007 import MN6007
 import logging
 
@@ -27,8 +26,7 @@ class RobotSystem:
         #Initialize all actuators
         self.xmotor = MN6007()
         
-        # Performance monitoring        
-        self.stopwatch_i2c = lt.LoopTimer(550)        
+        # Performance monitoring            
         self.gx_integral = 0
         
         self.itr = int(0)  # Cycle counter
@@ -41,45 +39,39 @@ class RobotSystem:
     async def control_loop(self):
         loop_period = .01
         while True:
+            # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
-
-            self.stopwatch_i2c.start()
-            ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
-            self.stopwatch_i2c.stop()    
             
-            if self.itr % 500 == 0:
-                logger.debug(f'Average sensor read {self.stopwatch_i2c.average_time()}')
-                logger.debug(f' Max sensor read {max(self.stopwatch_i2c.get_execution_times())}')
-
+            # Poll the imu for positional data
+            ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
+            
             #TODO Fuse sensor data or create a robot state estimate
             # Imported library from fusion/fusion.py which pulls from https://github.com/xioTechnologies/Fusion
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
             self.gx_integral = self.gx_integral + .01*gx #integrate the new reading to test gyro drift
-                  
-            #TODO Check for new commands in receive queue 
-            self.recieve_commands()  
                 
             #TODO Update robot state and parameters
          
             #TODO Process a control decision using agent
-            # Match a proportional response to the detected angle
-            setpoint = euler_angles[0] / 360
+            # Match a proportional response to the detected angle           
                         
             ## FIXED TIME EVENT (50-70% of way through loop period)
             #TODO Apply control decision to robot actuators
-            await self.xmotor.set_position(position=setpoint, velocity=0, accel_limit = 20)
+            # SET TORQUE
+            setpoint = 0.2 * euler_angles[0] / 360
+            await self.xmotor.set_torque(torque=setpoint)
             
             #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
                 self.send_motor_state(self.xmotor.state)
-
-                # logger.debug(f'gyro integral = {self.gx_test}')
-                # logger.debug(f'accel_error = {internal_states[0]}')
                   
             self.send_loop_time(loop_period*1e6)
+            
+            #TODO Check for new commands in receive queue 
+            self.recieve_commands()  
 
             end_time = loop_start_time + RobotSystem.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)

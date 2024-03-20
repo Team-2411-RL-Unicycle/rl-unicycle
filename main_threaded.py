@@ -2,7 +2,7 @@ import os
 import ctypes
 import multiprocessing
 import asyncio
-from robot.robot_system import RobotSystem
+from robot.RWIP import RobotSystem
 from communication.mqtt import MQTTClient
 import logging.config
 
