@@ -14,16 +14,34 @@ class MN6007:
     MAX_ALLOWABLE_ACCEL = 200.0
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 0.1 # Set low for now
+    TIMEOUT_SECONDS = .1 #Seconds
         
     def __init__(self):
         # Transport = None searches out for the first available CANFD Device
-        self._c = moteus.Controller(transport=None)        
+        self._c = moteus.Controller(transport=None)  
+        logger.debug(f'Connected to Motor Controller: {self._c}')      
         # Motor system state (Dictionary of register values)
         self.state = None        
 
     async def start(self):
-        # Clear faults
-        await self._c.set_stop()
+        """
+        Attempts to clear any existing faults and initialize the motor. If the motor
+        fails to respond within a predefined timeout, it logs an error and raises
+        a RuntimeError to indicate the failure to start the motor, triggering a
+        shutdown sequence for safety.
+
+        Raises:
+            RuntimeError: If the motor cannot be initialized within the timeout period.
+        """
+        try:
+            await asyncio.wait_for(self._c.set_stop(), self.TIMEOUT_SECONDS)
+            logger.info("Motor initialized successfully")
+        except asyncio.TimeoutError:
+            logger.error("Failed to initialize motor: Timeout while connecting to the moteus driver. Please check the connection.")
+            # Initiate robot shutdown sequence here or raise an exception to be handled by the caller
+            self.stop()
+            raise RuntimeError("Failed to initialize motor: Operation timed out.")
+
         
     async def update_state(self):
         # Query the motor state

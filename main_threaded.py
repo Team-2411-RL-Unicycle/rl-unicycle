@@ -1,3 +1,4 @@
+import argparse
 import os
 import ctypes
 import multiprocessing
@@ -32,8 +33,17 @@ def start_mqtt_process(telemetry_queue, command_queue):
     set_realtime_priority(priority=70)
     mqtt_client = MQTTClient(telemetry_queue, command_queue)
     mqtt_client.start()  # This should be a blocking call that runs the MQTT client
+    
+def parse_args():
+    # Setup command-line argument parsing
+    parser = argparse.ArgumentParser(description="Start the robot system with optional motor control.")
+    parser.add_argument("-m", "--no-motors", action="store_true",
+                        help="Do not start the motors of the robot system.")
+    args = parser.parse_args()
+    return args
 
 def main():
+    args = parse_args()
     setup_logging()
     logger = logging.getLogger()
     logger.debug("Logger initalized")
@@ -46,7 +56,8 @@ def main():
     telemetry_queue = manager.Queue()
     command_queue = manager.Queue()
 
-    robot = RobotSystem(telemetry_queue, command_queue)
+    # Initialize the robot with the command-line argument
+    robot = RobotSystem(telemetry_queue, command_queue, start_motors=not args.no_motors)
     # Start the MQTT communication in its own process
     mqtt_process = multiprocessing.Process(target=start_mqtt_process, 
                                             args=(telemetry_queue, 

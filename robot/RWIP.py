@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class RobotSystem:
     LOOP_TIME = 1/100  # 100 Hz control loop period
 
-    def __init__(self, send_queue, receive_queue):       
+    def __init__(self, send_queue, receive_queue, start_motors=True):       
         self.send_queue = send_queue
         self.receive_queue = receive_queue
 
@@ -24,7 +24,10 @@ class RobotSystem:
         self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1/self.LOOP_TIME))
         
         #Initialize all actuators
-        self.xmotor = MN6007()
+        if start_motors:
+            self.xmotor = MN6007()
+        else:
+            self.xmotor = None
         
         # Performance monitoring            
         self.gx_integral = 0
@@ -33,7 +36,8 @@ class RobotSystem:
         
     async def start(self):
         # Init actuators
-        await self.xmotor.start()
+        if self.xmotor is not None:
+            await self.xmotor.start()
         await self.control_loop()
 
     async def control_loop(self):
@@ -60,13 +64,15 @@ class RobotSystem:
             #TODO Apply control decision to robot actuators
             # SET TORQUE
             setpoint = 0.2 * euler_angles[0] / 360
-            await self.xmotor.set_torque(torque=setpoint)
+            if self.xmotor is not None:
+                await self.xmotor.set_torque(torque=setpoint)
             
             #TODO Send all robot information to mqtt comms thread              
             if (self.itr % 20) == 0:
                 self.send_imu_data(ax, ay, az, gx, gy, gz)
                 self.send_euler_angles(euler_angles)
-                self.send_motor_state(self.xmotor.state)
+                if self.xmotor is not None:
+                    self.send_motor_state(self.xmotor.state)
                   
             self.send_loop_time(loop_period*1e6)
             
