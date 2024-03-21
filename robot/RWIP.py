@@ -10,16 +10,41 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RobotSystem:
-    LOOP_TIME = 1/100  # 100 Hz control loop period
+    """
+    The RobotSystem class manages the core functionalities of a robot, including initializing sensors,
+    actuators, and handling the control loop for real-time operations.
 
-    def __init__(self, send_queue, receive_queue, start_motors=True):       
-        self.send_queue = send_queue
-        self.receive_queue = receive_queue
+    Attributes:
+        LOOP_TIME (float): The fixed period for the control loop in seconds (e.g., 0.01 for 100Hz).
+        robot_io (RobotIO): The RobotIO instance for handling input/output operations.
+        imu (ICM20948): The IMU sensor instance.
+        sensor_fusion (AHRSfusion): The sensor fusion algorithm instance for processing IMU data.
+        xmotor (MN6007 or None): The motor controller instance, if motors are started.
+        itr (int): An iteration counter for the control loop.
+
+    Methods:
+        start(): Initializes actuators and starts the control loop.
+        shutdown(): Safely shuts down the robot system, including sensors and actuators.
+        handle_power_command(value: bool): Handles power on/off commands.
+        handle_pid_command(value): Handles PID control commands.
+        control_loop(): The main control loop for the robot, executed at a fixed rate.
+        precise_delay_until(end_time): Delays execution until a specified end time to maintain loop timing.
+    """
+    LOOP_TIME = 1/100  # 100 Hz control loop period
+    WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
+
+    def __init__(self, send_queue, receive_queue, start_motors=True):
+        # Setup the communication queues and the input output over internet system       
+        self.robot_io = RobotIO(send_queue, receive_queue, {
+            'power': self.handle_power_command,
+            'P': self.handle_pid_command,
+            'I': self.handle_pid_command,
+            'D': self.handle_pid_command,
+        })
 
         # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
         imu1 = 'imu1.ini'
-        self.imu = ICM20948(config_file=imu1)
-        
+        self.imu = ICM20948(config_file=imu1)        
         # Init sensor fusion
         self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1/self.LOOP_TIME))
         
@@ -29,18 +54,22 @@ class RobotSystem:
         else:
             self.xmotor = None
         
-        # Performance monitoring            
-        self.gx_integral = 0
-        
         self.itr = int(0)  # Cycle counter
         
     async def start(self):
+        """
+        Initializes actuators and starts the control loop.
+        """
         # Init actuators
         if self.xmotor is not None:
             await self.xmotor.start()
         await self.control_loop()
-
+    
     async def control_loop(self):
+        """
+        The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
+        and actuator commands at a fixed rate defined by LOOP_TIME.
+        """
         loop_period = .01
         while True:
             # Start Loop Timer and increment loop iteration
@@ -50,38 +79,82 @@ class RobotSystem:
             # Poll the imu for positional data
             ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
             
-            #TODO Fuse sensor data or create a robot state estimate
-            # Imported library from fusion/fusion.py which pulls from https://github.com/xioTechnologies/Fusion
+            # Fuse sensor data
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
-            self.gx_integral = self.gx_integral + .01*gx #integrate the new reading to test gyro drift
                 
-            #TODO Update robot state and parameters
+            # Update robot state and parameters
+            if self.xmotor is not None:
+                await self.xmotor.update_state()
          
             #TODO Process a control decision using agent
-            # Match a proportional response to the detected angle           
+            # Match a proportional response to the detected angle 
+            setpoint = 0.2 * euler_angles[0] / 360          
                         
-            ## FIXED TIME EVENT (50-70% of way through loop period)
-            #TODO Apply control decision to robot actuators
+            ## DELAY UNTIL FIXED POINT ##
+            self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
+            
+            # Apply control decision to robot actuators
             # SET TORQUE
-            setpoint = 0.2 * euler_angles[0] / 360
             if self.xmotor is not None:
-                await self.xmotor.set_torque(torque=setpoint)
-            
-            #TODO Send all robot information to mqtt comms thread              
+                await self.xmotor.set_torque(torque=setpoint)            
+                            
+            ### SEND COMMS ###
+            #TODO Refactor this to use generic send function with topic and kwargs
+            # Send out all data downsampled to lower rate              
             if (self.itr % 20) == 0:
-                self.send_imu_data(ax, ay, az, gx, gy, gz)
-                self.send_euler_angles(euler_angles)
+                self.robot_io.send_imu_data(ax, ay, az, gx, gy, gz)
+                self.robot_io.send_euler_angles(euler_angles)
                 if self.xmotor is not None:
-                    self.send_motor_state(self.xmotor.state)
+                    self.robot_io.send_motor_state(self.xmotor.state)
                   
-            self.send_loop_time(loop_period*1e6)
-            
-            #TODO Check for new commands in receive queue 
-            self.recieve_commands()  
+            self.robot_io.send_loop_time(loop_period*1e6)
+                    
+            ### RECEIVE COMMS ###
+            # Check for and handle new commands sent in via MQTT    
+            self.robot_io.receive_commands()
 
+            ### CLOSE LOOP DELAY ###
             end_time = loop_start_time + RobotSystem.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
+        
+    async def shutdown(self):
+        """
+        Safely shuts down the robot system, including closing sensor interfaces and stopping actuators. 
+        """
+        self.imu.close()     
+        if self.xmotor is not None:
+            await self.xmotor.stop() 
+
+    #TODO Handle the on/off power commands        
+    def handle_power_command(self, command: str, value: bool):
+        """
+        Handles power on/off commands for the robot.
+
+        Args:
+            value (bool): True to power on the robot, False to power off.
+        """
+        # Ensure the value is a boolean
+        if isinstance(value, bool):
+            if value:
+                # Code to execute if the power command is True (e.g., turn on the robot)
+                # print(f'Powering on the robot, value is {value}')
+                pass
+            else:
+                # Code to execute if the power command is False (e.g., turn off the robot)
+                # print(f'Powering off the robot, value is {value}')
+                pass
+        else:
+            # Log an error or handle the case where the value is not a boolean
+            logger.error(f"Expected a boolean for the power command, but got: {value}")
+
+
+    def handle_pid_command(self, command: str, value: float):
+        #TODO Handle PID command, change robot state as needed
+        # Command comes in as P, I, or D
+        # This likely will be offloaded to the PID controller if one is enabled        
+        pass
+
 
     def precise_delay_until(self, end_time):
         """
@@ -101,14 +174,48 @@ class RobotSystem:
             delay = time.time() - end_time
             if delay >= 0:
                 return delay
-            
-    async def shutdown(self):
-        # Shutdown the robot system 
-        self.imu.close()     
-        await self.xmotor.stop() 
+
             
     ############# IN/OUT Interface ################################ 
-    #TODO Move all this communication interface to a different file 
+    
+class RobotIO:
+    """
+    The RobotIO class handles all input/output operations for the robot, including sending sensor data,
+    state information, and receiving and processing commands.
+
+    Attributes:
+        send_queue: The queue used for sending data and messages to other system components.
+        receive_queue: The queue used for receiving commands and messages from other system components.
+        command_callbacks (dict): A dictionary mapping command strings to their handling methods.
+    """    
+    
+    def __init__(self, send_queue, receive_queue, callback: dict) -> None:    
+        self.send_queue = send_queue
+        self.receive_queue = receive_queue    
+        self.command_callbacks = callback
+        
+    def send_debug_data(self, **kwargs):
+        """
+        Sends debug data with flexible key-value pairs.
+
+        Each key-value pair in kwargs represents a label and its corresponding value.
+        The function adds a timestamp to the data before sending it off in the queue.
+
+        Example usage:
+            robot_io.send_debug_data(motor_temp=85, battery_voltage=12.6)
+
+        Args:
+            **kwargs: Arbitrary number of named arguments representing debug data labels and values.
+        """
+        debug_data = {
+            **kwargs  # Merge the arbitrary key-value pairs into the debug data
+        }
+        # Define the topic for debug data
+        topic = "robot/debug"
+
+        # Put the debug data into the send queue
+        self.send_queue.put((topic, debug_data))
+
             
     def send_imu_data(self, ax, ay, az, gx, gy, gz):
         topic = "robot/sensors/imu"
@@ -142,14 +249,34 @@ class RobotSystem:
             "loop_time": loop_time
         }
         self.send_queue.put((topic, data))      
-        
-    def recieve_commands(self):
+                
+    def receive_commands(self):
+        """
+        Processes commands received in the receive queue from MQTT. Each message contains 
+        a single command-value pair. The corresponding handler function in the 
+        `command_callbacks` dictionary is called with the command and its value.
+
+        If the command does not have a registered handler in `command_callbacks`, an error is logged indicating
+        that the command is unrecognized.
+        """
         while not self.receive_queue.empty():
             message = self.receive_queue.get()
-            #TODO Add a message handler to perform actions based on message
             
-            logger.info(f'Command recieved: {message}')
+            # Directly extract command and value from the message assuming it's a single-entry dict
+            if isinstance(message, dict) and len(message) == 1:
+                command, value = next(iter(message.items()))
+
+                if command in self.command_callbacks:
+                    handler = self.command_callbacks[command]
+                    handler(command, value)  # Invoke the handler with the command value
+                else:
+                    logger.error(f'Unrecognized command: {command}')
+            else:
+                logger.error(f"Expected a single-entry dictionary for the message, got: {message}")
+
             self.receive_queue.task_done()
+            
+
 
 
 
