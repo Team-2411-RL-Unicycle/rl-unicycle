@@ -35,7 +35,6 @@ class MN6007:
         """
         try:
             await asyncio.wait_for(self._c.set_stop(), self.TIMEOUT_SECONDS)
-            logger.info("Canfd communication started")
         except asyncio.TimeoutError:
             logger.error("Failed to initialize motor: Timeout while connecting to the moteus driver. Please check the connection.")
             # Initiate robot shutdown sequence here or raise an exception to be handled by the caller
@@ -55,10 +54,12 @@ class MN6007:
         """
         try:
             state = await asyncio.wait_for(
-                self._c.set_position(position=math.nan, query=True),
+                # moteus query command (can also make custom queries)
+                self._c.query(),
                 self.TIMEOUT_SECONDS
             )
             self.parse_state(state)
+            return state
         except asyncio.TimeoutError:
             logger.error("Failed to update motor state: Operation timed out.")
             raise  # Re-raise the exception for the caller to handle
@@ -93,8 +94,7 @@ class MN6007:
             query=query,
         )
         
-        self.parse_state(feedback)
-        
+        # self.parse_state(feedback)
         return feedback
     
     async def set_torque(self, torque=0.0, min_torque=-0.3, max_torque=0.3, query=True):
@@ -130,7 +130,9 @@ class MN6007:
                 ),
                 self.TIMEOUT_SECONDS
             )
-            self.parse_state(feedback)
+            # self.parse_state(feedback)
+            return feedback
+        
         except asyncio.TimeoutError:
             logger.error("Failed to set motor torque: Operation timed out.")
             raise  # Re-raise the exception for the caller to handle
@@ -170,7 +172,6 @@ async def test_loop(actuator):
                 position=3,
                 velocity=0
         )
-
 
 async def main(actuator):
     await actuator.start()   
