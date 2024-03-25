@@ -32,6 +32,7 @@ class RobotSystem:
     """
     LOOP_TIME = 1/100  # 100 Hz control loop period
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
+    MAX_SETPOINT = .2  # Maximum setpoint for motor torque (testing purposes)
 
     def __init__(self, send_queue, receive_queue, start_motors=True):
         # Setup the communication queues and the input output over internet system       
@@ -87,8 +88,9 @@ class RobotSystem:
                 await self.xmotor.update_state()
          
             #TODO Process a control decision using agent
+            # TESTING: A simple control decision for testing
             # Match a proportional response to the detected angle 
-            setpoint = 0.2 * euler_angles[0] / 360          
+            setpoint = self.MAX_SETPOINT * euler_angles[0] / 180          
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
@@ -178,7 +180,7 @@ class RobotSystem:
             
     ############# IN/OUT Interface ################################ 
     
-class RobotIO:
+class RobotIO:# 
     """
     The RobotIO class handles all input/output operations for the robot, including sending sensor data,
     state information, and receiving and processing commands.
