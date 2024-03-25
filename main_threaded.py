@@ -43,7 +43,10 @@ def parse_args():
     return args
 
 def main():
+    # Get command line flags
     args = parse_args()
+    
+    # Setup the logging configuration
     setup_logging()
     logger = logging.getLogger()
     logger.debug("Logger initalized")
