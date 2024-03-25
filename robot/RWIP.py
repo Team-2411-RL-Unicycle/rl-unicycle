@@ -88,7 +88,7 @@ class RobotSystem:
          
             #TODO Process a control decision using agent
             # Match a proportional response to the detected angle 
-            # setpoint = 0.2 * euler_angles[0] / 360          
+            setpoint = 0.2 * euler_angles[0] / 360          
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
