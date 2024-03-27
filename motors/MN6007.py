@@ -18,10 +18,14 @@ class MN6007:
         
     def __init__(self):
         # Transport = None searches out for the first available CANFD Device
-        self._c = moteus.Controller(transport=None)  
+        qr = moteus.QueryResolution()
+        qr.q_current = moteus.INT32
+        qr.d_current = moteus.INT32
+        qr.voltage = moteus.INT32
+        self._c = moteus.Controller(transport=None, query_resolution=qr)  
         logger.debug(f'Connected to Motor Controller: {self._c}')      
         # Motor system state (Dictionary of register values)
-        self.state = None        
+        self.state = None   
 
     async def start(self):
         """
