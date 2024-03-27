@@ -108,8 +108,15 @@ class RobotSystem:
                 self.robot_io.send_euler_angles(euler_angles)
                 if self.xmotor is not None:
                     self.robot_io.send_motor_state(self.xmotor.state)
-                  
-            self.robot_io.send_loop_time(loop_period*1e6)
+            
+            # High Frequency data      
+            self.robot_io.send_loop_time(loop_period*1e6)            
+            if self.xmotor is not None:
+                    self.robot_io.send_motor_electrical(q_current=self.xmotor.state['Q_CURRENT'], 
+                                                        d_current=self.xmotor.state['D_CURRENT'], 
+                                                        torque=self.xmotor.state['TORQUE'], 
+                                                        voltage=self.xmotor.state['VOLTAGE'],
+                                                        motor_fault=self.xmotor.state['FAULT'])
                     
             ### RECEIVE COMMS ###
             # Check for and handle new commands sent in via MQTT    
@@ -217,6 +224,16 @@ class RobotIO:#
 
         # Put the debug data into the send queue
         self.send_queue.put((topic, debug_data))
+        
+    def send_motor_electrical(self, **kwargs):
+        debug_data = {
+            **kwargs  # Merge the arbitrary key-value pairs into the debug data
+        }
+        # Define the topic for debug data
+        topic = "robot/sensors/motor_electrical"
+        # Put the debug data into the send queue
+        self.send_queue.put((topic, debug_data))
+    
 
             
     def send_imu_data(self, ax, ay, az, gx, gy, gz):
