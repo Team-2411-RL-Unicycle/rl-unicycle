@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class MN6007:
     MAX_ALLOWABLE_ACCEL = 200.0
     MAX_ALLOWABLE_VEL = 20.0
-    MAX_ALLOWABLE_TORQUE = 0.1 # Set low for now
+    MAX_ALLOWABLE_TORQUE = 1.4 # Set low for now
     TIMEOUT_SECONDS = .1 #Seconds
         
     def __init__(self):
@@ -121,6 +121,12 @@ class MN6007:
             # Something went wrong, turn off the motor and robot
             self.stop()
             raise ValueError(error_msg)
+
+        if abs(torque) > max_torque:
+            torque = max_torque * (1 if torque > 0.0 else -1) 
+            warning_msg = f'Torque set outside bounds. Attempted to set to {torque:.2f}N*m. Bounds are +/- {max_torque}' 
+            logger.warning(warning_msg)
+
 
         try:
             feedback = await asyncio.wait_for(
