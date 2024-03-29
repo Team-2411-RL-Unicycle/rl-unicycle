@@ -32,7 +32,7 @@ class RobotSystem:
     """
     LOOP_TIME = 1/100  # 100 Hz control loop period
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
-    MAX_SETPOINT = .2  # Maximum setpoint for motor torque (testing purposes)
+    MAX_SETPOINT = .6  # Maximum setpoint for motor torque (testing purposes)
 
     def __init__(self, send_queue, receive_queue, start_motors=True):
         # Setup the communication queues and the input output over internet system       
@@ -98,7 +98,7 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
-                await self.xmotor.set_torque(torque=setpoint)            
+                await self.xmotor.set_torque(torque=setpoint, max_torque=0.6)            
                             
             ### SEND COMMS ###
             #TODO Refactor this to use generic send function with topic and kwargs
