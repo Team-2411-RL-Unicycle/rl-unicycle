@@ -32,7 +32,7 @@ class RobotSystem:
     """
     LOOP_TIME = 1/100  # 100 Hz control loop period
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
-    MAX_SETPOINT = .6  # Maximum setpoint for motor torque (testing purposes)
+    MAX_TORQUE = .6  # Maximum torque for motor torque (testing purposes)
 
     def __init__(self, send_queue, receive_queue, start_motors=True, controller_type='test'):
         # Setup the communication queues and the input output over internet system       
@@ -112,7 +112,7 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
-                await self.xmotor.set_torque(torque=torque_request, max_torque=0.6)            
+                await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)            
                             
             ### SEND COMMS ###
             # Send out all data downsampled to lower rate              
@@ -129,6 +129,7 @@ class RobotSystem:
                                                         d_current=self.xmotor.state['D_CURRENT'], 
                                                         torque=self.xmotor.state['TORQUE'], 
                                                         voltage=self.xmotor.state['VOLTAGE'],
+                                                        velocity=self.xmotor.state['VELOCITY'],
                                                         motor_fault=self.xmotor.state['FAULT'])
                     
             ### RECEIVE COMMS ###

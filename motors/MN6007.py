@@ -23,7 +23,7 @@ class MN6007:
         qr.q_current = moteus.INT32
         qr.d_current = moteus.INT32
         qr.voltage = moteus.INT32
-        # Transport = None searches out for the first available CANFD Device
+        qr.velocity = moteus.INT32
         self._c = moteus.Controller(transport=None, query_resolution=qr)  
         logger.debug(f'Connected to Motor Controller: {self._c}')      
         # Motor system state (Dictionary of register values)
@@ -119,15 +119,14 @@ class MN6007:
         # self.parse_state(feedback)
         return feedback
     
-    async def set_torque(self, torque=0.0, min_torque=-0.3, max_torque=0.3, query=False):
+    async def set_torque(self, torque=0.0, max_torque=0.2, query=False):
         """
         Sends a torque command to the motor. If the operation does not complete within the
         specified timeout, logs an error and raises a TimeoutError.
 
         Args:
             torque: Desired torque for the motor.
-            min_torque: Minimum allowable torque.
-            max_torque: Maximum allowable torque.
+            max_torque: Absolute value of max positive or negative allowable torque.
             query: Whether to query the motor state after setting the torque.
 
         Raises:
