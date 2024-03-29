@@ -11,5 +11,5 @@ class TestController(Controller):
         """
         # TESTING: A simple control decision for testing
         # Match a proportional response to the detected angle 
-        setpoint = self.MAX_TORQUE * robot_state.angle / 180  
+        setpoint = self.MAX_TORQUE * robot_state.pendulum_angle / 180  
         return setpoint
