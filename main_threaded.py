@@ -42,6 +42,20 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+def cancel_pending_tasks(loop):
+    try:
+        current_task = asyncio.current_task(loop)
+    except RuntimeError:
+        current_task = None  # No current task if no running loop
+
+    for task in asyncio.all_tasks(loop):
+        if task is not current_task:
+            task.cancel()
+            try:
+                loop.run_until_complete(task)
+            except asyncio.CancelledError:
+                pass  # Task cancellation is expected
+
 def main():
     # Get command line flags
     args = parse_args()
@@ -76,13 +90,25 @@ def main():
     except KeyboardInterrupt:
         logger.info("Shutdown signal received")
     finally:
-        # Schedule and run the RobotSystem.shutdown coroutine
-        loop.run_until_complete(robot.shutdown())
-        # Terminate the MQTT process
+        # Cancel any pending asyncio tasks
+        cancel_pending_tasks(loop)
+
+        # Shutdown the robot system
+        if loop.is_running():
+            loop.run_until_complete(robot.shutdown())
+
+        # Terminate and clean up the MQTT process
         mqtt_process.terminate()
-        mqtt_process.join()
+        mqtt_process.join(timeout=5)
+        if mqtt_process.is_alive():
+            mqtt_process.kill()
+            logger.warning("MQTT process did not terminate gracefully, forcing termination.")
+
         logger.info("Cleanup complete. Exiting program.")
+
+        # Close the asyncio event loop
         loop.close()
+
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,15 @@
+{
+    "32": "Calibration fault - the encoder was not able to sense a magnet during calibration.",
+    "33": "Motor driver fault - the most common reason for this is undervoltage, moteus attempted to draw more current than the supply could provide. Other electrical faults may also report this error, the DRV8323 diagnostic tree has more information.",
+    "34": "Over voltage - the bus voltage exceeded servo.max_voltage. This can happen due to misconfiguration, or if the controller regenerated power with a supply that cannot sink power and no flux braking was configured.",
+    "35": "Encoder fault - the encoder readings are not consistent with a magnet being present.",
+    "36": "Motor not configured - the moteus_tool --calibrate procedure has not been run on this motor.",
+    "37": "PWM cycle overrun - an internal firmware error.",
+    "38": "Over temperature - the maximum configured temperature has been exceeded.",
+    "39": "Outside limit - an attempt was made to start position control while outside the bounds configured by servopos.position_min and servopos.position_max.",
+    "40": "Under voltage - the voltage was too low.",
+    "41": "Config changed - a configuration value was changed during operation that requires a stop.",
+    "42": "Theta invalid - no valid commutation encoder is available.",
+    "43": "Position invalid - no valid output encoder is available.",
+    "44": "Stop position deprecated - an attempt was made to use the deprecated 'stop position' feature along with velocity or acceleration limits. Prefer to instead command the desired position directly with a target velocity of 0.0, or secondarily, disable acceleration and velocity limits."
+}

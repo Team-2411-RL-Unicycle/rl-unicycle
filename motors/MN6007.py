@@ -1,4 +1,5 @@
 import time
+import json
 import moteus
 from moteus.moteus import Register 
 import math
@@ -17,15 +18,23 @@ class MN6007:
     TIMEOUT_SECONDS = .1 #Seconds
         
     def __init__(self):
-        # Transport = None searches out for the first available CANFD Device
+
         qr = moteus.QueryResolution()
         qr.q_current = moteus.INT32
         qr.d_current = moteus.INT32
         qr.voltage = moteus.INT32
+        # Transport = None searches out for the first available CANFD Device
         self._c = moteus.Controller(transport=None, query_resolution=qr)  
         logger.debug(f'Connected to Motor Controller: {self._c}')      
         # Motor system state (Dictionary of register values)
         self.state = None   
+        self.isfaulted = False
+        self.fault_codes = self.load_fault_codes()
+    
+    def load_fault_codes(self):
+        # Load fault codes from a JSON file
+        with open('motors/fault_codes.json', 'r') as f:
+            return json.load(f)
 
     async def start(self):
         """
@@ -62,7 +71,8 @@ class MN6007:
                 self._c.query(),
                 self.TIMEOUT_SECONDS
             )
-            self.parse_state(state)
+            self.parse_state(state)           
+            self.check_fault()
             return state
         except asyncio.TimeoutError:
             logger.error("Failed to update motor state: Operation timed out.")
@@ -78,6 +88,14 @@ class MN6007:
                           "FAULT: {FAULT: >4}".format(**self.state)
 
         return formatted_state
+    
+    def check_fault(self):
+        # Check if the motor is faulted
+        if self.state['FAULT'] != 0 and not self.isfaulted:
+            # Get the fault code from the dictionary
+            fault_code = self.fault_codes.get(str(self.state['FAULT']), "Unknown fault")
+            logger.error(f"Motor fault detected: {fault_code}")
+            self.isfaulted = True
     
     async def set_position(self, position, velocity, accel_limit = 3.0, velocity_limit = 8.0, query = True):
         '''
