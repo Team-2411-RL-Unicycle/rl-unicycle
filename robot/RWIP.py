@@ -3,8 +3,8 @@ from icm20948.lib.imu_lib import ICM20948
 from fusion.AHRSfusion import AHRSfusion
 import robot.LoopTimer as lt  
 from motors.MN6007 import MN6007
+from controller import ControlInput, Controller, PIDController, RLController, TestController
 import logging
-
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class RobotSystem:
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
     MAX_SETPOINT = .6  # Maximum setpoint for motor torque (testing purposes)
 
-    def __init__(self, send_queue, receive_queue, start_motors=True):
+    def __init__(self, send_queue, receive_queue, start_motors=True, controller_type='test'):
         # Setup the communication queues and the input output over internet system       
         self.robot_io = RobotIO(send_queue, receive_queue, {
             'power': self.handle_power_command,
@@ -54,6 +54,18 @@ class RobotSystem:
             self.xmotor = MN6007()
         else:
             self.xmotor = None
+            
+        # Instantiate the appropriate controller based on the controller_type argument
+        if controller_type == 'pid':
+            #TODO implement PID
+            self.controller = PIDController()
+        elif controller_type == 'rl':
+            #TODO implement RL controller
+            self.controller = RLController(model_pth='nullstring')
+        elif controller_type == 'test':
+            self.controller = TestController()
+        else:
+            raise ValueError(f"Unsupported controller type: {controller_type}")
         
         self.itr = int(0)  # Cycle counter
         
@@ -87,10 +99,12 @@ class RobotSystem:
             if self.xmotor is not None:
                 await self.xmotor.update_state()
          
-            #TODO Process a control decision using agent
-            # TESTING: A simple control decision for testing
-            # Match a proportional response to the detected angle 
-            setpoint = self.MAX_SETPOINT * euler_angles[0] / 180          
+            control_input = ControlInput(
+                pendulum_angle=euler_angles[0], 
+                pendulum_vel=0,  # Placeholder for pendulum velocity
+                wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
+            )
+            torque_request = self.controller.get_torque(control_input)
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
@@ -98,10 +112,9 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
-                await self.xmotor.set_torque(torque=setpoint, max_torque=0.6)            
+                await self.xmotor.set_torque(torque=torque_request, max_torque=0.6)            
                             
             ### SEND COMMS ###
-            #TODO Refactor this to use generic send function with topic and kwargs
             # Send out all data downsampled to lower rate              
             if (self.itr % 20) == 0:
                 self.robot_io.send_imu_data(ax, ay, az, gx, gy, gz)
