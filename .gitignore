@@ -3,4 +3,5 @@ venv_moteus
 __pycache__/
 .vscode/
 log/*.log
-/__pycache__
+**/__pycache__
+**/*.pyc
