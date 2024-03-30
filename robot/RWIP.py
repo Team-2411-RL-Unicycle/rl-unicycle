@@ -59,7 +59,6 @@ class RobotSystem:
         self.controller_type = controller_type
         if controller_type == 'pid':
             #TODO test PID
-            #TODO implement handle_pid_command
             self.controller = PIDController()
         elif controller_type == 'rl':
             #TODO implement RL controller
