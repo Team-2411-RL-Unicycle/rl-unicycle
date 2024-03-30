@@ -98,15 +98,15 @@ class RobotSystem:
                 return y, z, x
             
             # Fuse sensor data
-            euler_angles, internal_states, flags = self.sensor_fusion.update(rotate_frame(gz, gy, gx), rotate_frame(az, ay, ax), delta_time = loop_period)
+            euler_angles, internal_states, flags = self.sensor_fusion.update(rotate_frame(gx, gy, gz), rotate_frame(ax, ay, az), delta_time = loop_period)
                 
             # Update robot state and parameters
             if self.xmotor is not None:
                 await self.xmotor.update_state()
          
             control_input = ControlInput(
-                pendulum_angle=euler_angles[0], 
-                pendulum_vel=0,  # Placeholder for pendulum velocity
+                pendulum_angle=euler_angles[1], 
+                pendulum_vel=gz,  # gyro z
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
             torque_request = self.controller.get_torque(control_input)

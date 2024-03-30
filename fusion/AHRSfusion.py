@@ -24,7 +24,7 @@ class AHRSfusion:
         self.ahrs.settings = imufusion.Settings(
                                                 # imufusion.ALIGNMENT_PYPZPX,  
                                                 imufusion.CONVENTION_NWU , # convention
-                                                .5,  # gain (on the accel error correction)
+                                                8.5,  # 0.5 gain (on the accel error correction)
                                                 self.gyro_range,  # gyroscope range
                                                 1,  # acceleration rejection
                                                 0,  # magnetic rejection
