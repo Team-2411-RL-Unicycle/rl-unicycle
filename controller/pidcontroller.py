@@ -5,7 +5,7 @@ class PIDController(Controller):
     def __init__(self) -> None:
         super().__init__()
         self.MAX_TORQUE = 0.1
-        self._Kp = 0.01
+        self._Kp = -0.01
         self._Ki = 0.0 
         self._Kd = 0.0
         self._setpoint = 0.0
