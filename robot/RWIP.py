@@ -60,8 +60,7 @@ class RobotSystem:
             #TODO implement PID
             self.controller = PIDController()
         elif controller_type == 'rl':
-            #TODO implement RL controller
-            self.controller = RLController(model_pth='nullstring')
+            self.controller = RLController(model_pth='controller/rwip_model_m22.onnx')
         elif controller_type == 'test':
             self.controller = TestController()
         else:
@@ -104,7 +103,7 @@ class RobotSystem:
                 pendulum_vel=0,  # Placeholder for pendulum velocity
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
-            torque_request = self.controller.get_torque(control_input)
+            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
@@ -112,6 +111,7 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
+
                 await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)            
                             
             ### SEND COMMS ###
