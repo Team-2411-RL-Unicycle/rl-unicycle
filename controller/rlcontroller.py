@@ -1,5 +1,4 @@
 from controller.controllerABC import Controller, ControlInput
-#TODO add torch to the venve so that this import works (math as torch placeholder)
 import onnxruntime as ort
 import numpy as np
 
