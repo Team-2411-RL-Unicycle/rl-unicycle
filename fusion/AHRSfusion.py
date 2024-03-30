@@ -21,12 +21,15 @@ class AHRSfusion:
         self.offset = imufusion.Offset(self.sample_rate)
 
         self.ahrs = imufusion.Ahrs()
-        self.ahrs.settings = imufusion.Settings(imufusion.CONVENTION_NWU,  # convention
+        self.ahrs.settings = imufusion.Settings(
+                                                # imufusion.ALIGNMENT_PYPZPX,  
+                                                imufusion.CONVENTION_NWU , # convention
                                                 .5,  # gain (on the accel error correction)
                                                 self.gyro_range,  # gyroscope range
                                                 1,  # acceleration rejection
                                                 0,  # magnetic rejection
                                                 5 * self.sample_rate)  # recovery trigger period = 5 seconds
+        
         
     def update(self, gyro_data, accel_data, mag_data = None, delta_time=.001):
         # Convert to numpy arrays
