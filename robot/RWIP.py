@@ -91,12 +91,7 @@ class RobotSystem:
             
             # Poll the imu for positional data
             ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
-            
-            #Change alignment to robot frame:
-            #Y.imu -> X.robot; Z.imu -> Y.robot; X.imu -> Z.robot
-            def rotate_frame(x, y, z):
-                return y, z, x
-            
+                        
             # Fuse sensor data
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
                 
