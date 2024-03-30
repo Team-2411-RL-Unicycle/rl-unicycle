@@ -175,10 +175,10 @@ class RobotSystem:
 
     def handle_pid_command(self, command: str, value: float):
         if self.controller_type != 'pid': 
-            logger.warning(f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command.")
+            logger.warning(f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command.")
             return
         if not isinstance(value, float):
-            logger.warning(f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command.")
+            logger.warning(f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command.")
             return
         # Code to execute if the PID value is a float (e.g., set value)
         # Command comes in as P, I, or D
