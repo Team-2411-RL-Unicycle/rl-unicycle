@@ -90,7 +90,7 @@ class RobotSystem:
             
             # Poll the imu for positional data
             ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
-            
+                        
             # Fuse sensor data
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
                 
@@ -99,8 +99,8 @@ class RobotSystem:
                 await self.xmotor.update_state()
          
             control_input = ControlInput(
-                pendulum_angle=euler_angles[0], 
-                pendulum_vel=0,  # Placeholder for pendulum velocity
+                pendulum_angle=euler_angles[1], # euler y (robot frame) 
+                pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
             torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
