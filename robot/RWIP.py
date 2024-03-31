@@ -32,7 +32,7 @@ class RobotSystem:
     """
     LOOP_TIME = 1/100  # 100 Hz control loop period
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
-    MAX_TORQUE = .2  # Maximum torque for motor torque (testing purposes)
+    MAX_TORQUE = .6  # Maximum torque for motor torque (testing purposes)
 
     def __init__(self, send_queue, receive_queue, start_motors=True, controller_type='test'):
         # Setup the communication queues and the input output over internet system       
@@ -105,7 +105,10 @@ class RobotSystem:
                 pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
-            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
+            try:
+                torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
+            except ValueError: 
+                raise ValueError("Torque exceeds bounds")
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
