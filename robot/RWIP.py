@@ -32,7 +32,7 @@ class RobotSystem:
     """
     LOOP_TIME = 1/100  # 100 Hz control loop period
     WRITE_DUTY = .6    # Percent of loop time passed before write to actuators
-    MAX_TORQUE = .6  # Maximum torque for motor torque (testing purposes)
+    MAX_TORQUE = .2  # Maximum torque for motor torque (testing purposes)
 
     def __init__(self, send_queue, receive_queue, start_motors=True, controller_type='test'):
         # Setup the communication queues and the input output over internet system       
@@ -105,7 +105,7 @@ class RobotSystem:
                 pendulum_vel=0,  # Placeholder for pendulum velocity
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
-            torque_request = self.controller.get_torque(control_input)
+            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
@@ -183,7 +183,7 @@ class RobotSystem:
         # Code to execute if the PID value is a float (e.g., set value)
         # Command comes in as P, I, or D
         # This likely will be offloaded to the PID controller if one is enabled        
-        self.controller.change_parameter(command, value)
+        self.controller.update_parameter(command, value)
         # Log info and print to console
         msg = f'Setting PID parameter {command} to value {value}.'
         logger.info(msg)

@@ -4,11 +4,11 @@ from simple_pid import PID
 class PIDController(Controller):
     def __init__(self) -> None:
         super().__init__()
-        self._Kp = -0.01
+        self._Kp = -0.001
         self._Ki = 0.0 
         self._Kd = 0.0
         self._setpoint = 0.0
-        self._pid = PID(Kp, Ki, Kd, setpoint=setpoint)
+        self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=self._setpoint)
         self.logger.info(f"{self.__class__.__name__} initialized")
             
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
@@ -24,15 +24,14 @@ class PIDController(Controller):
         # Calculate torque
         torque = self._pid(robot_state.pendulum_angle)
         # Clamp torque if outside bounds
-        if abs(torque) > self.max_torque: 
-            warning_msg = f'WARNING: PID controller set torque outside bounds. Attempted to set to {torque:.3f} 
-            N*m at {robot_state.pendulum_angle} degrees. Bounds are +/- {max_torque}' 
-            logger.warning(warning_msg)
+        if abs(torque) > max_torque: 
+            warning_msg = f'WARNING: PID controller set torque outside bounds. Attempted to set to {torque:.3f} N*m at {robot_state.pendulum_angle} degrees. Bounds are +/- {max_torque}' 
+            self.logger.warning(warning_msg)
             print(warning_msg) # TODO: Remove this for performance? 
             torque = max_torque * (1 if torque > 0 else -1)
         return torque
 
-    def update_parameter(param: str, value: float): 
+    def update_parameter(self, param: str, value: float): 
         """
         Update PID Controller's control parameter to a new value.
 
@@ -41,14 +40,14 @@ class PIDController(Controller):
             value: value of parameter
         """
         if param == 'P': 
-            self.Kp = value
+            self._Kp = value
         elif param == 'I': 
-            self.Ki = value
+            self._Ki = value
         elif param == 'D': 
-            self.Kd = value
+            self._Kd = value
         # Raise error if not P, I, or D
         else: 
-            Raise ValueError(f"Invalid parameter: {param}")
+            raise ValueError(f"Invalid parameter: {param}")
         return
 
         
