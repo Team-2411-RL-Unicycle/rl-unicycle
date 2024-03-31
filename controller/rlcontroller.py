@@ -15,9 +15,9 @@ class RLController(Controller):
         assert len(robot_state) == self.num_obs
 
         obs = np.zeros((1, 3))
-        obs[:, 0] = robot_state[2]
-        obs[:, 1] = robot_state[0]
-        obs[:, 2] = robot_state[1]
+        obs[:, 0] = robot_state.wheel_vel * 2 * np.pi
+        obs[:, 1] = robot_state.pendulum_angle * np.pi / 180
+        obs[:, 2] = robot_state.pendulum_vel * np.pi / 180
 
         actions = self.model.run(
             None,

@@ -103,7 +103,10 @@ class RobotSystem:
                 pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
-            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE)
+
+            # change to negative for the RL controller
+            torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE)
+            self.robot_io.send_debug_data(torque_request=float(torque_request))
                         
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
