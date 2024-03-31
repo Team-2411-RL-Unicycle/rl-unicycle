@@ -21,17 +21,25 @@ class AHRSfusion:
         self.offset = imufusion.Offset(self.sample_rate)
 
         self.ahrs = imufusion.Ahrs()
-        self.ahrs.settings = imufusion.Settings(imufusion.CONVENTION_NWU,  # convention
-                                                .5,  # gain (on the accel error correction)
+        self.ahrs.settings = imufusion.Settings(
+                                                imufusion.CONVENTION_NWU , # convention
+                                                1.0,  # 0.5 gain (on the accel error correction)
                                                 self.gyro_range,  # gyroscope range
                                                 1,  # acceleration rejection
                                                 0,  # magnetic rejection
                                                 5 * self.sample_rate)  # recovery trigger period = 5 seconds
         
     def update(self, gyro_data, accel_data, mag_data = None, delta_time=.001):
-        # Convert to numpy arrays
-        accel_data = np.array(accel_data)
-        gyro_data = np.array(gyro_data)
+        #Change alignment to robot frame:
+        #Y.imu -> X.robot; Z.imu -> Y.robot; X.imu -> Z.robot
+        def rotate_frame(x, y, z):
+            ''' Input: x, y, z in IMU frame
+                Output: x', y', z' in robot frame '''                    
+            return y, z, x
+        
+        # Convert to numpy arrays and rotate to robot frame
+        accel_data = np.array(rotate_frame(*accel_data))
+        gyro_data = np.array(rotate_frame(*gyro_data))
         
         if mag_data is None:
             mag_data = np.array([0, 0, 0])
