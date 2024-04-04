@@ -5,5 +5,5 @@ class PIDController(Controller):
         super().__init__()
         self.logger.info(f"{self.__class__.__name__} initialized")
             
-    def get_torque(self, robot_state: ControlInput) -> float:
-        return super().get_torque(robot_state)
+    def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
+        return super().get_torque(robot_state, max_torque)
