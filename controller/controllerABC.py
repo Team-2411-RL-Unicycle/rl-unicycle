@@ -15,9 +15,9 @@ class Controller(ABC):
         self.num_act = 1
 
     @abstractmethod
-    def get_torque(self, robot_state: ControlInput) -> float:
+    def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         if not isinstance(robot_state, ControlInput):
             raise TypeError("robot_state must be an instance of RobotState from the controller module")
-        pass
+        return 0
 
 
