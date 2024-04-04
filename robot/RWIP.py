@@ -55,9 +55,10 @@ class RobotSystem:
         else:
             self.xmotor = None
             
-        # Instantiate the appropriate controller based on the controller_type argument
+        # Initialize controller type and instantiate the appropriate controller based on the controller_type argument
+        self.controller_type = controller_type
         if controller_type == 'pid':
-            #TODO implement PID
+            #TODO test PID
             self.controller = PIDController()
         elif controller_type == 'rl':
             self.controller = RLController(model_pth='controller/rwip_model_m22.onnx')
@@ -176,10 +177,22 @@ class RobotSystem:
 
 
     def handle_pid_command(self, command: str, value: float):
-        #TODO Handle PID command, change robot state as needed
+        if self.controller_type != 'pid': 
+            logger.warning(f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command.")
+            return
+        if not isinstance(value, float):
+            logger.warning(f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command.")
+            return
+        # Code to execute if the PID value is a float (e.g., set value)
         # Command comes in as P, I, or D
         # This likely will be offloaded to the PID controller if one is enabled        
-        pass
+        self.controller.update_parameter(command, value)
+        # Log info and print to console
+        msg = f'Setting PID parameter {command} to value {value}.'
+        logger.info(msg)
+        print(msg)
+        return
+
 
 
     def precise_delay_until(self, end_time):
