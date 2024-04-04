@@ -115,8 +115,8 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
-
-                await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)            
+                if (self.itr > 500):
+                    await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)            
                             
             ### SEND COMMS ###
             # Send out all data downsampled to lower rate              
