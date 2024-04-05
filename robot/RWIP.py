@@ -106,7 +106,7 @@ class RobotSystem:
             )
 
             # Change to negative convention due to motor
-            torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE)
+            torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001)
             self.robot_io.send_debug_data(torque_request=float(torque_request))
                         
             ## DELAY UNTIL FIXED POINT ##
