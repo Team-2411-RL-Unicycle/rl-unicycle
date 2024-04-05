@@ -37,7 +37,7 @@ def start_mqtt_process(telemetry_queue, command_queue):
 def parse_args():
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(description="Start the robot system with optional motor control.")
-    parser.add_argument("-m", "--no-motors", action="store_true",
+    parser.add_argument("-nm", "--no-motors", action="store_true",
                         help="Do not start the motors of the robot system.")
     parser.add_argument("-c", "--controller", type=str, default="test",
                         choices=["pid", "rl", "test"], help="Select the type of controller: pid or rl.")
