@@ -157,8 +157,7 @@ class RobotSystem:
         self.imu.close()     
         if self.xmotor is not None:
             await self.xmotor.stop() 
-
-    #TODO Handle the on/off power commands        
+        
     async def handle_power_command(self, command: str, value: bool):
         """
         Handles power on/off commands for the robot.
