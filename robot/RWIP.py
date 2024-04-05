@@ -77,7 +77,7 @@ class RobotSystem:
         if self.xmotor is not None:
             await self.xmotor.start()
         await self.control_loop()
-    
+
     async def control_loop(self):
         """
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
@@ -88,17 +88,17 @@ class RobotSystem:
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
-            
+
             # Poll the imu for positional data
             ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
-                        
+
             # Fuse sensor data
             euler_angles, internal_states, flags = self.sensor_fusion.update((gx, gy, gz), (ax, ay, az), delta_time = loop_period)
-                
+
             # Update robot state and parameters
             if self.xmotor is not None:
                 await self.xmotor.update_state()
-         
+
             control_input = ControlInput(
                 pendulum_angle=euler_angles[1], # euler y (robot frame) 
                 pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
@@ -108,16 +108,16 @@ class RobotSystem:
             # Change to negative convention due to motor
             torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE)
             self.robot_io.send_debug_data(torque_request=float(torque_request))
-                        
+
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
-            
+
             # Apply control decision to robot actuators
             # SET TORQUE
             if self.xmotor is not None:
                 if (self.itr > 500):
                     await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)            
-                            
+
             ### SEND COMMS ###
             # Send out all data downsampled to lower rate              
             if (self.itr % 20) == 0:
@@ -125,7 +125,7 @@ class RobotSystem:
                 self.robot_io.send_euler_angles(euler_angles)
                 if self.xmotor is not None:
                     self.robot_io.send_motor_state(self.xmotor.state)
-            
+
             # High Frequency data      
             self.robot_io.send_loop_time(loop_period*1e6)            
             if self.xmotor is not None:
@@ -135,7 +135,7 @@ class RobotSystem:
                                                         voltage=self.xmotor.state['VOLTAGE'],
                                                         velocity=self.xmotor.state['VELOCITY'],
                                                         motor_fault=self.xmotor.state['FAULT'])
-                    
+
             ### RECEIVE COMMS ###
             # Check for and handle new commands sent in via MQTT    
             self.robot_io.receive_commands()

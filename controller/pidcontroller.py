@@ -1,7 +1,7 @@
 from controller.controllerABC import Controller, ControlInput
 from simple_pid import PID
 import numpy as np
-       
+
 class PIDController(Controller):
     def __init__(self) -> None:
         super().__init__()
@@ -13,7 +13,7 @@ class PIDController(Controller):
         self._max_del_s = 3  # degrees
         self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=0)
         self.logger.info(f"{self.__class__.__name__} initialized")
-            
+
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
         Calculates a torque using the PID error of pendulum angle. If the calculated torque 
@@ -23,9 +23,12 @@ class PIDController(Controller):
         Returns: 
             torque: Desired torque for the PID controller. 
         """
-        super().get_torque(robot_state, max_torque) 
+        super().get_torque(robot_state, max_torque)
+        current_wheel_velocity = robot_state.wheel_vel
+        # Check for saturation to engage anti windup
+        if current_wheel_velocity
         # Update control setpoint based on wheel velocity      
-        self.update_control_setpoint(robot_state.wheel_vel)
+        self.update_control_setpoint(current_wheel_velocity)
         # Calculate torque
         torque = self._pid(robot_state.pendulum_angle)
         # Clamp torque if outside bounds
@@ -40,10 +43,18 @@ class PIDController(Controller):
         
         Theory: create a saturating P controller in response to deviation from 0 velocity on wheel
         The controller saturates at max_del_s degrees of pendulum angle.
-        """           
+        """
         setpoint = wheel_vel * self._Kp_wheel_vel
-        self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)      
-      
+        self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)
+
+    def anti_windup(self) -> None:
+        """
+        Anti-windup scheme to prevent integration wind up when an actuator is saturated.
+
+        Theory: if we are saturated, faster rotation won't yield torque. Stopping and setting a flag
+        for 1 second to then "build up" our torque reserve will allow balancing again.
+        """
+
     def update_parameter(self, param: str, value: float): 
         """
         Update PID Controller's control parameter to a new value.
