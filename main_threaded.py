@@ -96,8 +96,7 @@ def main():
         cancel_pending_tasks(loop)
 
         # Shutdown the robot system
-        if loop.is_running():
-            loop.run_until_complete(robot.shutdown())
+        loop.run_until_complete(robot.shutdown())
 
         # Terminate and clean up the MQTT process
         mqtt_process.terminate()
