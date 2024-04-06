@@ -114,7 +114,7 @@ class RobotSystem:
             torque_request, anti_windup = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001, self.itr) # Floating point buffer
             torque_request *= -1
             if anti_windup:
-                await self.xmotor.set_position(position=math.nan, velocity=0.0, velocity_limit=1.0)
+                await self.xmotor.stop()
             else:
                 self.robot_io.send_debug_data(torque_request=float(torque_request))
 

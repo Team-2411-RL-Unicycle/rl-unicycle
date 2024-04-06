@@ -1,7 +1,7 @@
 from controller.controllerABC import Controller, ControlInput
-import onnxruntime as ort
 import numpy as np
-
+import onnxruntime as ort
+from typing import Tuple
 
 class RLController(Controller):
     def __init__(self, model_pth: str) -> None:
@@ -9,8 +9,10 @@ class RLController(Controller):
         self.model = ort.InferenceSession(model_pth)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
-    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> float:
-        super().get_torque(robot_state, max_torque, iteration) 
+    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
+        super().get_torque(robot_state, max_torque, iteration)
+        # Check for saturation to engage anti windup
+        if super().anti_windup(robot_state): return 0, True
         list(robot_state)
         assert len(robot_state) == self.num_obs
 
@@ -26,4 +28,4 @@ class RLController(Controller):
         
         assert actions.shape[0] == self.num_act
 
-        return np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0]
+        return np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0], False

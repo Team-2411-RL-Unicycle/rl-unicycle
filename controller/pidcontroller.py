@@ -1,6 +1,7 @@
 from controller.controllerABC import Controller, ControlInput
-from simple_pid import PID
 import numpy as np
+from simple_pid import PID
+from typing import Tuple
 
 class PIDController(Controller):
     def __init__(self) -> None:
@@ -15,7 +16,7 @@ class PIDController(Controller):
         self._anti_windup_timer = 0
         self.logger.info(f"{self.__class__.__name__} initialized")
 
-    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> float:
+    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
         """
         Calculates a torque using the PID error of pendulum angle. If the calculated torque 
         is greater than the specified maximum, a warning message will be logged and the torque
@@ -25,11 +26,10 @@ class PIDController(Controller):
             torque: Desired torque for the PID controller. 
         """
         super().get_torque(robot_state, max_torque, iteration)
-        current_wheel_velocity = robot_state.wheel_vel
         # Check for saturation to engage anti windup
         if super().anti_windup(robot_state): return 0, True
         # Update control setpoint based on wheel velocity
-        self.update_control_setpoint(current_wheel_velocity)
+        self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque
         torque = self._pid(robot_state.pendulum_angle)
         # Clamp torque if outside bounds

@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from motors.MN6007 import MN6007
+from typing import Tuple
 ControlInput = namedtuple('ControlInput', ['pendulum_angle', 'pendulum_vel', 'wheel_vel'])
 
 class Controller(ABC):
@@ -18,7 +19,12 @@ class Controller(ABC):
         self.anti_windup_timer = 0
 
     @abstractmethod
-    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> float:
+    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
+        """
+        Returns:
+            float: The torque to request in [Nm]
+            bool: Wether or not anti windup is engaged
+        """
         if not isinstance(robot_state, ControlInput):
             raise TypeError("robot_state must be an instance of RobotState from the controller module")
         return 0, False
@@ -46,6 +52,6 @@ class Controller(ABC):
                 abs(robot_state.pendulum_angle) > 20
             ):
             print(robot_state.wheel_vel)
-            self.anti_windup_timer = 100
+            self.anti_windup_timer = 1000
             return True
         return False
