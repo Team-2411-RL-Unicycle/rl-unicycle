@@ -23,7 +23,7 @@ class PIDController(Controller):
         will be clamped. 
 
         Returns: 
-            torque: Desired torque for the PID controller. 
+            torque: Desired torque for the PID controller.
         """
         super().get_torque(robot_state, max_torque, iteration)
         # Check for saturation to engage anti windup
