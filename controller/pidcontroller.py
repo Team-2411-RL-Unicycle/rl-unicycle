@@ -27,8 +27,7 @@ class PIDController(Controller):
         super().get_torque(robot_state, max_torque, iteration)
         current_wheel_velocity = robot_state.wheel_vel
         # Check for saturation to engage anti windup
-        print(robot_state.pendulum_angle)
-        if super.anti_windup(): return 0
+        if super().anti_windup(robot_state): return 0
         # Update control setpoint based on wheel velocity      
         self.update_control_setpoint(current_wheel_velocity)
         # Calculate torque
@@ -48,9 +47,6 @@ class PIDController(Controller):
         """
         setpoint = wheel_vel * self._Kp_wheel_vel
         self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)
-
-    def anti_windup(self) -> None:
-        super.anti_windup()
 
     def update_parameter(self, param: str, value: float): 
         """
