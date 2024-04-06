@@ -24,7 +24,7 @@ class PIDController(Controller):
         Returns: 
             torque: Desired torque for the PID controller. 
         """
-        super().get_torque(robot_state, max_torque)
+        super().get_torque(robot_state, max_torque, iteration)
         current_wheel_velocity = robot_state.wheel_vel
         # Check for saturation to engage anti windup
         print(robot_state.pendulum_angle)

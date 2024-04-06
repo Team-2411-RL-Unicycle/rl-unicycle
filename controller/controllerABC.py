@@ -37,6 +37,7 @@ class Controller(ABC):
         Returns:
             True while waiting for anti_windup timer to count down
         """
+        print(True)
         if anti_windup_timer > 0:
             self.anti_windup_timer -= 1
             return True
@@ -46,5 +47,5 @@ class Controller(ABC):
             ):
             self.anti_windup_timer = 100
             return True
-
+        print(False)
         return False
