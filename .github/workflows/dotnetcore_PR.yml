@@ -10,6 +10,8 @@ jobs:
     runs_on: ubuntu-latest
   
     steps:
+    - run: echo "${{ github.event_name }} triggered a linting job on ${{ github.repository }} in branch ${{ github.ref }}"
+    - run: echo "This job is now running on a ${{ runner.os }} server hosted by GitHub."
     - uses: actions/checkout@v1
     - name: Super-Linter
     # You may pin to the exact commit or the version.
@@ -17,3 +19,5 @@ jobs:
       uses: super-linter/super-linter@v5.7.2
       env:
         GITHUB_TOKEN: ${{ secrets.GTHUB_TOKEN }}
+        DISABLE_ERRORS: true # remove once integrated
+        VALIDATE_ALL_CODEBASE: true # false once integrated
