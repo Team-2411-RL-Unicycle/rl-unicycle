@@ -13,7 +13,7 @@ class PIDController(Controller):
         self._max_rps = 35  # revs/s
         self._max_del_s = 3  # degrees
         self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=0)
-        self._anti_windup_timer = 0
+        self.anti_windup_timer = 0
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
@@ -27,7 +27,8 @@ class PIDController(Controller):
         """
         super().get_torque(robot_state, max_torque, iteration)
         # Check for saturation to engage anti windup
-        if super().anti_windup(robot_state): return 0, True
+        super().anti_windup(robot_state)
+        anti_windup = self.anti_windup(robot_state)
         # Update control setpoint based on wheel velocity
         self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque
@@ -36,7 +37,7 @@ class PIDController(Controller):
         if abs(torque) > max_torque: 
             torque = max_torque * (1 if torque > 0 else -1)
 
-        return torque, False
+        return torque, anti_windup
     
     def update_control_setpoint(self, wheel_vel: float) -> float: 
         """
@@ -69,5 +70,31 @@ class PIDController(Controller):
         self._pid.reset()
         self._pid.tunings = (self._Kp, self._Ki, self._Kd)
         return
+    
+    def anti_windup(self, robot_state: ControlInput) -> bool:
+        """
+        Anti-windup scheme to prevent integration wind up when an actuator is saturated.
 
-        
+        Theory: if we are saturated, faster rotation won't yield torque. Stopping and setting a flag
+        for 1 second to then "build up" our torque reserve will allow balancing again.
+
+        Parameters:
+            robot_state: used to access wheel_vel in [rev/s] and pendulum_angle in [deg]
+
+        Returns:
+            True while waiting for anti_windup timer to count down
+        """
+        if self.anti_windup_timer > 0:
+            self.anti_windup_timer -= 1
+            return True
+
+        # print(f"abs(robot_state.wheel_vel) = {abs(robot_state.wheel_vel)}")
+        # print(f"abs(robot_state.pendulum_angle) = {abs(robot_state.pendulum_angle)}")
+        if ((robot_state.wheel_vel > self._max_rps and
+                robot_state.pendulum_angle > 25) or
+            (robot_state.wheel_vel < -self._max_rps and
+                robot_state.pendulum_angle < -25)
+            ):
+            self.anti_windup_timer = 1200
+            return True
+        return False

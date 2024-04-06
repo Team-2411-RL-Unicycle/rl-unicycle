@@ -14,3 +14,6 @@ class TestController(Controller):
         # Match a proportional response to the detected angle 
         setpoint = self.MAX_TORQUE * robot_state.pendulum_angle / 180  
         return setpoint, False
+    
+    def anti_windup(self, robot_state: ControlInput) -> bool:
+        return super().anti_windup(robot_state)

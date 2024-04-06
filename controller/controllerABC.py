@@ -15,8 +15,7 @@ class Controller(ABC):
         # Number of observations and actions
         self.num_obs = 3
         self.num_act = 1
-        self._max_rps = 35  # revs/s
-        self.anti_windup_timer = 0
+        self._max_rps = 40  # revs/s
 
     @abstractmethod
     def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
@@ -29,6 +28,7 @@ class Controller(ABC):
             raise TypeError("robot_state must be an instance of RobotState from the controller module")
         return 0, False
 
+    @abstractmethod
     def anti_windup(self, robot_state: ControlInput) -> bool:
         """
         Anti-windup scheme to prevent integration wind up when an actuator is saturated.
@@ -42,16 +42,6 @@ class Controller(ABC):
         Returns:
             True while waiting for anti_windup timer to count down
         """
-        if self.anti_windup_timer > 0:
-            self.anti_windup_timer -= 1
-            return True
-
-        # print(f"abs(robot_state.wheel_vel) = {abs(robot_state.wheel_vel)}")
-        # print(f"abs(robot_state.pendulum_angle) = {abs(robot_state.pendulum_angle)}")
-        if (abs(robot_state.wheel_vel) > 0.9*self._max_rps and
-                abs(robot_state.pendulum_angle) > 20
-            ):
-            print(robot_state.wheel_vel)
-            self.anti_windup_timer = 1000
-            return True
+        if not isinstance(robot_state, ControlInput):
+            raise TypeError("robot_state must be an instance of RobotState from the controller module")
         return False

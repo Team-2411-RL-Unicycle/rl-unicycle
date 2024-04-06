@@ -11,8 +11,6 @@ class RLController(Controller):
 
     def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
         super().get_torque(robot_state, max_torque, iteration)
-        # Check for saturation to engage anti windup
-        if super().anti_windup(robot_state): return 0, True
         list(robot_state)
         assert len(robot_state) == self.num_obs
 
@@ -29,3 +27,6 @@ class RLController(Controller):
         assert actions.shape[0] == self.num_act
 
         return np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0], False
+
+    def anti_windup(self, robot_state: ControlInput) -> bool:
+        return super().anti_windup(robot_state)
