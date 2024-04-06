@@ -1,7 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from motors.MN6007 import MN6007
 from typing import Tuple
 ControlInput = namedtuple('ControlInput', ['pendulum_angle', 'pendulum_vel', 'wheel_vel'])
 
@@ -19,29 +18,12 @@ class Controller(ABC):
 
     @abstractmethod
     def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
-        """
-        Returns:
-            float: The torque to request in [Nm]
-            bool: Wether or not anti windup is engaged
-        """
         if not isinstance(robot_state, ControlInput):
             raise TypeError("robot_state must be an instance of RobotState from the controller module")
         return 0, False
 
     @abstractmethod
     def anti_windup(self, robot_state: ControlInput) -> bool:
-        """
-        Anti-windup scheme to prevent integration wind up when an actuator is saturated.
-
-        Theory: if we are saturated, faster rotation won't yield torque. Stopping and setting a flag
-        for 1 second to then "build up" our torque reserve will allow balancing again.
-
-        Parameters:
-            robot_state: used to access wheel_vel in [rev/s] and pendulum_angle in [deg]
-
-        Returns:
-            True while waiting for anti_windup timer to count down
-        """
         if not isinstance(robot_state, ControlInput):
             raise TypeError("robot_state must be an instance of RobotState from the controller module")
         return False

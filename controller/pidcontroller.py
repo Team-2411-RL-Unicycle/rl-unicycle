@@ -27,7 +27,6 @@ class PIDController(Controller):
         """
         super().get_torque(robot_state, max_torque, iteration)
         # Check for saturation to engage anti windup
-        super().anti_windup(robot_state)
         anti_windup = self.anti_windup(robot_state)
         # Update control setpoint based on wheel velocity
         self.update_control_setpoint(robot_state.wheel_vel)
