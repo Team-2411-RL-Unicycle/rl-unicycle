@@ -9,7 +9,7 @@ class RLController(Controller):
         self.model = ort.InferenceSession(model_pth)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
-    def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
+    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> float:
         super().get_torque(robot_state, max_torque) 
         list(robot_state)
         assert len(robot_state) == self.num_obs

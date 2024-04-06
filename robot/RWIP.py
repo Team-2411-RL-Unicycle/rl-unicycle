@@ -104,7 +104,7 @@ class RobotSystem:
                 await self.xmotor.update_state()
 
             control_input = ControlInput(
-                pendulum_angle=euler_angles[1], # euler y (robot frame) 
+                pendulum_angle=euler_angles[1], # euler y (robot frame) degree
                 pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state['VELOCITY']
             )
@@ -207,7 +207,7 @@ class RobotSystem:
     def precise_delay_until(self, end_time):
         """
         Sleep until the specified end time, then return the delay time (overshoot)
-        """        
+        """
         # Lower accuracy sleep loop
         while True:
             now = time.time()

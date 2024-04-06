@@ -12,9 +12,10 @@ class PIDController(Controller):
         self._max_rps = 35  # revs/s
         self._max_del_s = 3  # degrees
         self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=0)
+        self._anti_windup_timer = 0
         self.logger.info(f"{self.__class__.__name__} initialized")
 
-    def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
+    def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> float:
         """
         Calculates a torque using the PID error of pendulum angle. If the calculated torque 
         is greater than the specified maximum, a warning message will be logged and the torque
@@ -26,7 +27,8 @@ class PIDController(Controller):
         super().get_torque(robot_state, max_torque)
         current_wheel_velocity = robot_state.wheel_vel
         # Check for saturation to engage anti windup
-        if current_wheel_velocity
+        print(robot_state.pendulum_angle)
+        if super.anti_windup(): return 0
         # Update control setpoint based on wheel velocity      
         self.update_control_setpoint(current_wheel_velocity)
         # Calculate torque
@@ -48,12 +50,7 @@ class PIDController(Controller):
         self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)
 
     def anti_windup(self) -> None:
-        """
-        Anti-windup scheme to prevent integration wind up when an actuator is saturated.
-
-        Theory: if we are saturated, faster rotation won't yield torque. Stopping and setting a flag
-        for 1 second to then "build up" our torque reserve will allow balancing again.
-        """
+        super.anti_windup()
 
     def update_parameter(self, param: str, value: float): 
         """
