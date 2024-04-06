@@ -1,0 +1,19 @@
+name: CI for PRs
+
+on:
+  pull_request:
+    paths:
+    - "src/**"
+
+jobs:
+  lint:
+    runs_on: ubuntu-latest
+  
+    steps:
+    - uses: actions/checkout@v1
+    - name: Super-Linter
+    # You may pin to the exact commit or the version.
+    # uses: super-linter/super-linter@a8150b40c89574adb5f68bf9502b890a236a06b3
+      uses: super-linter/super-linter@v5.7.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GTHUB_TOKEN }}
