@@ -27,7 +27,8 @@ import time
 # output_pin = 9 # BCM pin D9, BOARD pin 21
 
 # Simon : I changed the set mode to GPIO board so it matches board pin numbering scheme
-output_pin = 15 # Board pin 21
+output_pin = 15  # Board pin 21
+
 
 def main():
     # Pin Setup:
@@ -47,5 +48,6 @@ def main():
     finally:
         GPIO.cleanup()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

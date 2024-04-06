@@ -1,7 +1,8 @@
-''' A general stopwatch class to measure time taken between start and stop calls and store them in a circular buffer for analysis'''
+""" A general stopwatch class to measure time taken between start and stop calls and store them in a circular buffer for analysis"""
 
 import time
 import numpy as np
+
 
 class LoopTimer:
     def __init__(self, buffer_size=100):
@@ -27,4 +28,4 @@ class LoopTimer:
         return self.execution_times
 
     def average_time(self):
-        return np.mean(self.execution_times[:self.time_index])
+        return np.mean(self.execution_times[: self.time_index])

@@ -1267,7 +1267,6 @@ servo.velocity_zero_capture_threshold 0.050000
 servo.timing_fault 0
 servo.emit_debug 0
 servopos.position_min -50.0
-servopos.position_max 50.0 
+servopos.position_max 50.0
 id.id 1
 can.prefix 0
-

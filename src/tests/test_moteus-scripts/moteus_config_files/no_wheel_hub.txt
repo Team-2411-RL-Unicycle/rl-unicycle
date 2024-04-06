@@ -1392,8 +1392,7 @@ servo.cooldown_cycles 256
 servo.velocity_zero_capture_threshold 0.050000
 servo.timing_fault 0
 servo.emit_debug 0
-servopos.position_min nan 
-servopos.position_max nan 
+servopos.position_min nan
+servopos.position_max nan
 id.id 1
 can.prefix 0
-
