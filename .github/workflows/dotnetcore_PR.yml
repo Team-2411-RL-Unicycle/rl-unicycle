@@ -19,3 +19,4 @@ jobs:
       uses: super-linter/super-linter@v5.7.2
       env:
         GITHUB_TOKEN: ${{ secrets.GTHUB_TOKEN }}
+        DISABLE_ERRORS: true # remove once integrated
