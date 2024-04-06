@@ -9,7 +9,7 @@ Linux for Tegra version on Jetson as of 2024-01-30 is 32.7.4
 **R32 (release), REVISION: 7.4, GCID: 33514132, BOARD: t210ref, EABI: aarch64, DATE: Fri Jun  9 04:25:08 UTC 2023**
 
 >[!Note]
-> The Jetson IO configuration is handled using a Python script that can be run using the command `sudo /opt/nvidia/jetson-io/jetson-io.py` in the terminal. 
+> The Jetson IO configuration is handled using a Python script that can be run using the command `sudo /opt/nvidia/jetson-io/jetson-io.py` in the terminal.
 
 The full stack of communicationo pins and pwm pins can be accessed through this menu using the commands:
 
@@ -59,7 +59,7 @@ ls /dev/spi*
 
 This should open the SPI devices (0 indexed) so that SPI 1 shows as 0 and SPI 2 shows as 1. The ls command will list the devices showing that they are in fact open.
 
-To test the pins spidev for python is installed, but python3 is missing. 
+To test the pins spidev for python is installed, but python3 is missing.
 
 sudo apt install python3 python3-venv
 
@@ -72,8 +72,4 @@ SPI is non functioning at this time.
 
 ## I2C
 
-The imu can be read through i2c, it is wired to a bus 
-
-
-
-
+The imu can be read through i2c, it is wired to a bus

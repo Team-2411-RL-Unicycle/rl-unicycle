@@ -12,7 +12,11 @@ SCHED_FIFO = 1  # FIFO real-time policy
 
 
 class SchedParam(ctypes.Structure):
+<<<<<<< HEAD
     _fields_ = [('sched_priority', ctypes.c_int)]
+=======
+    _fields_ = [('sched_priority', ctypes.c_int)]
+>>>>>>> 19e692e9dc00f28174ee23ceb0c2b2eebb162f2a
 
 
 def set_realtime_priority(priority=99):
@@ -20,7 +24,11 @@ def set_realtime_priority(priority=99):
     param = SchedParam(priority)
     # Set the scheduling policy to FIFO and priority for the entire process (0 refers to the current process)
     if libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param)) != 0:
+<<<<<<< HEAD
         raise ValueError('Failed to set real-time priority. Check permissions.')
+=======
+        raise ValueError('Failed to set real-time priority. Check permissions.')
+>>>>>>> 19e692e9dc00f28174ee23ceb0c2b2eebb162f2a
 
 
 def setup_logging():
@@ -42,6 +50,7 @@ def start_mqtt_process(telemetry_queue, command_queue):
 def parse_args():
     # Setup command-line argument parsing
     parser = argparse.ArgumentParser(
+<<<<<<< HEAD
         description='Start the robot system with optional motor control.'
     )
     parser.add_argument(
@@ -57,6 +66,23 @@ def parse_args():
         default='test',
         choices=['pid', 'rl', 'test'],
         help='Select the type of controller: pid or rl.',
+=======
+        description='Start the robot system with optional motor control.'
+    )
+    parser.add_argument(
+        '-nm',
+        '--no-motors',
+        action='store_true',
+        help='Do not start the motors of the robot system.',
+    )
+    parser.add_argument(
+        '-c',
+        '--controller',
+        type=str,
+        default='test',
+        choices=['pid', 'rl', 'test'],
+        help='Select the type of controller: pid or rl.',
+>>>>>>> 19e692e9dc00f28174ee23ceb0c2b2eebb162f2a
     )
     args = parser.parse_args()
     return args
@@ -84,7 +110,11 @@ def main():
     # Setup the logging configuration
     setup_logging()
     logger = logging.getLogger()
+<<<<<<< HEAD
     logger.debug('Logger initalized')
+=======
+    logger.debug('Logger initalized')
+>>>>>>> 19e692e9dc00f28174ee23ceb0c2b2eebb162f2a
 
     # Escalate the process priority to max level
     set_realtime_priority()
@@ -127,7 +157,11 @@ def main():
         if mqtt_process.is_alive():
             mqtt_process.kill()
             logger.warning(
+<<<<<<< HEAD
                 'MQTT process did not terminate gracefully, forcing termination.'
+=======
+                'MQTT process did not terminate gracefully, forcing termination.'
+>>>>>>> 19e692e9dc00f28174ee23ceb0c2b2eebb162f2a
             )
 
         logger.info('Cleanup complete. Exiting program.')

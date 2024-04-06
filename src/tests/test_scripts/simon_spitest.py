@@ -7,7 +7,7 @@ spi = spidev.SpiDev()
 # Open the SPI device. This corresponds to the device files in /dev
 SPI_BUS = 1
 SPI_DEVICE = 0
-spi.open(SPI_BUS, SPI_DEVICE) # Open the SPI bus
+spi.open(SPI_BUS, SPI_DEVICE)  # Open the SPI bus
 
 # Set SPI speed and mode
 spi.max_speed_hz = 10000

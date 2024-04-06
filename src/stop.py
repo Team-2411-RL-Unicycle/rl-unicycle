@@ -11,5 +11,5 @@ async def main():
     await c.set_stop()  # clear faults
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
