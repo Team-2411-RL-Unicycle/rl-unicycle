@@ -113,10 +113,7 @@ class RobotSystem:
             # Change to negative convention due to motor
             torque_request, anti_windup = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001, self.itr) # Floating point buffer
             torque_request *= -1
-            if anti_windup:
-                await self.xmotor.stop()
-            else:
-                self.robot_io.send_debug_data(torque_request=float(torque_request))
+            self.robot_io.send_debug_data(torque_request=float(torque_request))
 
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period*self.WRITE_DUTY)
@@ -126,7 +123,10 @@ class RobotSystem:
             isCalibrating = (self.itr < self.sensor_calibration_delay/self.LOOP_TIME)
             if self.motors_enabled and not isCalibrating:
                 # Only set the torque if not in calibration mode
-                await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)
+                if anti_windup:
+                    await self.xmotor.stop()
+                else:
+                    await self.xmotor.set_torque(torque=torque_request, max_torque=self.MAX_TORQUE)
 
             ### SEND COMMS ###
             # Send out all data downsampled to lower rate              
