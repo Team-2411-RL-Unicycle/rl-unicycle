@@ -65,7 +65,7 @@ class RobotSystem:
             #TODO test PID
             self.controller = PIDController()
         elif controller_type == 'rl':
-            self.controller = RLController(model_pth='controller/rwip_model_m22.onnx')
+            self.controller = RLController(model_pth='controller/rlmodels/rwip_model_rewfn4_nodr_bestrwip.onnx')
         elif controller_type == 'test':
             self.controller = TestController()
         else:
