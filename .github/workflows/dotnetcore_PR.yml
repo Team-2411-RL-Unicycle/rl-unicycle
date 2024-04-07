@@ -12,7 +12,7 @@ on:
 
 jobs:
   lint:
-    runs_on: ubuntu-latest
+    runs-on: ubuntu-latest
   
     steps:
     - run: echo "${{ github.event_name }} triggered a linting job on ${{ github.repository }} in branch ${{ github.ref }}"
