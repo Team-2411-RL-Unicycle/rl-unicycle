@@ -3,12 +3,12 @@ name: CI for PRs
 on:
   pull_request:
     paths:
-    - "src/**"
-    paths-ignore:
-    - "src/icm20948/*/"
-    - "src/tests/"
-    - "src/**/conf*"
-    - "**__pycache__"
+    - "src/communication/*.py"
+    - "src/controller/*.py"
+    - "src/fusion/*.py"
+    - "src/icm20948/*.py"
+    - "src/motors/*.py"
+    - "src/*.py"
 
 jobs:
   lint:
