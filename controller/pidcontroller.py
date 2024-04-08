@@ -92,9 +92,9 @@ class PIDController(Controller):
 
         # print(f"abs(robot_state.wheel_vel) = {abs(robot_state.wheel_vel)}")
         # print(f"abs(robot_state.pendulum_angle) = {abs(robot_state.pendulum_angle)}")
-        if ((robot_state.wheel_vel > self._max_rps and
+        if ((robot_state.wheel_vel < -self._max_rps and
                 robot_state.pendulum_angle > 25) or
-            (robot_state.wheel_vel < -self._max_rps and
+            (robot_state.wheel_vel > self._max_rps and
                 robot_state.pendulum_angle < -25)
             ):
             self.anti_windup_timer = 1200
