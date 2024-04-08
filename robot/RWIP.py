@@ -110,7 +110,7 @@ class RobotSystem:
             )
 
             # Change to negative convention due to motor
-            torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001) # Floating point buffer
+            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001) # Floating point buffer
             self.robot_io.send_debug_data(torque_request=float(torque_request))
                         
             ## DELAY UNTIL FIXED POINT ##
@@ -201,7 +201,6 @@ class RobotSystem:
         # Log info and print to console
         msg = f'Setting PID parameter {command} to value {value}.'
         logger.info(msg)
-        print(msg)
         return
 
     def precise_delay_until(self, end_time):
