@@ -1,6 +1,9 @@
 from controller.controllerABC import Controller, ControlInput
-       
+from ..utils import call_super_first
+
 class TestController(Controller):
+
+    @call_super_first
     def __init__(self) -> None:
         super().__init__()
         self.MAX_TORQUE = .1
