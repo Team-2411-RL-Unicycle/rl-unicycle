@@ -66,7 +66,7 @@ class RobotSystem:
             #TODO test PID
             self.controller = PIDController()
         elif controller_type == 'rl':
-            self.controller = RLController(model_pth='controller/rwip_model_m22.onnx')
+            self.controller = RLController(model_pth='controller/rlmodels/rwip_model_rewfn4_nodr_bestrwip.onnx')
         elif controller_type == 'test':
             self.controller = TestController()
         else:
@@ -111,8 +111,12 @@ class RobotSystem:
             )
 
             # Change to negative convention due to motor
+<<<<<<< HEAD
             torque_request, anti_windup = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001, self.itr) # Floating point buffer
             torque_request *= -1
+=======
+            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001) # Floating point buffer
+>>>>>>> simon/pid-tuning
             self.robot_io.send_debug_data(torque_request=float(torque_request))
 
             ## DELAY UNTIL FIXED POINT ##
@@ -206,7 +210,6 @@ class RobotSystem:
         # Log info and print to console
         msg = f'Setting PID parameter {command} to value {value}.'
         logger.info(msg)
-        print(msg)
         return
 
     def precise_delay_until(self, end_time):

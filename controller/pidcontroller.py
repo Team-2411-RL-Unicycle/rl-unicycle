@@ -8,14 +8,17 @@ class PIDController(Controller):
         super().__init__()
         self._Kp = 0.07
         self._Ki = 0.00
-        self._Kd = 0.0045
-        self._Kp_wheel_vel = -.11  #0.1 - 0.2 is a potential value range to check
+        self._Kd = 0.0038
+        self._Kp_wheel_vel = .2 #0.1 - 0.2 is a potential value range to check
+        self._Ki_wheel_vel = .03
+        self._Kd_wheel_vel = 0.0065
         self._max_rps = 35  # revs/s
-        self._max_del_s = 3  # degrees
+        self._max_del_s = 2.0  # degrees
         self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=0)
         self.anti_windup_timer = 0
         self.logger.info(f"{self.__class__.__name__} initialized")
-
+        self._pid_wheel = PID(self._Kp_wheel_vel, 0, 0, setpoint=0)
+            
     def get_torque(self, robot_state: ControlInput, max_torque: float, iteration: int) -> Tuple[float, bool]:
         """
         Calculates a torque using the PID error of pendulum angle. If the calculated torque 
@@ -31,7 +34,7 @@ class PIDController(Controller):
         # Update control setpoint based on wheel velocity
         self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque
-        torque = self._pid(robot_state.pendulum_angle)
+        torque = self._pid(robot_state.pendulum_angle-.4)
         # Clamp torque if outside bounds
         if abs(torque) > max_torque: 
             torque = max_torque * (1 if torque > 0 else -1)
@@ -44,10 +47,10 @@ class PIDController(Controller):
         
         Theory: create a saturating P controller in response to deviation from 0 velocity on wheel
         The controller saturates at max_del_s degrees of pendulum angle.
-        """
-        setpoint = wheel_vel * self._Kp_wheel_vel
-        self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)
-
+        """           
+        setpoint = -self._pid_wheel(wheel_vel)
+        self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)      
+      
     def update_parameter(self, param: str, value: float): 
         """
         Update PID Controller's control parameter to a new value.
@@ -57,17 +60,17 @@ class PIDController(Controller):
             value: value of parameter
         """
         if param == 'P': 
-            self._Kp = value
+            self._Kp_wheel_vel = value
         elif param == 'I': 
-            self._Ki = value
+            self._Ki_wheel_vel = value
         elif param == 'D': 
-            self._Kd = value
+            self._Kd_wheel_vel = value
         # Raise error if not P, I, or D
         else: 
             raise ValueError(f"Invalid parameter: {param}")
 
-        self._pid.reset()
-        self._pid.tunings = (self._Kp, self._Ki, self._Kd)
+        self._pid_wheel.reset()
+        self._pid_wheel.tunings = (self._Kp_wheel_vel, self._Ki_wheel_vel, self._Kd_wheel_vel)
         return
     
     def anti_windup(self, robot_state: ControlInput) -> bool:
