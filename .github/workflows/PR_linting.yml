@@ -1,4 +1,4 @@
-name: CI for PRs
+name: Pull request linting
 
 on:
   push:
