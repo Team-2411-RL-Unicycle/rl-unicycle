@@ -8,14 +8,17 @@ class PIDController(Controller):
         self._Kp = 0.07
         self._Ki = 0.00
         self._Kd = 0.0038
-        self._Kp_wheel_vel = .2 #0.1 - 0.2 is a potential value range to check
-        self._Ki_wheel_vel = .03
-        self._Kd_wheel_vel = 0.0065
+        self._Kp_wheel_vel = .18 #0.1 - 0.2 is a potential value range to check
+        self._Ki_wheel_vel = .08
+        self._Kd_wheel_vel = 0.0055
         self._max_rps = 35  # revs/s
-        self._max_del_s = 2.0  # degrees
+        self._max_del_s = 2.5  # degrees
         self._pid = PID(self._Kp, self._Ki, self._Kd, setpoint=0)
         self.logger.info(f"{self.__class__.__name__} initialized")
         self._pid_wheel = PID(self._Kp_wheel_vel, 0, 0, setpoint=0)
+        self.downsample = 25
+        self.downsample_counter = 0
+        self.buffer = [0]*self.downsample
             
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
@@ -30,7 +33,7 @@ class PIDController(Controller):
         # Update control setpoint based on wheel velocity      
         self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque
-        torque = self._pid(robot_state.pendulum_angle-.4)
+        torque = self._pid(robot_state.pendulum_angle-1.0)
         # Clamp torque if outside bounds
         if abs(torque) > max_torque: 
             torque = max_torque * (1 if torque > 0 else -1)
@@ -44,8 +47,12 @@ class PIDController(Controller):
         Theory: create a saturating P controller in response to deviation from 0 velocity on wheel
         The controller saturates at max_del_s degrees of pendulum angle.
         """           
-        setpoint = -self._pid_wheel(wheel_vel)
-        self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)      
+        self.downsample_counter = (self.downsample_counter + 1) % self.downsample
+        self.buffer[self.downsample_counter] = wheel_vel
+        if self.downsample_counter == 0:
+            wheel_vel = np.mean(self.buffer[-3])
+            setpoint = -self._pid_wheel(wheel_vel)
+            self._pid.setpoint = np.clip(setpoint, -self._max_del_s, self._max_del_s)      
       
     def update_parameter(self, param: str, value: float): 
         """
