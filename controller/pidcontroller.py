@@ -1,6 +1,6 @@
 from controller.controllerABC import Controller, ControlInput
 from simple_pid import PID
-from ..utils import call_super_first
+from utils.utils import call_super_first
 import numpy as np
        
 class PIDController(Controller):

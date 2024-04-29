@@ -1,5 +1,5 @@
 from controller.controllerABC import Controller, ControlInput
-from ..utils import call_super_first
+from utils.utils import call_super_first
 
 class TestController(Controller):
 
