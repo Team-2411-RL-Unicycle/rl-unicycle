@@ -43,6 +43,7 @@ class RobotSystem:
             'P': self.handle_pid_command,
             'I': self.handle_pid_command,
             'D': self.handle_pid_command,
+            'controller': self.handle_controller_switch,
         })
 
         # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
@@ -65,7 +66,7 @@ class RobotSystem:
             #TODO test PID
             self.controller = PIDController()
         elif controller_type == 'rl':
-            self.controller = RLController(model_pth='controller/rlmodels/rwip_model_rewfn4_nodr_bestrwip.onnx')
+            self.controller = RLController(model_pth='controller/rlmodels/2_v_pen.onnx')
         elif controller_type == 'test':
             self.controller = TestController()
         else:
@@ -110,7 +111,7 @@ class RobotSystem:
             )
 
             # Change to negative convention due to motor
-            torque_request = -self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001) # Floating point buffer
+            torque_request = self.controller.get_torque(control_input, self.MAX_TORQUE - 0.001) # Floating point buffer
             self.robot_io.send_debug_data(torque_request=float(torque_request))
                         
             ## DELAY UNTIL FIXED POINT ##
@@ -201,8 +202,29 @@ class RobotSystem:
         # Log info and print to console
         msg = f'Setting PID parameter {command} to value {value}.'
         logger.info(msg)
-        print(msg)
         return
+    
+    async def handle_controller_switch(self, command: str, value: str):
+        """
+        Handles controller switch commands for the robot.
+
+        Args:
+            value (str): The controller type to switch to.
+        """
+        # Ensure the value is a string
+        if isinstance(value, str):
+            if value in ['pid', 'rl', 'test']:
+                self.controller_type = value
+                if value == 'pid':
+                    self.controller = PIDController()
+                elif value == 'rl':
+                    self.controller = RLController(model_pth='controller/rlmodels/2_v_pen.onnx')
+            else:
+                # Log an error or handle the case where the value is not a valid controller type
+                logger.error(f"Invalid controller type: {value}")
+        else:
+            # Log an error or handle the case where the value is not a string
+            logger.error(f"Expected a string for the controller switch command, but got: {value}")
 
     def precise_delay_until(self, end_time):
         """
