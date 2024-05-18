@@ -22,7 +22,7 @@ def set_realtime_priority(priority=99):
     
 def setup_logging():
     # Get the directory of the current script
-    dir_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    dir_path = os.path.dirname(os.path.realpath(__file__))
     # Construct the path to logging.ini relative to the current script
     logging_ini_path = os.path.join(dir_path, 'log/logging.ini')
     # Use the logging_ini_path to load the configuration (edit this file to configure logger settings)

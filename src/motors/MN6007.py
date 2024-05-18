@@ -38,7 +38,7 @@ class MN6007:
     
     def load_fault_codes(self):
         # Load fault codes from a JSON file
-        with open('src/motors/fault_codes.json', 'r') as f:
+        with open('motors/fault_codes.json', 'r') as f:
             return json.load(f)
 
     async def start(self):
