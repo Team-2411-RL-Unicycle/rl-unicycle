@@ -1,10 +1,12 @@
 from controller.controllerABC import Controller, ControlInput
 from simple_pid import PID
+from utils.utils import call_super_first
 import numpy as np
        
 class PIDController(Controller):
+
+    @call_super_first
     def __init__(self) -> None:
-        super().__init__()
         self._Kp = 0.07
         self._Ki = 0.00
         self._Kd = 0.0038
@@ -20,6 +22,7 @@ class PIDController(Controller):
         self.downsample_counter = 0
         self.buffer = [0]*self.downsample
             
+    @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
         Calculates a torque using the PID error of pendulum angle. If the calculated torque 
@@ -29,7 +32,6 @@ class PIDController(Controller):
         Returns: 
             torque: Desired torque for the PID controller. 
         """
-        super().get_torque(robot_state, max_torque) 
         # Update control setpoint based on wheel velocity      
         self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque

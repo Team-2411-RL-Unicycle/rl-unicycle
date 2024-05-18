@@ -7,7 +7,7 @@ class Controller(ABC):
     # This logger will not be directly used, it's here to ensure a logger is created for the base class
     _base_logger = logging.getLogger(__name__)
     
-    def __init__(self):
+    def __init__(self, **kwargs):
         # Instantiate a controller logger labeled with the specific subclass name
         self.logger = logging.getLogger(f'{self.__class__.__name__}')
         # Number of observations and actions
