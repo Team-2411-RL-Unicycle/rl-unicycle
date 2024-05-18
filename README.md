@@ -1,5 +1,10 @@
+![](https://lh7-us.googleusercontent.com/docsz/AD_4nXf4ytSh4HD-LsoUcauN4rAJETcQEqcSF_9ma_PEI--bLTFZ85l9PUtHIvkC1KWRrCilFLvN_Wypq5f8UFF86IzqyjDwc3QSBa45BY8ooM3NKFBzuBElrSHbj2AHOBnhPGuNWRzhtb4EDQB_OsarRDq6qg?key=pQawy5ry41pUAlJ2OkVIbg)
+
+`python main.py -h` to view command line arguments for running robot.
+
+venv requirements in requirements.txt
+
+
 # TODO
 - [ ] Implement `test_controller.py` to run like `moteus_gui` without a gui. 
-- [X] Get moteus motor to stop cleanly on shutdown - simon/motor_on_off (needs testing)
-- [ ] We should draw out on a whiteboard the max_torque safety plan and intention and refactor/cleanup the number of instances.
-- [x ] Implement the on/off functionality (should stop motors and turn back on by demand without resetting sensor fusion)  - simon/motor_on_off (needs testing)
+
