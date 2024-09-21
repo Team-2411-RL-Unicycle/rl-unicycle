@@ -1,4 +1,4 @@
-''' A general stopwatch class to measure time taken between start and stop calls and store them in a circular buffer for analysis'''
+""" A general stopwatch class to measure time taken between start and stop calls and store them in a circular buffer for analysis"""
 
 import time
 

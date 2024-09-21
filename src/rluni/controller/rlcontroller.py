@@ -22,11 +22,8 @@ class RLController(Controller):
         obs[:, 1] = robot_state.pendulum_angle * np.pi / 180
         obs[:, 2] = robot_state.pendulum_vel * np.pi / 180
 
-        actions = self.model.run(
-            None,
-            {"obs": obs.astype(np.float32)}
-        )[0][0]
-        
+        actions = self.model.run(None, {"obs": obs.astype(np.float32)})[0][0]
+
         assert actions.shape[0] == self.num_act
 
         return np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0]

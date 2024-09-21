@@ -29,29 +29,32 @@ Position control arguments
 TORQUE = 0.03
 MAX_VEL = 0.1
 
+
 async def main(c):
-  await c.set_stop() # clear faults
-  while True:
-        current_command = 0.03 # N*m
+    await c.set_stop()  # clear faults
+    while True:
+        current_command = 0.03  # N*m
         results = await c.set_position(
             position=math.nan,
             kp_scale=0.0,
             kd_scale=0.0,
             feedforward_torque=TORQUE,
             maximum_torque=0.3,
-            velocity_limit=MAX_VEL,     
+            velocity_limit=MAX_VEL,
             query=True,
         )
         await asyncio.sleep(0.02)
 
+
 async def stop(c):
     await c.set_stop()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     c = moteus.Controller(transport=None)
-    try: 
+    try:
         asyncio.run(main(c))
-    except KeyboardInterrupt: 
+    except KeyboardInterrupt:
         print("Exiting...")
         asyncio.run(stop(c))
         f.close()

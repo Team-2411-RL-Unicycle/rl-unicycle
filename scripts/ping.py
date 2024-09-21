@@ -16,22 +16,20 @@ async def main(c):
         print("Position", state.values[moteus.Register.POSITION])
 
         print()
-        
+
         # note that the moteus requires there to be a command
         # at least every 100ms or the controller will fault
         await asyncio.sleep(0.05)
 
+
 async def stop(c):
     await c.set_stop()
-    
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     c = moteus.Controller()
-    try: 
+    try:
         asyncio.run(main(c))
-    except KeyboardInterrupt: 
+    except KeyboardInterrupt:
         asyncio.run(stop(c))
         print("Exiting...")
-        
-        
-
