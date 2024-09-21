@@ -1,7 +1,7 @@
 import logging
+
 import imufusion
 import numpy as np
-
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)

@@ -1,7 +1,9 @@
 ''' A general stopwatch class to measure time taken between start and stop calls and store them in a circular buffer for analysis'''
 
 import time
+
 import numpy as np
+
 
 class LoopTimer:
     def __init__(self, buffer_size=100):

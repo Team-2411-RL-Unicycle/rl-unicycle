@@ -1,6 +1,8 @@
 # imu_test.py
 import time
-from .imu_lib import ICM20948 
+
+from .imu_lib import ICM20948
+
 
 def test_register_bank_selection_speed(imu: ICM20948, num_iterations: int):
     start_time = time.time()  # Start timing

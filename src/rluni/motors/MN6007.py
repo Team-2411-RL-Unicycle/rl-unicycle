@@ -1,12 +1,12 @@
-import time
-import json
-import moteus
-from moteus.moteus import Register 
-import math
 import asyncio
-import logging
-
 import importlib.resources as pkg_resources
+import json
+import logging
+import math
+import time
+
+import moteus
+from moteus.moteus import Register
 
 # Create a logger
 logger = logging.getLogger(__name__)

@@ -1,9 +1,10 @@
-import smbus2
-import time
-import struct
-import os
 import configparser
 import logging
+import os
+import struct
+import time
+
+import smbus2
 
 try:
     from . import icm20948_registers

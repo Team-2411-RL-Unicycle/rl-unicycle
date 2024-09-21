@@ -1,7 +1,9 @@
 import asyncio
 import math
-import moteus
 import time
+
+import moteus
+
 
 async def main():
   c = moteus.Controller(transport=None)

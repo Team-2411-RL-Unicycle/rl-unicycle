@@ -1,8 +1,9 @@
 import asyncio
-import math
-import moteus
-import time
 import datetime
+import math
+import time
+
+import moteus
 
 """
 ==========================

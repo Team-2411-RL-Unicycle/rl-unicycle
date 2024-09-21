@@ -1,7 +1,9 @@
-from rluni.controller.controllerABC import Controller, ControlInput
-from rluni.utils.utils import call_super_first
-import onnxruntime as ort
 import numpy as np
+import onnxruntime as ort
+
+from rluni.controller.controllerABC import ControlInput, Controller
+from rluni.utils.utils import call_super_first
+
 
 class RLController(Controller):
 

@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from collections import namedtuple
+
 ControlInput = namedtuple('ControlInput', ['pendulum_angle', 'pendulum_vel', 'wheel_vel'])
 
 class Controller(ABC):

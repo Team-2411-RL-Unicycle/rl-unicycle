@@ -1,5 +1,6 @@
-from rluni.controller.controllerABC import Controller, ControlInput
+from rluni.controller.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
+
 
 class TestController(Controller):
 
