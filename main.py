@@ -3,8 +3,8 @@ import os
 import ctypes
 import multiprocessing
 import asyncio
-from robot.RWIP import RobotSystem
-from communication.mqtt import MQTTClient
+from rluni.robot.RWIP import RobotSystem
+from rluni.communication.mqtt import MQTTClient
 import logging.config
 
 # Define constants for the scheduling policy

@@ -49,7 +49,7 @@ class ICM20948:
         
         # Construct the full path relative to the current script
         base_path = os.path.dirname(__file__)        
-        config_path = os.path.join(base_path, '..', 'config', config_file)
+        config_path = os.path.join(base_path, '.', 'config', config_file)
 
         # Now use configparser to read the configuration
         config = configparser.ConfigParser()

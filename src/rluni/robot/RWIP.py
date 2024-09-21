@@ -1,10 +1,13 @@
 import time
-from icm20948.lib.imu_lib import ICM20948
-from fusion.AHRSfusion import AHRSfusion
-import robot.LoopTimer as lt  
-from motors.MN6007 import MN6007
-from controller import ControlInput, Controller, PIDController, RLController, TestController
+from rluni.icm20948.imu_lib import ICM20948
+from rluni.fusion.AHRSfusion import AHRSfusion
+import rluni.robot.LoopTimer as lt  
+from rluni.motors.MN6007 import MN6007
+from rluni.controller import ControlInput, Controller, PIDController, RLController, TestController
 import logging
+
+# For importing data files from the source, independent of the installation method
+import pkg_resources
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -66,7 +69,8 @@ class RobotSystem:
             #TODO test PID
             self.controller = PIDController()
         elif controller_type == 'rl':
-            self.controller = RLController(model_pth='controller/rlmodels/2_v_pen.onnx')
+            model_pth = pkg_resources.resource_filename('rluni.controller.rlmodels', '2_v_pen.onnx')
+            self.controller = RLController(model_pth=model_pth)
         elif controller_type == 'test':
             self.controller = TestController()
         else:
@@ -218,7 +222,8 @@ class RobotSystem:
                 if value == 'pid':
                     self.controller = PIDController()
                 elif value == 'rl':
-                    self.controller = RLController(model_pth='controller/rlmodels/2_v_pen.onnx')
+                    model_pth = pkg_resources.resource_filename('rluni.controller.rlmodels', '2_v_pen.onnx')
+                    self.controller = RLController(model_pth=model_pth)
             else:
                 # Log an error or handle the case where the value is not a valid controller type
                 logger.error(f"Invalid controller type: {value}")

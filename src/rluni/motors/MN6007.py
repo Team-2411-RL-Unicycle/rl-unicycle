@@ -6,6 +6,7 @@ import math
 import asyncio
 import logging
 
+import importlib.resources as pkg_resources
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -37,9 +38,19 @@ class MN6007:
         return description
     
     def load_fault_codes(self):
-        # Load fault codes from a JSON file
-        with open('motors/fault_codes.json', 'r') as f:
-            return json.load(f)
+        """
+        Load fault codes from the embedded 'fault_codes.json' using package resources.
+        """
+        try:
+            with pkg_resources.open_text('rluni.motors', 'fault_codes.json') as f:
+                self.FAULT_CODES = json.load(f)
+                logger.debug("Fault codes loaded successfully.")
+        except FileNotFoundError:
+            logger.error("Fault codes file 'fault_codes.json' not found in the package.")
+            raise
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON from 'fault_codes.json': {e}")
+            raise
 
     async def start(self):
         """
