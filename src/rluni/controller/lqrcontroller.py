@@ -8,7 +8,7 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = [0.5026, 3.2938, 1.4890]
+        self._K = [97.2590,2.1734,23.1089]
         self._max_rps = 35  # revs/s
         self._max_del_s = 2.5  # degrees
         self.state_pend_angle = 0
@@ -30,7 +30,7 @@ class LQRController(Controller):
             torque: Desired torque for the LQR controller.
         """
         # Calculate torque
-        torque = (
+        torque = -0.1*(
             self._K[self.state_pend_angle]*robot_state.pendulum_angle + 
             self._K[self.state_pend_vel]*robot_state.pendulum_vel + 
             self._K[self.state_wheel_vel]*robot_state.wheel_vel
