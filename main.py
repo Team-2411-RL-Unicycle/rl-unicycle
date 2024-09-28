@@ -56,8 +56,8 @@ def parse_args():
         "--controller",
         type=str,
         default="test",
-        choices=["pid", "rl", "test"],
-        help="Select the type of controller: pid or rl.",
+        choices=["pid", "rl", "test", "lqr"],
+        help="Select the type of controller: pid, lqr, or rl.",
     )
     args = parser.parse_args()
     return args

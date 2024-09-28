@@ -8,6 +8,7 @@ import rluni.robot.LoopTimer as lt
 from rluni.controller import (
     ControlInput,
     Controller,
+    LQRController,
     PIDController,
     RLController,
     TestController,
@@ -88,6 +89,8 @@ class RobotSystem:
                 "rluni.controller.rlmodels", "2_v_pen.onnx"
             )
             self.controller = RLController(model_pth=model_pth)
+        elif controller_type == "lqr":
+            self.controller = LQRController()
         elif controller_type == "test":
             self.controller = TestController()
         else:
