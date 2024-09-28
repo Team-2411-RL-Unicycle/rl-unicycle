@@ -65,11 +65,13 @@ class RobotSystem:
             },
         )
 
-        # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
-        imu1 = "imu1.ini"
-        self.imu = ICM20948(config_file=imu1)
+        # Locate the imu configuration file
+        cfg_file = pkg_resources.resource_filename("rluni.configs.imu", "imu1.ini")
+        self.imu = ICM20948(config_file=cfg_file)
         # Init sensor fusion
-        self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1 / self.LOOP_TIME))
+        self.sensor_fusion = AHRSfusion(
+            sample_rate=int(1 / self.LOOP_TIME), config_file=cfg_file
+        )
         self.sensor_calibration_delay = 5  # seconds
 
         self.motors_enabled = start_motors
@@ -86,7 +88,7 @@ class RobotSystem:
             self.controller = PIDController()
         elif controller_type == "rl":
             model_pth = pkg_resources.resource_filename(
-                "rluni.controller.rlmodels", "2_v_pen.onnx"
+                "rluni.configs.rlmodels", "2_v_pen.onnx"
             )
             self.controller = RLController(model_pth=model_pth)
         elif controller_type == "lqr":
@@ -255,7 +257,7 @@ class RobotSystem:
                     self.controller = PIDController()
                 elif value == "rl":
                     model_pth = pkg_resources.resource_filename(
-                        "rluni.controller.rlmodels", "2_v_pen.onnx"
+                        "rluni.configs.rlmodels", "2_v_pen.onnx"
                     )
                     self.controller = RLController(model_pth=model_pth)
             else:

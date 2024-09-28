@@ -50,18 +50,12 @@ class ICM20948:
         self.initialize()
 
     def load_config(self, config_file):
-
-        # Construct the full path relative to the current script
-        base_path = os.path.dirname(__file__)
-        config_path = os.path.join(base_path, ".", "config", config_file)
-
-        # Now use configparser to read the configuration
+        # Load configuration from the specified file
         config = configparser.ConfigParser()
-
-        logger.debug(f"Loading from: {config_path}")
+        logger.debug(f"Loading config from: {config_file}")
 
         try:
-            config.read(config_path)
+            config.read(config_file)
             section = "ICM20948 Configuration"
 
             self._addr = int(config[section].get("i2c_addr", hex(self._addr)), 0)
