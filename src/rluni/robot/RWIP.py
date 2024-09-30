@@ -78,7 +78,6 @@ class RobotSystem:
         # Initialize controller type and instantiate the appropriate controller based on the controller_type argument
         self.controller_type = controller_type
         if controller_type == "pid":
-            # TODO test PID
             self.controller = PIDController()
         elif controller_type == "rl":
             model_pth = pkg_resources.resource_filename(
