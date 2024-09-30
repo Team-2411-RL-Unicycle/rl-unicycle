@@ -1,0 +1,12 @@
+PIDController:
+  # Parameters for the inner PD controller
+  Kp: 0.07
+  Ki: 0.00
+  Kd: 0.0038
+  # Parameters for the outer PD controller
+  Kp_wheel_vel: 0.18
+  Ki_wheel_vel: 0.08
+  Kd_wheel_vel: 0.0055
+
+  max_del_s: 2.5  # degrees, maximum setpoint deflection allowed
+  downsample: 25  # Number of inner loop cycles per outer loop

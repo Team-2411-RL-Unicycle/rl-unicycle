@@ -76,7 +76,6 @@ class RobotSystem:
         self.sensor_fusion = AHRSfusion(
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
         )
-        self.sensor_calibration_delay = 5  # seconds
 
         self.motors_enabled = start_motors
         # Initialize all actuators
@@ -123,12 +122,19 @@ class RobotSystem:
         )
         self.rlmodel_path = pkg_resources.resource_filename("rluni", self.rlmodel_path)
 
+        self.pid_config_path = gvcv(
+            config, "RobotSystem.pid_config", str, required=False
+        )
+        self.pid_config_path = pkg_resources.resource_filename(
+            "rluni", self.pid_config_path
+        )
+
     def _initialize_controller(self, controller_type):
         """
         Initialize the controller based on the type provided ('pid', 'rl', or 'test').
         """
         if controller_type == "pid":
-            return PIDController()
+            return PIDController(config_file=self.pid_config_path)
         elif controller_type == "rl":
             return RLController(model_pth=self.rlmodel_path)
         elif controller_type == "test":
@@ -150,7 +156,7 @@ class RobotSystem:
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
-        loop_period = 0.01
+        loop_period = self.LOOP_TIME
         while True:
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
