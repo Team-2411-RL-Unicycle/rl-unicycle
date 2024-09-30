@@ -1,15 +1,17 @@
 import logging
-import os
 import struct
 import time
 
+import pkg_resources
 import smbus2
-import yaml
 
 try:
     from . import icm20948_registers
 except ImportError:
     import icm20948_registers
+
+from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils import load_config_file
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
@@ -45,68 +47,36 @@ class ICM20948:
         self._gyro_bias = [0, 0, 0]
 
         if config_file != None:
-            self.load_config(config_file)
-            pass
+            self.config = load_config_file(config_file)
+            self._load_config()
         self.initialize()
 
-    def load_config(self, config_file):
-        logger.debug(f"Loading config from: {config_file}")
+    def _load_config(self):
+        """Load the configuration from a YAML file."""
 
-        try:
-            with open(config_file, "r") as file:
-                config = yaml.safe_load(file)
-            logger.debug("Configuration file loaded.")
-        except FileNotFoundError:
-            logger.error(f"Configuration file not found: {config_file}")
-            return
-        except yaml.YAMLError as e:
-            logger.error(f"Error parsing YAML file {config_file}: {e}")
-            return
+        # Validate and parse ICM20948 settings
+        icm_config = self.config.get("ICM20948_Configuration", {})
 
-        # Parse ICM20948 settings
-        icm_config = config.get("ICM20948_Configuration", {})
-        self._addr = self._get_value(icm_config, "i2c_addr", self._addr, int)
-        self._bus = smbus2.SMBus(self._get_value(icm_config, "i2c_bus", self._bus, int))
-        self._accel_range = self._get_value(
-            icm_config, "accel_range", self._accel_range, int
-        )
+        self._addr = gvcv(icm_config, "i2c_addr", int, required=True)
+        self._bus = smbus2.SMBus(gvcv(icm_config, "i2c_bus", int, required=True))
+        self._accel_range = gvcv(icm_config, "accel_range", int, required=True)
 
         # Directly handle booleans
-        self._accel_LPF = self._get_value(icm_config, "accel_LPF", False, bool)
-        self._accel_LPF_CFG = self._get_value(
-            icm_config, "accel_LPF_CFG", self._accel_LPF_CFG, int
-        )
-        self._gyro_range = self._get_value(
-            icm_config, "gyro_range", self._gyro_range, int
-        )
-        self._gyro_LPF = self._get_value(icm_config, "gyro_LPF", True, bool)
-        self._gyro_LPF_CFG = self._get_value(
-            icm_config, "gyro_LPF_CFG", self._gyro_LPF_CFG, int
-        )
+        self._accel_LPF = gvcv(icm_config, "accel_LPF", bool, required=True)
+        self._accel_LPF_CFG = gvcv(icm_config, "accel_LPF_CFG", int, required=True)
+        self._gyro_range = gvcv(icm_config, "gyro_range", int, required=True)
+        self._gyro_LPF = gvcv(icm_config, "gyro_LPF", bool, required=True)
+        self._gyro_LPF_CFG = gvcv(icm_config, "gyro_LPF_CFG", int, required=True)
 
         # Parse calibration data
-        calibration = config.get("Calibration", {})
-        self._accel_bias = self._get_value(
-            calibration, "accel_bias", self._accel_bias, list
+        self._accel_bias = gvcv(
+            self.config, "Calibration.accel_bias", list, required=True
         )
-        self._gyro_bias = self._get_value(
-            calibration, "gyro_bias", self._gyro_bias, list
+        self._gyro_bias = gvcv(
+            self.config, "Calibration.gyro_bias", list, required=True
         )
 
         logger.info("Configuration parsed successfully.")
-
-    def _get_value(self, config_section, key, default, expected_type=None):
-        """
-        Helper method to retrieve a configuration value, with optional type validation.
-        If the key is not found, it returns the default value.
-        """
-        value = config_section.get(key, default)
-        if expected_type and not isinstance(value, expected_type):
-            logger.warning(
-                f"Config key '{key}' expected type {expected_type.__name__} but got {type(value).__name__}. Using default: {default}"
-            )
-            return default
-        return value
 
     def initialize(self):
         """Initialize the device"""
