@@ -1,0 +1,8 @@
+RobotSystem:
+  loop_time: 0.01              # Control loop time period (in seconds)
+  write_duty: 0.6              # Fraction of the loop period before actuator updates
+  max_torque: 0.6              # Maximum torque for motor control Nm
+  calibration_delay: 5.0       # Sensor calibration delay in seconds
+
+  imu_config: "configs/imu/imu1.yaml"  # Relative path to IMU configuration file
+  rlmodel_path: "configs/rlmodels/2_v_pen.onnx"  # Relative path to RL model file

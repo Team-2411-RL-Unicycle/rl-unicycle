@@ -4,6 +4,9 @@ import imufusion
 import numpy as np
 import yaml
 
+from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils import load_config_file
+
 # Create a logger for your module
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,8 @@ class AHRSfusion:
         self.transformation_matrix = np.identity(3)
 
         # Load the configuration file
-        self._load_config(config_file)
+        self.config = load_config_file(config_file)
+        self._load_config()
 
         # Instantiate algorithms
         self.offset = imufusion.Offset(self.sample_rate)
@@ -36,38 +40,27 @@ class AHRSfusion:
             5 * self.sample_rate,
         )  # recovery trigger period = 5 seconds
 
-    def _load_config(self, config_file):
-        # Load the YAML configuration file
-        logger.debug(f"Loading config from: {config_file}")
+    def _load_config(self):
+        """
+        Load and validate the ICM20948 configuration and calibration settings.
+        """
+        # Access the ICM20948 configuration
+        self._gyro_range = gvcv(
+            self.config, "ICM20948_Configuration.gyro_range", int, required=True
+        )
 
-        try:
-            with open(config_file, "r") as file:
-                config = yaml.safe_load(file)
+        # Parse the rotation matrix from the 'Calibration' section
+        rotation_list = gvcv(self.config, "Calibration.rotation", list, required=True)
+        rot_mat = np.array(rotation_list).reshape(3, 3)
+        pitch_angle = gvcv(self.config, "Calibration.pitch_adj", float, required=True)
+        roll_angle = gvcv(self.config, "Calibration.roll_adj", float, required=True)
 
-            # Access the ICM20948 configuration
-            self._gyro_range = config["ICM20948_Configuration"]["gyro_range"]
+        # Compute the transformation matrix
+        self.transformation_matrix = self._calculate_transformation_matrix(
+            rot_mat, pitch_angle, roll_angle
+        )
 
-            # Parse the rotation matrix from the 'Calibration' section
-            rotation_list = config["Calibration"]["rotation"]
-            rot_mat = np.array(rotation_list).reshape(3, 3)
-            pitch_angle = config["Calibration"]["pitch_adj"]
-            roll_angle = config["Calibration"]["roll_adj"]
-
-            self.transformation_matrix = self._calculate_transformation_matrix(
-                rot_mat, pitch_angle, roll_angle
-            )
-
-            logger.debug(f"Loaded rotation matrix:\n{self.transformation_matrix}")
-
-        except FileNotFoundError:
-            logger.error(f"Configuration file not found: {config_file}")
-            raise
-        except yaml.YAMLError as e:
-            logger.error(f"Error parsing YAML file {config_file}: {e}")
-            raise
-        except (KeyError, ValueError) as e:
-            logger.error(f"Error loading configuration: {e}")
-            raise
+        logger.debug(f"Loaded rotation matrix:\n{self.transformation_matrix}")
 
     def _calculate_transformation_matrix(self, rot_mat, pitch_angle, roll_angle):
         pitch_angle = np.radians(pitch_angle)
@@ -98,9 +91,7 @@ class AHRSfusion:
         """
         Input: x, y, z in IMU frame
         Output: x', y', z' in robot frame"""
-        xprime = self.transformation_matrix @ np.array([x, y, z])
-        x, y, z = xprime
-        return x, y, z
+        return self.transformation_matrix @ np.array([x, y, z])
 
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
         # Change alignment to robot frame:
