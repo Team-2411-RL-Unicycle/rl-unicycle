@@ -37,7 +37,7 @@ class PIDController(Controller):
         # Update control setpoint based on wheel velocity
         self.update_control_setpoint(robot_state.wheel_vel)
         # Calculate torque
-        torque = self._pid(robot_state.pendulum_angle - 1.0)
+        torque = self._pid(robot_state.pendulum_angle)
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
             torque = max_torque * (1 if torque > 0 else -1)
