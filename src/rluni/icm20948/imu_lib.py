@@ -1,4 +1,4 @@
-import configparser
+import yaml
 import logging
 import os
 import struct
@@ -50,43 +50,49 @@ class ICM20948:
         self.initialize()
 
     def load_config(self, config_file):
-        # Load configuration from the specified file
-        config = configparser.ConfigParser()
         logger.debug(f"Loading config from: {config_file}")
 
         try:
-            config.read(config_file)
-            section = "ICM20948 Configuration"
+            with open(config_file, 'r') as file:
+                config = yaml.safe_load(file)
+            logger.debug("Configuration file loaded.")
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {config_file}")
+            return
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML file {config_file}: {e}")
+            return
 
-            self._addr = int(config[section].get("i2c_addr", hex(self._addr)), 0)
-            self._bus = smbus2.SMBus(config[section].getint("i2c_bus", self._bus))
-            self._accel_range = config[section].getint("accel_range", self._accel_range)
-            self._gyro_range = config[section].getint("gyro_range", self._gyro_range)
-            self._accel_LPF = config[section].getboolean("accel_LPF", self._accel_LPF)
-            self._accel_LPF_CFG = config[section].getint(
-                "accel_LPF_CFG", self._accel_LPF_CFG
-            )
-            self._gyro_LPF = config[section].getboolean("gyro_LPF", self._gyro_LPF)
-            self._gyro_LPF_CFG = config[section].getint(
-                "gyro_LPF_CFG", self._gyro_LPF_CFG
-            )
+        # Parse ICM20948 settings
+        icm_config = config.get('ICM20948_Configuration', {})
+        self._addr = self._get_value(icm_config, 'i2c_addr', self._addr, int)
+        self._bus = smbus2.SMBus(self._get_value(icm_config, 'i2c_bus', self._bus, int))
+        self._accel_range = self._get_value(icm_config, 'accel_range', self._accel_range, int)
+        
+        # Directly handle booleans
+        self._accel_LPF = self._get_value(icm_config, 'accel_LPF', False, bool)
+        self._accel_LPF_CFG = self._get_value(icm_config, 'accel_LPF_CFG', self._accel_LPF_CFG, int)
+        self._gyro_range = self._get_value(icm_config, 'gyro_range', self._gyro_range, int)
+        self._gyro_LPF = self._get_value(icm_config, 'gyro_LPF', True, bool)
+        self._gyro_LPF_CFG = self._get_value(icm_config, 'gyro_LPF_CFG', self._gyro_LPF_CFG, int)
 
-            section = "Calibration"
-            # Parse accelerometer bias
-            accel_bias_str = config[section].get(
-                "accel_bias", ",".join(map(str, self._accel_bias))
-            )
-            self._accel_bias = [float(x) for x in accel_bias_str.split(",")]
+        # Parse calibration data
+        calibration = config.get('Calibration', {})
+        self._accel_bias = self._get_value(calibration, 'accel_bias', self._accel_bias, list)
+        self._gyro_bias = self._get_value(calibration, 'gyro_bias', self._gyro_bias, list)
 
-            # Parse gyroscope bias
-            gyro_bias_str = config[section].get(
-                "gyro_bias", ",".join(map(str, self._gyro_bias))
-            )
-            self._gyro_bias = [float(x) for x in gyro_bias_str.split(",")]
+        logger.info("Configuration parsed successfully.")
 
-        except Exception as e:
-            logger.error(f"Failed to load configuration from {config_file}: {e}")
-            raise e
+    def _get_value(self, config_section, key, default, expected_type=None):
+        """
+        Helper method to retrieve a configuration value, with optional type validation.
+        If the key is not found, it returns the default value.
+        """
+        value = config_section.get(key, default)
+        if expected_type and not isinstance(value, expected_type):
+            logger.warning(f"Config key '{key}' expected type {expected_type.__name__} but got {type(value).__name__}. Using default: {default}")
+            return default
+        return value
 
     def initialize(self):
         """Initialize the device"""

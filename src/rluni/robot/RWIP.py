@@ -66,7 +66,7 @@ class RobotSystem:
         )
 
         # Locate the imu configuration file
-        cfg_file = pkg_resources.resource_filename("rluni.configs.imu", "imu1.ini")
+        cfg_file = pkg_resources.resource_filename("rluni.configs.imu", "imu1.yaml")
         self.imu = ICM20948(config_file=cfg_file)
         # Init sensor fusion
         self.sensor_fusion = AHRSfusion(

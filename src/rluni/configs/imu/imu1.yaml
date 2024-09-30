@@ -1,0 +1,64 @@
+# ICM20948 Configuration
+
+ICM20948_Configuration:
+  # I2C Address of the IMU
+  # Default: 0x69
+  i2c_addr: 0x69
+
+  # I2C Bus the IMU is connected to
+  # Default: 1
+  i2c_bus: 1
+
+  # Accelerometer Range in G's
+  # Options: 2, 4, 8, 16
+  # Default: 2
+  accel_range: 4
+
+  # Accelerometer Low Pass Filter On/Off
+  # Options: yes, no
+  # Default: no
+  accel_LPF: no
+
+  # Accelerometer Low Pass Filter Configuration
+  # Options: 0 - 7
+  # Default: 2
+  # Freq Map: 0=246Hz, 1=246Hz, 2=111.4Hz, 3=50.4Hz, 4=23.9Hz, 5=11.5Hz, 6=5.7Hz, 7=473Hz
+  accel_LPF_CFG: 2
+
+  # Gyroscope Range in Degrees/Second
+  # Options: 250, 500, 1000, 2000
+  # Default: 500
+  gyro_range: 500
+
+  # Gyro Low Pass Filter On/Off
+  # Options: yes, no
+  # Default: yes
+  gyro_LPF: yes
+
+  # Gyro Low Pass Filter Configuration
+  # Options: 0 - 7
+  # Default: 2
+  # Freq Map: 0=246Hz, 1=246Hz, 2=111.4Hz, 3=50.4Hz, 4=23.9Hz, 5=11.5Hz, 6=5.7Hz, 7=473Hz
+  gyro_LPF_CFG: 4
+
+# Calibration
+
+Calibration:
+  # Accelerometer X, Y, Z Bias Calibration
+  # Default: 0.0, 0.0, 0.0
+  accel_bias: [0.000, 0.000, 0.000]
+
+  # Gyroscope X, Y, Z Bias Calibration
+  # Default: 0.0, 0.0, 0.0
+  gyro_bias: [0.5, 0.27, 0.0]
+
+  # Rotation Matrix for IMU (3x3 matrix)
+  # Maps the IMU's axes to the vehicle's axes
+  rotation:
+    - [0, 1, 0]
+    - [0, 0, 1]
+    - [1, 0, 0]
+
+  # Adjustment angles for pitch and roll, in degrees
+  pitch_adj: 0.0
+  roll_adj: 0.5
