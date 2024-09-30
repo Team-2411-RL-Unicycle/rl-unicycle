@@ -59,6 +59,12 @@ def parse_args():
         choices=["pid", "rl", "test"],
         help="Select the type of controller: pid or rl.",
     )
+    parser.add_argument(
+        "-cfg",
+        "--config-file",
+        type=str,
+        help="Specify an alternative RWIP configuration YAML file.",
+    )
     args = parser.parse_args()
     return args
 
@@ -101,6 +107,7 @@ def main():
         command_queue,
         start_motors=not args.no_motors,
         controller_type=args.controller,
+        config_file=args.config_file,
     )
     # Start the MQTT communication in its own process
     mqtt_process = multiprocessing.Process(
