@@ -1,8 +1,8 @@
 import logging
 
-import yaml
 import imufusion
 import numpy as np
+import yaml
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
@@ -41,17 +41,17 @@ class AHRSfusion:
         logger.debug(f"Loading config from: {config_file}")
 
         try:
-            with open(config_file, 'r') as file:
+            with open(config_file, "r") as file:
                 config = yaml.safe_load(file)
 
             # Access the ICM20948 configuration
-            self._gyro_range = config['ICM20948_Configuration']['gyro_range']
+            self._gyro_range = config["ICM20948_Configuration"]["gyro_range"]
 
             # Parse the rotation matrix from the 'Calibration' section
-            rotation_list = config['Calibration']['rotation']
+            rotation_list = config["Calibration"]["rotation"]
             rot_mat = np.array(rotation_list).reshape(3, 3)
-            pitch_angle = config['Calibration']['pitch_adj']
-            roll_angle = config['Calibration']['roll_adj']
+            pitch_angle = config["Calibration"]["pitch_adj"]
+            roll_angle = config["Calibration"]["roll_adj"]
 
             self.transformation_matrix = self._calculate_transformation_matrix(
                 rot_mat, pitch_angle, roll_angle
