@@ -1,6 +1,6 @@
 import logging
 
-import configparser
+import yaml
 import imufusion
 import numpy as np
 
@@ -37,23 +37,21 @@ class AHRSfusion:
         )  # recovery trigger period = 5 seconds
 
     def _load_config(self, config_file):
-        # Load the configuration file
-        # Load configuration from the specified file
-        config = configparser.ConfigParser()
+        # Load the YAML configuration file
         logger.debug(f"Loading config from: {config_file}")
 
         try:
-            config.read(config_file)
-            self._gyro_range = config["ICM20948 Configuration"].getint("gyro_range")
+            with open(config_file, 'r') as file:
+                config = yaml.safe_load(file)
 
-            # Parse the rotation matrix from the 'Rotation' section
-            rotation_str = (
-                config.get("Calibration", "rotation").replace("\n", "").split(",")
-            )
-            rotation_list = [float(x.strip()) for x in rotation_str]
+            # Access the ICM20948 configuration
+            self._gyro_range = config['ICM20948_Configuration']['gyro_range']
+
+            # Parse the rotation matrix from the 'Calibration' section
+            rotation_list = config['Calibration']['rotation']
             rot_mat = np.array(rotation_list).reshape(3, 3)
-            pitch_angle = config.getfloat("Calibration", "pitch_adj")
-            roll_angle = config.getfloat("Calibration", "roll_adj")
+            pitch_angle = config['Calibration']['pitch_adj']
+            roll_angle = config['Calibration']['roll_adj']
 
             self.transformation_matrix = self._calculate_transformation_matrix(
                 rot_mat, pitch_angle, roll_angle
@@ -61,11 +59,13 @@ class AHRSfusion:
 
             logger.debug(f"Loaded rotation matrix:\n{self.transformation_matrix}")
 
-        except (
-            configparser.NoSectionError,
-            configparser.NoOptionError,
-            ValueError,
-        ) as e:
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {config_file}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML file {config_file}: {e}")
+            raise
+        except (KeyError, ValueError) as e:
             logger.error(f"Error loading configuration: {e}")
             raise
 
