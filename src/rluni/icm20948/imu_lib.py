@@ -1,10 +1,10 @@
-import yaml
 import logging
 import os
 import struct
 import time
 
 import smbus2
+import yaml
 
 try:
     from . import icm20948_registers
@@ -53,7 +53,7 @@ class ICM20948:
         logger.debug(f"Loading config from: {config_file}")
 
         try:
-            with open(config_file, 'r') as file:
+            with open(config_file, "r") as file:
                 config = yaml.safe_load(file)
             logger.debug("Configuration file loaded.")
         except FileNotFoundError:
@@ -64,22 +64,34 @@ class ICM20948:
             return
 
         # Parse ICM20948 settings
-        icm_config = config.get('ICM20948_Configuration', {})
-        self._addr = self._get_value(icm_config, 'i2c_addr', self._addr, int)
-        self._bus = smbus2.SMBus(self._get_value(icm_config, 'i2c_bus', self._bus, int))
-        self._accel_range = self._get_value(icm_config, 'accel_range', self._accel_range, int)
-        
+        icm_config = config.get("ICM20948_Configuration", {})
+        self._addr = self._get_value(icm_config, "i2c_addr", self._addr, int)
+        self._bus = smbus2.SMBus(self._get_value(icm_config, "i2c_bus", self._bus, int))
+        self._accel_range = self._get_value(
+            icm_config, "accel_range", self._accel_range, int
+        )
+
         # Directly handle booleans
-        self._accel_LPF = self._get_value(icm_config, 'accel_LPF', False, bool)
-        self._accel_LPF_CFG = self._get_value(icm_config, 'accel_LPF_CFG', self._accel_LPF_CFG, int)
-        self._gyro_range = self._get_value(icm_config, 'gyro_range', self._gyro_range, int)
-        self._gyro_LPF = self._get_value(icm_config, 'gyro_LPF', True, bool)
-        self._gyro_LPF_CFG = self._get_value(icm_config, 'gyro_LPF_CFG', self._gyro_LPF_CFG, int)
+        self._accel_LPF = self._get_value(icm_config, "accel_LPF", False, bool)
+        self._accel_LPF_CFG = self._get_value(
+            icm_config, "accel_LPF_CFG", self._accel_LPF_CFG, int
+        )
+        self._gyro_range = self._get_value(
+            icm_config, "gyro_range", self._gyro_range, int
+        )
+        self._gyro_LPF = self._get_value(icm_config, "gyro_LPF", True, bool)
+        self._gyro_LPF_CFG = self._get_value(
+            icm_config, "gyro_LPF_CFG", self._gyro_LPF_CFG, int
+        )
 
         # Parse calibration data
-        calibration = config.get('Calibration', {})
-        self._accel_bias = self._get_value(calibration, 'accel_bias', self._accel_bias, list)
-        self._gyro_bias = self._get_value(calibration, 'gyro_bias', self._gyro_bias, list)
+        calibration = config.get("Calibration", {})
+        self._accel_bias = self._get_value(
+            calibration, "accel_bias", self._accel_bias, list
+        )
+        self._gyro_bias = self._get_value(
+            calibration, "gyro_bias", self._gyro_bias, list
+        )
 
         logger.info("Configuration parsed successfully.")
 
@@ -90,7 +102,9 @@ class ICM20948:
         """
         value = config_section.get(key, default)
         if expected_type and not isinstance(value, expected_type):
-            logger.warning(f"Config key '{key}' expected type {expected_type.__name__} but got {type(value).__name__}. Using default: {default}")
+            logger.warning(
+                f"Config key '{key}' expected type {expected_type.__name__} but got {type(value).__name__}. Using default: {default}"
+            )
             return default
         return value
 
