@@ -152,7 +152,7 @@ class RobotSystem:
         try:
             await self.control_loop(shutdown_event)
         except asyncio.CancelledError:
-            logger.info("Start coroutine cancelled.")
+            logger.info("Robot Loop Shutdown Signal.")
             # Set the shutdown event to ensure control_loop exits
             shutdown_event.set()
             raise
