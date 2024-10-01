@@ -107,32 +107,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def cancel_pending_tasks(loop):
-    """
-    Cancel all pending asyncio tasks to clear the event loop completely.
-
-    Parameters:
-        loop (asyncio.AbstractEventLoop): The event loop to operate on.
-    """
-    for task in asyncio.all_tasks(loop):
-        task.cancel()
-        try:
-            loop.run_until_complete(task)
-        except asyncio.CancelledError:
-            pass  # Task cancellation is expected
-
-
-def main():
-    # Get command line flags
+async def main():
     args = parse_args()
-
-    # Setup the logging configuration
     setup_logging()
     logger = logging.getLogger()
-    logger.debug("Logger initalized")
+    logger.debug("Logger initialized")
 
     try:
-        # Escalate the process priority to max level
         set_realtime_priority(priority=99)
     except PermissionError as e:
         logger.error(f"Failed to set real-time priority: {e}")
@@ -142,6 +123,7 @@ def main():
     with multiprocessing.Manager() as manager:
         telemetry_queue = manager.Queue()
         command_queue = manager.Queue()
+        shutdown_event = asyncio.Event()
 
         # Initialize the robot with the command-line argument
         robot = RobotSystem(
@@ -155,26 +137,18 @@ def main():
         mqtt_process = multiprocessing.Process(
             target=start_mqtt_process,
             args=(telemetry_queue, command_queue),
-            daemon=True,
         )
         mqtt_process.start()
 
-        # Start the control loop in the main process
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         try:
-            # Schedule and run the RobotSystem.start coroutine
-            loop.run_until_complete(robot.start())
+            await robot.start(shutdown_event)
         except KeyboardInterrupt:
             logger.info("Shutdown signal received")
+            shutdown_event.set()
         except Exception as e:
             logger.exception(f"An unexpected error occurred: {e}")
         finally:
-            # Cancel any pending asyncio tasks
-            cancel_pending_tasks(loop)
-
-            # Shutdown the robot system
-            loop.run_until_complete(robot.shgitown())
+            await robot.shutdown()
 
             # Terminate and clean up the MQTT process
             mqtt_process.terminate()
@@ -187,9 +161,9 @@ def main():
 
             logger.info("Cleanup complete. Exiting program.")
 
-            # Close the asyncio event loop
-            loop.close()
-
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Exited... Double check that the motors are not ringing and have a pleasant day!")

@@ -1,5 +1,6 @@
 import logging
 import time
+import asyncio
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
@@ -141,22 +142,28 @@ class RobotSystem:
         else:
             raise ValueError(f"Unsupported controller type: {controller_type}")
 
-    async def start(self):
+    async def start(self, shutdown_event):
         """
         Initializes actuators and starts the control loop.
         """
         # Init actuators
         if self.xmotor is not None:
             await self.xmotor.start()
-        await self.control_loop()
+        try:
+            await self.control_loop(shutdown_event)
+        except asyncio.CancelledError:
+            logger.info("Start coroutine cancelled.")
+            # Set the shutdown event to ensure control_loop exits
+            shutdown_event.set()
+            raise
 
-    async def control_loop(self):
+    async def control_loop(self, shutdown_event):
         """
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
-        while True:
+        while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
@@ -228,11 +235,13 @@ class RobotSystem:
 
     async def shutdown(self):
         """
-        Safely shuts down the robot system, including closing sensor interfaces and stopping actuators.
+        Shutdown the robot system and its components.
         """
-        self.imu.close()
-        if self.xmotor is not None:
-            await self.xmotor.stop()
+        try:
+            await self.xmotor.shutdown()
+            logger.info("Motors shutdown successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")
 
     async def handle_power_command(self, command: str, value: bool):
         """
