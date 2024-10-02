@@ -37,14 +37,6 @@ class RobotSystem:
         sensor_fusion (AHRSfusion): The sensor fusion algorithm instance for processing IMU data.
         xmotor (MN6007 or None): The motor controller instance, if motors are started.
         itr (int): An iteration counter for the control loop.
-
-    Methods:
-        start(): Initializes actuators and starts the control loop.
-        control_loop(): The main control loop for the robot, executed at a fixed rate.
-        shutdown(): Safely shuts down the robot system, including sensors and actuators.
-        handle_power_command(value: bool): Handles power on/off commands.
-        handle_pid_command(value): Handles PID control commands.
-        precise_delay_until(end_time): Delays execution until a specified end time to maintain loop timing.
     """
 
     def __init__(
@@ -438,5 +430,3 @@ class RobotIO:  #
                 logger.error(
                     f"Expected a single-entry dictionary for the message, got: {message}"
                 )
-
-            self.receive_queue.task_done()

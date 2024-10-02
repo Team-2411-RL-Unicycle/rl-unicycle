@@ -46,13 +46,14 @@ class MQTTClient:
 
     def telemetry_loop(self):
         while True:
-            # Handle outgoing messages
-            while not self.send_queue.empty():
-                topic, message = self.send_queue.get()
-                self.publish_data(topic, message)
-                self.send_queue.task_done()
-
-            time.sleep(self.loop_time)  # Sleep for a period to prevent busy-waiting
+            try:
+                # Handle outgoing messages
+                while not self.send_queue.empty():
+                    topic, message = self.send_queue.get()
+                    self.publish_data(topic, message)
+            except Exception as e:
+                logger.exception(f"Error in telemetry_loop: {e}")
+            time.sleep(self.loop_time)
 
     def publish_data(self, topic, data):
         self.client.publish(topic, json.dumps(data))

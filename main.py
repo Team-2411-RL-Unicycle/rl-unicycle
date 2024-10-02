@@ -4,6 +4,8 @@ import ctypes
 import logging.config
 import multiprocessing
 import os
+import time
+import signal
 
 from rluni.communication.mqtt import MQTTClient
 from rluni.robot.RWIP import RobotSystem
@@ -43,14 +45,27 @@ def setup_logging(config_path=None):
     Parameters:
         config_path (str, optional): Path to the logging configuration file.
                                      Defaults to 'log/logging.ini' relative to this script.
+        save_path (str): Path to save the log file.
     """
     if config_path is None:
         # Get the directory of the current script
         dir_path = os.path.dirname(os.path.realpath(__file__))
         # Default logging configuration file
         config_path = os.path.join(dir_path, "log", "logging.ini")
+        
+        # Create logfile and make sure dir exists
+        save_dir = os.path.join(dir_path, "log", "saved_logs")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        unique_id = str(int(time.time()))
+        save_path = os.path.join(save_dir, f"robot_log_{unique_id}.log")
     try:
-        logging.config.fileConfig(config_path, disable_existing_loggers=False)
+        # Pass the save_path via the 'defaults' parameter
+        logging.config.fileConfig(
+            config_path,
+            defaults={'logfilename': save_path},
+            disable_existing_loggers=False
+        )
     except Exception as e:
         print(f"Failed to load logging configuration from {config_path}: {e}")
         logging.basicConfig(level=logging.INFO)
@@ -64,6 +79,7 @@ def start_mqtt_process(telemetry_queue, command_queue):
         telemetry_queue (multiprocessing.Queue): Queue for sending telemetry data.
         command_queue (multiprocessing.Queue): Queue for receiving commands.
     """
+    signal.signal(signal.SIGINT, signal.SIG_IGN) # Ignore hard kill signals for rapid termination
     try:
         # Set a lower real-time priority for this process
         set_realtime_priority(priority=70)
@@ -103,7 +119,7 @@ def parse_args() -> argparse.Namespace:
         "--config-file",
         type=str,
         help="Specify an alternative RWIP configuration YAML file.",
-    )
+    )    
     return parser.parse_args()
 
 
@@ -119,47 +135,45 @@ async def main():
         logger.error(f"Failed to set real-time priority: {e}")
         return
 
-    # Use multiprocessing.Manager to create queues that can be shared between processes
-    with multiprocessing.Manager() as manager:
-        telemetry_queue = manager.Queue()
-        command_queue = manager.Queue()
-        shutdown_event = asyncio.Event()
+    telemetry_queue = multiprocessing.Queue()
+    command_queue = multiprocessing.Queue()
+    shutdown_event = asyncio.Event()
 
-        # Initialize the robot with the command-line argument
-        robot = RobotSystem(
-            telemetry_queue,
-            command_queue,
-            start_motors=not args.no_motors,
-            controller_type=args.controller,
-            config_file=args.config_file,
-        )
-        # Start the MQTT communication in its own process
-        mqtt_process = multiprocessing.Process(
-            target=start_mqtt_process,
-            args=(telemetry_queue, command_queue),
-        )
-        mqtt_process.start()
+    # Initialize the robot with the command-line argument
+    robot = RobotSystem(
+        telemetry_queue,
+        command_queue,
+        start_motors=not args.no_motors,
+        controller_type=args.controller,
+        config_file=args.config_file,
+    )
+    # Start the MQTT communication in its own process
+    mqtt_process = multiprocessing.Process(
+        target=start_mqtt_process,
+        args=(telemetry_queue, command_queue),
+    )
+    mqtt_process.start()
 
-        try:
-            await robot.start(shutdown_event)
-        except KeyboardInterrupt:
-            logger.info("Shutdown signal received")
-            shutdown_event.set()
-        except Exception as e:
-            logger.exception(f"An unexpected error occurred: {e}")
-        finally:
-            await robot.shutdown()
+    try:
+        await robot.start(shutdown_event)
+    except KeyboardInterrupt:
+        logger.info("Shutdown signal received")
+        shutdown_event.set()
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred: {e}")
+    finally:
+        await robot.shutdown()
 
-            # Terminate and clean up the MQTT process
-            mqtt_process.terminate()
-            mqtt_process.join(timeout=5)
-            if mqtt_process.is_alive():
-                mqtt_process.kill()
-                logger.warning(
-                    "MQTT process did not terminate gracefully, forcing termination."
-                )
+        # Terminate and clean up the MQTT process
+        mqtt_process.terminate()
+        mqtt_process.join(timeout=5)
+        if mqtt_process.is_alive():
+            mqtt_process.kill()
+            logger.warning(
+                "MQTT process did not terminate gracefully, forcing termination."
+            )
 
-            logger.info("Cleanup complete. Exiting program.")
+        logger.info("Cleanup complete. Exiting program.")
 
 
 if __name__ == "__main__":
