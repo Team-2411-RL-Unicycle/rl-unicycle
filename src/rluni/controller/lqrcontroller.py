@@ -22,8 +22,8 @@ class LQRController(Controller):
     @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
-        Calculates a torque using the optimal LQR gain matrix multiplied by the error of pendulum angle. 
-        If the calculated torque is greater than the specified maximum, a warning message will be logged 
+        Calculates a torque using the optimal LQR gain matrix multiplied by the error of pendulum angle.
+        If the calculated torque is greater than the specified maximum, a warning message will be logged
         and the torque will be clamped.
 
         Returns:
@@ -35,23 +35,27 @@ class LQRController(Controller):
         wheel_vel = robot_state.wheel_vel
 
         torque = -(
-            self._K[self.state_pend_angle]*pend_angle + 
-            self._K[self.state_pend_vel]*pend_vel + 
-            self._K[self.state_wheel_vel]*wheel_vel
+            self._K[self.state_pend_angle] * pend_angle
+            + self._K[self.state_pend_vel] * pend_vel
+            + self._K[self.state_wheel_vel] * wheel_vel
         )
 
-        print('{:7.2f} {:7.2f} {:7.2f}'.format(
-            pend_angle,
-            pend_vel,
-            wheel_vel,
-        ))
+        print(
+            "{:7.2f} {:7.2f} {:7.2f}".format(
+                pend_angle,
+                pend_vel,
+                wheel_vel,
+            )
+        )
 
-        print('{:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(
-            self._K[self.state_pend_angle]*pend_angle,
-            self._K[self.state_pend_vel]*pend_vel,
-            self._K[self.state_wheel_vel]*wheel_vel,
-            torque
-        ))
+        print(
+            "{:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
+                self._K[self.state_pend_angle] * pend_angle,
+                self._K[self.state_pend_vel] * pend_vel,
+                self._K[self.state_wheel_vel] * wheel_vel,
+                torque,
+            )
+        )
 
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
