@@ -8,7 +8,7 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = [97.2590,2.1734,23.1089]
+        self._K = [0.08,0.0038,0.01]
         self._max_rps = 35  # revs/s
         self._max_del_s = 2.5  # degrees
         self.state_pend_angle = 0
@@ -30,11 +30,17 @@ class LQRController(Controller):
             torque: Desired torque for the LQR controller.
         """
         # Calculate torque
-        torque = -0.1*(
-            self._K[self.state_pend_angle]*robot_state.pendulum_angle + 
-            self._K[self.state_pend_vel]*robot_state.pendulum_vel + 
-            self._K[self.state_wheel_vel]*robot_state.wheel_vel
+        pend_angle = robot_state.pendulum_angle
+	pend_vel = robot_state.pendulum_velocity
+	wheel_vel = robot_state.wheel_vel
+
+	torque = -2*np.pi*(
+            self._K[self.state_pend_angle]*pend_angle + 
+            self._K[self.state_pend_vel]*pend_vel + 
+            self._K[self.state_wheel_vel]*wheel_vel
         )
+
+	print(pend_angle, pend_vel, wheel_vel, torque)
 
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
