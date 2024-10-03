@@ -8,7 +8,7 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = [0.439822971503, 0.0188495559215, 0.00628318530718]
+        self._K = [0.44, 0.019, -0.05]
         self._max_rps = 35  # revs/s
         self._max_del_s = 2.5  # degrees
         self.state_pend_angle = 0
@@ -47,9 +47,9 @@ class LQRController(Controller):
         ))
 
         print('{:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(
-            self._K[self.state_pend_angle]*pend_angle/torque,
-            self._K[self.state_pend_vel]*pend_vel/torque,
-            self._K[self.state_wheel_vel]*wheel_vel/torque,
+            self._K[self.state_pend_angle]*pend_angle,
+            self._K[self.state_pend_vel]*pend_vel,
+            self._K[self.state_wheel_vel]*wheel_vel,
             torque
         ))
 
