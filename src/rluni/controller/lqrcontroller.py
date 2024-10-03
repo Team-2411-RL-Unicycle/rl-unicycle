@@ -40,10 +40,16 @@ class LQRController(Controller):
             self._K[self.state_wheel_vel]*wheel_vel
         )
 
-        print('{:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(
+        print('{:7.2f} {:7.2f} {:7.2f}'.format(
             pend_angle,
             pend_vel,
             wheel_vel,
+        ))
+
+        print('{:7.2f} {:7.2f} {:7.2f} {:7.2f}'.format(
+            self._K[self.state_pend_angle]*pend_angle/torque,
+            self._K[self.state_pend_vel]*pend_vel/torque,
+            self._K[self.state_wheel_vel]*wheel_vel/torque,
             torque
         ))
 
