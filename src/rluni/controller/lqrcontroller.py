@@ -30,7 +30,7 @@ class LQRController(Controller):
             torque: Desired torque for the LQR controller.
         """
         # Calculate torque
-        pend_angle = robot_state.pendulum_angle
+        pend_angle = robot_state.pendulum_angle - 1.0
         pend_vel = robot_state.pendulum_vel
         wheel_vel = robot_state.wheel_vel
 
