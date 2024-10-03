@@ -31,16 +31,16 @@ class LQRController(Controller):
         """
         # Calculate torque
         pend_angle = robot_state.pendulum_angle
-	pend_vel = robot_state.pendulum_velocity
-	wheel_vel = robot_state.wheel_vel
+        pend_vel = robot_state.pendulum_vel
+        wheel_vel = robot_state.wheel_vel
 
-	torque = -2*np.pi*(
+        torque = -2*np.pi*(
             self._K[self.state_pend_angle]*pend_angle + 
             self._K[self.state_pend_vel]*pend_vel + 
             self._K[self.state_wheel_vel]*wheel_vel
         )
 
-	print(pend_angle, pend_vel, wheel_vel, torque)
+        print(pend_angle, pend_vel, wheel_vel, torque)
 
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
