@@ -180,4 +180,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Exited... Double check that the motors are not ringing and have a pleasant day!")
+        print("Exited... Double check that the motors are off and not ringing!")
