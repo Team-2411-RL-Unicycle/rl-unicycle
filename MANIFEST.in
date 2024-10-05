@@ -1,17 +1,2 @@
-# Include all .ini and .cfg files
-recursive-include src/rluni/**/*.ini
-recursive-include src/rluni/**/*.cfg
-
-# Include model files (.onnx)
-recursive-include src/rluni/controller/rlmodels *.onnx
-
-# Include JSON files
-recursive-include src/rluni/motors *.json
-
-# Include log files
-recursive-include src/rluni/log *.log
-
-# Include configuration files in icm20948
-recursive-include src/rluni/icm20948/config *.ini
-
-
+# Include all files from the config folder recursively
+recursive-include src/rluni/config *

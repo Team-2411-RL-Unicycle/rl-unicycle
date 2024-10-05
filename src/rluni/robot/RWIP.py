@@ -5,17 +5,13 @@ import time
 import pkg_resources
 
 import rluni.robot.LoopTimer as lt
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
+from rluni.controller import (ControlInput, Controller, LQRController,
+                              PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
+from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils import load_config_file
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -45,13 +41,17 @@ class RobotSystem:
         precise_delay_until(end_time): Delays execution until a specified end time to maintain loop timing.
     """
 
-    LOOP_TIME = 1 / 100  # 100 Hz control loop period
-    WRITE_DUTY = 0.6  # Percent of loop time passed before write to actuators
-    MAX_TORQUE = 0.6  # Maximum torque for motor torque (testing purposes)
-
     def __init__(
-        self, send_queue, receive_queue, start_motors=True, controller_type="test"
+        self,
+        send_queue,
+        receive_queue,
+        start_motors=True,
+        controller_type="test",
+        config_file=None,
     ):
+        # Load and parse the configuration file
+        self._load_config(config_file)
+
         # Setup the communication queues and the input output over internet system
         self.robot_io = RobotIO(
             send_queue,
@@ -65,12 +65,11 @@ class RobotSystem:
             },
         )
 
-        # Init the IMU from library Config files are found in icm20948/configs dir and keep the imu settings
-        imu1 = "imu1.ini"
-        self.imu = ICM20948(config_file=imu1)
+        self.imu = ICM20948(config_file=self.imu_config)
         # Init sensor fusion
-        self.sensor_fusion = AHRSfusion(self.imu._gyro_range, int(1 / self.LOOP_TIME))
-        self.sensor_calibration_delay = 5  # seconds
+        self.sensor_fusion = AHRSfusion(
+            sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
+        )
 
         self.motors_enabled = start_motors
         # Initialize all actuators
@@ -79,24 +78,65 @@ class RobotSystem:
         else:
             self.xmotor = None
 
-        # Initialize controller type and instantiate the appropriate controller based on the controller_type argument
+        # Initialize controller type based on argument
         self.controller_type = controller_type
-        if controller_type == "pid":
-            # TODO test PID
-            self.controller = PIDController()
-        elif controller_type == "rl":
-            model_pth = pkg_resources.resource_filename(
-                "rluni.controller.rlmodels", "2_v_pen.onnx"
-            )
-            self.controller = RLController(model_pth=model_pth)
-        elif controller_type == "lqr":
-            self.controller = LQRController()
-        elif controller_type == "test":
-            self.controller = TestController()
-        else:
-            raise ValueError(f"Unsupported controller type: {controller_type}")
+        self.controller = self._get_new_controller(controller_type)
 
         self.itr = int(0)  # Cycle counter
+
+    def _load_config(self, config_file):
+        """
+        Private method to load and parse the RWIP configuration file.
+        """
+        # Load the RWIP configuration file (use the default if none provided)
+        if config_file is None:
+            config_file = pkg_resources.resource_filename(
+                "rluni.configs.rwip", "default.yaml"
+            )
+            logger.warning(
+                f"No RWIP configuration file provided. Using default configuration: {config_file}"
+            )
+
+        config = load_config_file(config_file)
+
+        # Validate and set configuration values for control parameters
+        self.LOOP_TIME = gvcv(config, "RobotSystem.loop_time", float, required=True)
+        self.WRITE_DUTY = gvcv(config, "RobotSystem.write_duty", float, required=True)
+        self.MAX_TORQUE = gvcv(config, "RobotSystem.max_torque", float, required=True)
+        self.sensor_calibration_delay = gvcv(
+            config, "RobotSystem.calibration_delay", float, required=True
+        )
+
+        # Validate and resolve paths for IMU config and RL model
+        self.imu_config = gvcv(config, "RobotSystem.imu_config", str, required=True)
+        self.imu_config = pkg_resources.resource_filename("rluni", self.imu_config)
+
+        self.rlmodel_path = gvcv(
+            config, "RobotSystem.rlmodel_path", str, required=False
+        )
+        self.rlmodel_path = pkg_resources.resource_filename("rluni", self.rlmodel_path)
+
+        self.pid_config_path = gvcv(
+            config, "RobotSystem.pid_config", str, required=False
+        )
+        self.pid_config_path = pkg_resources.resource_filename(
+            "rluni", self.pid_config_path
+        )
+
+    def _get_new_controller(self, controller_type):
+        """
+        Initialize the controller based on the type provided ('pid', 'rl', or 'test').
+        """
+        if controller_type == "pid":
+            return PIDController(config_file=self.pid_config_path)
+        elif controller_type == "rl":
+            return RLController(model_pth=self.rlmodel_path)
+        elif controller_type == "lqr":
+            return LQRController()
+        elif controller_type == "test":
+            return TestController()
+        else:
+            raise ValueError(f"Unsupported controller type: {controller_type}")
 
     async def start(self):
         """
@@ -112,7 +152,7 @@ class RobotSystem:
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
-        loop_period = 0.01
+        loop_period = self.LOOP_TIME
         while True:
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
@@ -179,7 +219,7 @@ class RobotSystem:
             await self.robot_io.receive_commands()
 
             ### CLOSE LOOP DELAY ###
-            end_time = loop_start_time + RobotSystem.LOOP_TIME
+            end_time = loop_start_time + self.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
 
@@ -249,18 +289,13 @@ class RobotSystem:
         """
         # Ensure the value is a string
         if isinstance(value, str):
-            if value in ["pid", "rl", "test"]:
+            try:
+                # Delegate the controller initialization to the private method
+                self.controller = self._get_new_controller(value)
                 self.controller_type = value
-                if value == "pid":
-                    self.controller = PIDController()
-                elif value == "rl":
-                    model_pth = pkg_resources.resource_filename(
-                        "rluni.controller.rlmodels", "2_v_pen.onnx"
-                    )
-                    self.controller = RLController(model_pth=model_pth)
-            else:
-                # Log an error or handle the case where the value is not a valid controller type
-                logger.error(f"Invalid controller type: {value}")
+                logger.info(f"Controller switched to: {value}")
+            except ValueError as e:
+                logger.error(str(e))
         else:
             # Log an error or handle the case where the value is not a string
             logger.error(

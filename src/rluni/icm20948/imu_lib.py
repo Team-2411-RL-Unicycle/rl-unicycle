@@ -1,15 +1,17 @@
-import configparser
 import logging
-import os
 import struct
 import time
 
+import pkg_resources
 import smbus2
 
 try:
     from . import icm20948_registers
 except ImportError:
     import icm20948_registers
+
+from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils import load_config_file
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
@@ -45,54 +47,36 @@ class ICM20948:
         self._gyro_bias = [0, 0, 0]
 
         if config_file != None:
-            self.load_config(config_file)
-            pass
+            self.config = load_config_file(config_file)
+            self._load_config()
         self.initialize()
 
-    def load_config(self, config_file):
+    def _load_config(self):
+        """Load the configuration from a YAML file."""
 
-        # Construct the full path relative to the current script
-        base_path = os.path.dirname(__file__)
-        config_path = os.path.join(base_path, ".", "config", config_file)
+        # Validate and parse ICM20948 settings
+        icm_config = self.config.get("ICM20948_Configuration", {})
 
-        # Now use configparser to read the configuration
-        config = configparser.ConfigParser()
+        self._addr = gvcv(icm_config, "i2c_addr", int, required=True)
+        self._bus = smbus2.SMBus(gvcv(icm_config, "i2c_bus", int, required=True))
+        self._accel_range = gvcv(icm_config, "accel_range", int, required=True)
 
-        logger.debug(f"Loading from: {config_path}")
+        # Directly handle booleans
+        self._accel_LPF = gvcv(icm_config, "accel_LPF", bool, required=True)
+        self._accel_LPF_CFG = gvcv(icm_config, "accel_LPF_CFG", int, required=True)
+        self._gyro_range = gvcv(icm_config, "gyro_range", int, required=True)
+        self._gyro_LPF = gvcv(icm_config, "gyro_LPF", bool, required=True)
+        self._gyro_LPF_CFG = gvcv(icm_config, "gyro_LPF_CFG", int, required=True)
 
-        try:
-            config.read(config_path)
-            section = "ICM20948 Configuration"
+        # Parse calibration data
+        self._accel_bias = gvcv(
+            self.config, "Calibration.accel_bias", list, required=True
+        )
+        self._gyro_bias = gvcv(
+            self.config, "Calibration.gyro_bias", list, required=True
+        )
 
-            self._addr = int(config[section].get("i2c_addr", hex(self._addr)), 0)
-            self._bus = smbus2.SMBus(config[section].getint("i2c_bus", self._bus))
-            self._accel_range = config[section].getint("accel_range", self._accel_range)
-            self._gyro_range = config[section].getint("gyro_range", self._gyro_range)
-            self._accel_LPF = config[section].getboolean("accel_LPF", self._accel_LPF)
-            self._accel_LPF_CFG = config[section].getint(
-                "accel_LPF_CFG", self._accel_LPF_CFG
-            )
-            self._gyro_LPF = config[section].getboolean("gyro_LPF", self._gyro_LPF)
-            self._gyro_LPF_CFG = config[section].getint(
-                "gyro_LPF_CFG", self._gyro_LPF_CFG
-            )
-
-            section = "Calibration"
-            # Parse accelerometer bias
-            accel_bias_str = config[section].get(
-                "accel_bias", ",".join(map(str, self._accel_bias))
-            )
-            self._accel_bias = [float(x) for x in accel_bias_str.split(",")]
-
-            # Parse gyroscope bias
-            gyro_bias_str = config[section].get(
-                "gyro_bias", ",".join(map(str, self._gyro_bias))
-            )
-            self._gyro_bias = [float(x) for x in gyro_bias_str.split(",")]
-
-        except Exception as e:
-            logger.error(f"Failed to load configuration from {config_file}: {e}")
-            raise e
+        logger.info("Configuration parsed successfully.")
 
     def initialize(self):
         """Initialize the device"""
