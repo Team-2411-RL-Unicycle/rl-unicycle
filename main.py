@@ -4,8 +4,8 @@ import ctypes
 import logging.config
 import multiprocessing
 import os
-import time
 import signal
+import time
 
 from rluni.communication.mqtt import MQTTClient
 from rluni.robot.RWIP import RobotSystem
@@ -52,7 +52,7 @@ def setup_logging(config_path=None):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         # Default logging configuration file
         config_path = os.path.join(dir_path, "log", "logging.ini")
-        
+
         # Create logfile and make sure dir exists
         save_dir = os.path.join(dir_path, "log", "saved_logs")
         if not os.path.exists(save_dir):
@@ -63,8 +63,8 @@ def setup_logging(config_path=None):
         # Pass the save_path via the 'defaults' parameter
         logging.config.fileConfig(
             config_path,
-            defaults={'logfilename': save_path},
-            disable_existing_loggers=False
+            defaults={"logfilename": save_path},
+            disable_existing_loggers=False,
         )
     except Exception as e:
         print(f"Failed to load logging configuration from {config_path}: {e}")
@@ -79,7 +79,9 @@ def start_mqtt_process(telemetry_queue, command_queue):
         telemetry_queue (multiprocessing.Queue): Queue for sending telemetry data.
         command_queue (multiprocessing.Queue): Queue for receiving commands.
     """
-    signal.signal(signal.SIGINT, signal.SIG_IGN) # Ignore hard kill signals for rapid termination
+    signal.signal(
+        signal.SIGINT, signal.SIG_IGN
+    )  # Ignore hard kill signals for rapid termination
     try:
         # Set a lower real-time priority for this process
         set_realtime_priority(priority=70)
@@ -119,7 +121,7 @@ def parse_args() -> argparse.Namespace:
         "--config-file",
         type=str,
         help="Specify an alternative RWIP configuration YAML file.",
-    )    
+    )
     return parser.parse_args()
 
 

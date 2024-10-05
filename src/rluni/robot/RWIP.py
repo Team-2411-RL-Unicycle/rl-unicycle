@@ -1,18 +1,13 @@
+import asyncio
 import logging
 import time
-import asyncio
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
 import rluni.robot.LoopTimer as lt
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    PIDController,
-    RLController,
-    TestController,
-)
+from rluni.controller import (ControlInput, Controller, PIDController,
+                              RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
