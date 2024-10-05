@@ -113,8 +113,14 @@ def parse_args() -> argparse.Namespace:
         "--controller",
         type=str,
         default="test",
-        choices=["pid", "rl", "test"],
-        help="Select the type of controller: pid, rl, or test.",
+        choices=["pid", "rl", "test", "lqr"],
+        help="Select the type of controller: pid, lqr, or rl.",
+    )
+    parser.add_argument(
+        "-cfg",
+        "--config-file",
+        type=str,
+        help="Specify an alternative RWIP configuration YAML file.",
     )
     parser.add_argument(
         "-cfg",
