@@ -122,12 +122,6 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="Specify an alternative RWIP configuration YAML file.",
     )
-    parser.add_argument(
-        "-cfg",
-        "--config-file",
-        type=str,
-        help="Specify an alternative RWIP configuration YAML file.",
-    )
     return parser.parse_args()
 
 
