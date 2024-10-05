@@ -5,14 +5,8 @@ import time
 import pkg_resources
 
 import rluni.robot.LoopTimer as lt
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
+from rluni.controller import (ControlInput, Controller, LQRController,
+                              PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
@@ -86,7 +80,7 @@ class RobotSystem:
 
         # Initialize controller type based on argument
         self.controller_type = controller_type
-        self.controller = self._initialize_controller(controller_type)
+        self.controller = self._get_new_controller(controller_type)
 
         self.itr = int(0)  # Cycle counter
 
@@ -129,7 +123,7 @@ class RobotSystem:
             "rluni", self.pid_config_path
         )
 
-    def _initialize_controller(self, controller_type):
+    def _get_new_controller(self, controller_type):
         """
         Initialize the controller based on the type provided ('pid', 'rl', or 'test').
         """
@@ -137,6 +131,8 @@ class RobotSystem:
             return PIDController(config_file=self.pid_config_path)
         elif controller_type == "rl":
             return RLController(model_pth=self.rlmodel_path)
+        elif controller_type == "lqr":
+            return LQRController()
         elif controller_type == "test":
             return TestController()
         else:
@@ -295,7 +291,7 @@ class RobotSystem:
         if isinstance(value, str):
             try:
                 # Delegate the controller initialization to the private method
-                self.controller = self._initialize_controller(value)
+                self.controller = self._get_new_controller(value)
                 self.controller_type = value
                 logger.info(f"Controller switched to: {value}")
             except ValueError as e:
