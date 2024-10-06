@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import time
+import asyncio
+from dataclasses import dataclass
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
@@ -13,6 +15,8 @@ from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
+
+from . import dataclasses as dc
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -152,17 +156,22 @@ class RobotSystem:
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
+        robot_state = dc.RobotState() # Create a central data structure for state data
+        
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
 
-            # Poll the imu for positional data
-            ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
+            imu_data = self.read_imu_data()
+
+            # Use helper functions to get tuples
+            accel_tuple = dc.get_accel_tuple(imu_data)
+            gyro_tuple = dc.get_gyro_tuple(imu_data)
 
             # Fuse sensor data
             euler_angles, internal_states, flags = self.sensor_fusion.update(
-                (gx, gy, gz), (ax, ay, az), delta_time=loop_period
+                gyro_tuple, accel_tuple, delta_time=loop_period
             )
 
             # Update robot state and parameters
@@ -171,7 +180,7 @@ class RobotSystem:
 
             control_input = ControlInput(
                 pendulum_angle=euler_angles[1],  # euler y (robot frame)
-                pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
+                pendulum_vel=imu_data["gyro_z"],  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
             )
 
@@ -196,7 +205,7 @@ class RobotSystem:
             ### SEND COMMS ###
             # Send out all data downsampled to lower rate
             if (self.itr % 20) == 0:
-                self.robot_io.send_imu_data(ax, ay, az, gx, gy, gz)
+                self.robot_io.send_imu_data(imu_data)
                 self.robot_io.send_euler_angles(euler_angles)
                 if self.xmotor is not None:
                     self.robot_io.send_motor_state(self.xmotor.state)
@@ -221,6 +230,21 @@ class RobotSystem:
             end_time = loop_start_time + self.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
+            
+    def read_imu_data(self):
+        """
+        Read IMU data from the sensor and return a dictionary with the data.
+        """
+        accel_gyro = self.imu.read_accelerometer_gyro(convert=True)
+        imu_data : dc.IMUData = {
+            "accel_x": accel_gyro[0],
+            "accel_y": accel_gyro[1],
+            "accel_z": accel_gyro[2],
+            "gyro_x": accel_gyro[3],
+            "gyro_y": accel_gyro[4],
+            "gyro_z": accel_gyro[5],
+        }
+        return imu_data
 
     async def shutdown(self):
         """
@@ -320,8 +344,7 @@ class RobotSystem:
             delay = time.time() - end_time
             if delay >= 0:
                 return delay
-
-
+            
 class RobotIO:  #
     """
     The RobotIO class handles all input/output operations for the robot, including sending sensor data,
@@ -369,17 +392,9 @@ class RobotIO:  #
         # Put the debug data into the send queue
         self.send_queue.put((topic, debug_data))
 
-    def send_imu_data(self, ax, ay, az, gx, gy, gz):
+    def send_imu_data(self, imu_data: dc.IMUData):
         topic = "robot/sensors/imu"
-        data = {
-            "accel_x": ax,
-            "accel_y": ay,
-            "accel_z": az,
-            "gyro_x": gx,
-            "gyro_y": gy,
-            "gyro_z": gz,
-        }
-        self.send_queue.put((topic, data))
+        self.send_queue.put((topic, imu_data))
 
     def send_euler_angles(self, euler_angles):
         topic = "robot/state/angles"
