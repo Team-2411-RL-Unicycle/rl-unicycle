@@ -213,6 +213,16 @@ class MN6007:
                         )
                         raise
 
+    async def shutdown(self):
+        """
+        Safely shutdown the motor and close the fdcanusb interface.
+        """
+        try:
+            # Stop the motor
+            await self.stop()
+        except Exception as e:
+            logger.exception(f"Error stopping the motor: {e}")
+
 
 ##################################################################
 # Testing functions
