@@ -153,6 +153,7 @@ class RobotSystem:
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
+        torque_request = 0
         while True:
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
@@ -170,21 +171,12 @@ class RobotSystem:
             if self.xmotor is not None:
                 await self.xmotor.update_state()
 
-            try:
-                control_input = ControlInput(
-                    pendulum_angle=euler_angles[1],  # euler y (robot frame)
-                    pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
-                    wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
-                    roll_torque=torque_request
-                )
-            except(NameError):
-                print("torque_request not defined yet")
-                control_input = ControlInput(
-                    pendulum_angle=euler_angles[1],  # euler y (robot frame)
-                    pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
-                    wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
-                    roll_torque=0 
-                )
+            control_input = ControlInput(
+                pendulum_angle=euler_angles[1],  # euler y (robot frame)
+                pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
+                wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
+                roll_torque=torque_request
+            )
 
             # Change to negative convention due to motor
             torque_request = self.controller.get_torque(    
