@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 ControlInput = namedtuple(
-    "ControlInput", ["pendulum_angle", "pendulum_vel", "wheel_vel"]
+    "ControlInput", ["pendulum_angle", "pendulum_vel", "wheel_vel", "roll_torque"]
 )
 
 

@@ -170,14 +170,24 @@ class RobotSystem:
             if self.xmotor is not None:
                 await self.xmotor.update_state()
 
-            control_input = ControlInput(
-                pendulum_angle=euler_angles[1],  # euler y (robot frame)
-                pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
-                wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
-            )
+            try:
+                control_input = ControlInput(
+                    pendulum_angle=euler_angles[1],  # euler y (robot frame)
+                    pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
+                    wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
+                    roll_torque=torque_request
+                )
+            except(NameError):
+                print("torque_request not defined yet")
+                control_input = ControlInput(
+                    pendulum_angle=euler_angles[1],  # euler y (robot frame)
+                    pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
+                    wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
+                    roll_torque=0 
+                )
 
             # Change to negative convention due to motor
-            torque_request = self.controller.get_torque(
+            torque_request = self.controller.get_torque(    
                 control_input, self.MAX_TORQUE - 0.001
             )  # Floating point buffer
             self.robot_io.send_debug_data(torque_request=float(torque_request))
