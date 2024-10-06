@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -31,14 +32,6 @@ class RobotSystem:
         sensor_fusion (AHRSfusion): The sensor fusion algorithm instance for processing IMU data.
         xmotor (MN6007 or None): The motor controller instance, if motors are started.
         itr (int): An iteration counter for the control loop.
-
-    Methods:
-        start(): Initializes actuators and starts the control loop.
-        control_loop(): The main control loop for the robot, executed at a fixed rate.
-        shutdown(): Safely shuts down the robot system, including sensors and actuators.
-        handle_power_command(value: bool): Handles power on/off commands.
-        handle_pid_command(value): Handles PID control commands.
-        precise_delay_until(end_time): Delays execution until a specified end time to maintain loop timing.
     """
 
     def __init__(
@@ -138,23 +131,29 @@ class RobotSystem:
         else:
             raise ValueError(f"Unsupported controller type: {controller_type}")
 
-    async def start(self):
+    async def start(self, shutdown_event):
         """
         Initializes actuators and starts the control loop.
         """
         # Init actuators
         if self.xmotor is not None:
             await self.xmotor.start()
-        await self.control_loop()
+        try:
+            await self.control_loop(shutdown_event)
+        except asyncio.CancelledError:
+            logger.info("Robot Loop Shutdown Signal.")
+            # Set the shutdown event to ensure control_loop exits
+            shutdown_event.set()
+            raise
 
-    async def control_loop(self):
+    async def control_loop(self, shutdown_event):
         """
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
         torque_request = 0
-        while True:
+        while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
@@ -227,11 +226,13 @@ class RobotSystem:
 
     async def shutdown(self):
         """
-        Safely shuts down the robot system, including closing sensor interfaces and stopping actuators.
+        Shutdown the robot system and its components.
         """
-        self.imu.close()
-        if self.xmotor is not None:
-            await self.xmotor.stop()
+        try:
+            await self.xmotor.shutdown()
+            logger.info("Motors shutdown successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")
 
     async def handle_power_command(self, command: str, value: bool):
         """
@@ -428,5 +429,3 @@ class RobotIO:  #
                 logger.error(
                     f"Expected a single-entry dictionary for the message, got: {message}"
                 )
-
-            self.receive_queue.task_done()

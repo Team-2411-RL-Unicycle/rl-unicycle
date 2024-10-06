@@ -61,4 +61,4 @@ Calibration:
 
   # Adjustment angles for pitch and roll, in degrees
   pitch_adj: 0.0
-  roll_adj:  1.5
+  roll_adj:  1.0

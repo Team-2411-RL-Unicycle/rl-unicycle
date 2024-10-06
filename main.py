@@ -4,44 +4,101 @@ import ctypes
 import logging.config
 import multiprocessing
 import os
+import signal
+import time
 
 from rluni.communication.mqtt import MQTTClient
 from rluni.robot.RWIP import RobotSystem
 
-# Define constants for the scheduling policy
-SCHED_FIFO = 1  # FIFO real-time policy
-
 
 class SchedParam(ctypes.Structure):
+    """Python wrapper for the sched_param struct in C"""
+
     _fields_ = [("sched_priority", ctypes.c_int)]
 
 
 def set_realtime_priority(priority=99):
+    """
+    Set the process's real-time priority.
+
+    Parameters:
+        priority (int): The real-time priority level to set (1-99).
+    """
+    SCHED_FIFO = 1
     libc = ctypes.CDLL("libc.so.6")
     param = SchedParam(priority)
-    # Set the scheduling policy to FIFO and priority for the entire process (0 refers to the current process)
-    if libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param)) != 0:
-        raise ValueError("Failed to set real-time priority. Check permissions.")
+    result = libc.sched_setscheduler(0, SCHED_FIFO, ctypes.byref(param))
+    if result != 0:
+        errno = ctypes.get_errno()
+        if errno == 1:  # Operation not permitted
+            raise PermissionError(
+                "Failed to set real-time priority. Check permissions."
+            )
+        else:
+            raise ValueError(f"Failed to set real-time priority. Error code: {errno}")
 
 
-def setup_logging():
-    # Get the directory of the current script
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    # Construct the path to logging.ini relative to the current script
-    logging_ini_path = os.path.join(dir_path, "log/logging.ini")
-    # Use the logging_ini_path to load the configuration (edit this file to configure logger settings)
-    logging.config.fileConfig(logging_ini_path, disable_existing_loggers=False)
+def setup_logging(config_path=None):
+    """
+    Set up logging configuration.
+
+    Parameters:
+        config_path (str, optional): Path to the logging configuration file.
+                                     Defaults to 'log/logging.ini' relative to this script.
+        save_path (str): Path to save the log file.
+    """
+    if config_path is None:
+        # Get the directory of the current script
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        # Default logging configuration file
+        config_path = os.path.join(dir_path, "log", "logging.ini")
+
+        # Create logfile and make sure dir exists
+        save_dir = os.path.join(dir_path, "log", "saved_logs")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        unique_id = str(int(time.time()))
+        save_path = os.path.join(save_dir, f"robot_log_{unique_id}.log")
+    try:
+        # Pass the save_path via the 'defaults' parameter
+        logging.config.fileConfig(
+            config_path,
+            defaults={"logfilename": save_path},
+            disable_existing_loggers=False,
+        )
+    except Exception as e:
+        print(f"Failed to load logging configuration from {config_path}: {e}")
+        logging.basicConfig(level=logging.INFO)
 
 
 def start_mqtt_process(telemetry_queue, command_queue):
-    # Set a lower real-time priority for this process
-    set_realtime_priority(priority=70)
-    mqtt_client = MQTTClient(telemetry_queue, command_queue)
-    mqtt_client.start()  # This should be a blocking call that runs the MQTT client
+    """
+    Start the MQTT client process with a lower real-time priority.
+
+    Parameters:
+        telemetry_queue (multiprocessing.Queue): Queue for sending telemetry data.
+        command_queue (multiprocessing.Queue): Queue for receiving commands.
+    """
+    signal.signal(
+        signal.SIGINT, signal.SIG_IGN
+    )  # Ignore hard kill signals for rapid termination
+    try:
+        # Set a lower real-time priority for this process
+        set_realtime_priority(priority=70)
+        mqtt_client = MQTTClient(telemetry_queue, command_queue)
+        mqtt_client.start()  # This should be a blocking call that runs the MQTT client
+    except Exception as e:
+        logging.exception(f"MQTT process encountered an error: {e}")
+        raise
 
 
-def parse_args():
-    # Setup command-line argument parsing
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Start the robot system with optional motor control."
     )
@@ -65,41 +122,24 @@ def parse_args():
         type=str,
         help="Specify an alternative RWIP configuration YAML file.",
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
-def cancel_pending_tasks(loop):
-    try:
-        current_task = asyncio.current_task(loop)
-    except RuntimeError:
-        current_task = None  # No current task if no running loop
-
-    for task in asyncio.all_tasks(loop):
-        if task is not current_task:
-            task.cancel()
-            try:
-                loop.run_until_complete(task)
-            except asyncio.CancelledError:
-                pass  # Task cancellation is expected
-
-
-def main():
-    # Get command line flags
+async def main():
     args = parse_args()
-
-    # Setup the logging configuration
     setup_logging()
     logger = logging.getLogger()
-    logger.debug("Logger initalized")
+    logger.debug("Logger initialized")
 
-    # Escalate the process priority to max level
-    set_realtime_priority()
+    try:
+        set_realtime_priority(priority=99)
+    except PermissionError as e:
+        logger.error(f"Failed to set real-time priority: {e}")
+        return
 
-    # Use multiprocessing.Manager to create queues that can be shared between processes
-    manager = multiprocessing.Manager()
-    telemetry_queue = manager.Queue()
-    command_queue = manager.Queue()
+    telemetry_queue = multiprocessing.Queue()
+    command_queue = multiprocessing.Queue()
+    shutdown_event = asyncio.Event()
 
     # Initialize the robot with the command-line argument
     robot = RobotSystem(
@@ -111,23 +151,20 @@ def main():
     )
     # Start the MQTT communication in its own process
     mqtt_process = multiprocessing.Process(
-        target=start_mqtt_process, args=(telemetry_queue, command_queue), daemon=True
+        target=start_mqtt_process,
+        args=(telemetry_queue, command_queue),
     )
     mqtt_process.start()
 
-    # Start the control loop in the main process (or as a thread if required)
-    loop = asyncio.get_event_loop()
     try:
-        # Schedule and run the RobotSystem.start coroutine
-        loop.run_until_complete(robot.start())
+        await robot.start(shutdown_event)
     except KeyboardInterrupt:
         logger.info("Shutdown signal received")
+        shutdown_event.set()
+    except Exception as e:
+        logger.exception(f"An unexpected error occurred: {e}")
     finally:
-        # Cancel any pending asyncio tasks
-        cancel_pending_tasks(loop)
-
-        # Shutdown the robot system
-        loop.run_until_complete(robot.shutdown())
+        await robot.shutdown()
 
         # Terminate and clean up the MQTT process
         mqtt_process.terminate()
@@ -140,9 +177,9 @@ def main():
 
         logger.info("Cleanup complete. Exiting program.")
 
-        # Close the asyncio event loop
-        loop.close()
-
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Exited... Double check that the motors are off and not ringing!")
