@@ -15,7 +15,7 @@ class Controller(ABC):
         # Instantiate a controller logger labeled with the specific subclass name
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         # Number of observations and actions
-        self.num_obs = 3
+        self.num_obs = len(ControlInput)
         self.num_act = 1
 
     @abstractmethod
