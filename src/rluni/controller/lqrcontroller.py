@@ -9,10 +9,6 @@ class LQRController(Controller):
     @call_super_first
     def __init__(self) -> None:
         self._K = np.array([0.35, 0.02, -0.07, 0.5])
-        self.state_pend_angle = 0
-        self.state_pend_vel = 1
-        self.state_wheel_vel = 2
-        self.state_roll_torque = 3
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
