@@ -8,7 +8,7 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = [0.35, 0.02, -0.07, 0.5]
+        self._K = np.array([0.35, 0.02, -0.07, 0.5])
         self.state_pend_angle = 0
         self.state_pend_vel = 1
         self.state_wheel_vel = 2
@@ -18,44 +18,23 @@ class LQRController(Controller):
     @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
-        Calculates a torque using the optimal LQR gain matrix multiplied by the error of pendulum angle.
+        Calculates a torque using the optimal LQR gain matrix multiplied by the current robot state.
         If the calculated torque is greater than the specified maximum, a warning message will be logged
         and the torque will be clamped.
 
         Returns:
             torque: Desired torque for the LQR controller.
         """
-        # Calculate torque
-        pend_angle = robot_state.pendulum_angle
-        pend_vel = robot_state.pendulum_vel
-        wheel_vel = robot_state.wheel_vel
-        roll_torque = robot_state.roll_torque
+        # Robot states vector
+        state_vector = np.array([
+            robot_state.pendulum_angle,
+            robot_state.pendulum_vel,
+            robot_state.wheel_vel,
+            robot_state.roll_torque
+        ])
 
-        torque = -(
-            self._K[self.state_pend_angle] * pend_angle
-            + self._K[self.state_pend_vel] * pend_vel
-            + self._K[self.state_wheel_vel] * wheel_vel
-            + self._K[self.state_roll_torque] * roll_torque
-        )
-
-        print(
-            "angle, vel, wheel vel, prev torque \n{:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
-                pend_angle,
-                pend_vel,
-                wheel_vel,
-                roll_torque
-            )
-        )
-
-        print(
-            "contribs: angle, vel, wheel vel, prev torque, torque \n{:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
-                self._K[self.state_pend_angle] * pend_angle,
-                self._K[self.state_pend_vel] * pend_vel,
-                self._K[self.state_wheel_vel] * wheel_vel,
-                self._K[self.state_roll_torque] * roll_torque,
-                torque,
-            )
-        )
+        # Torque computation
+        torque = -np.dot(self._K, state_vector)
 
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
