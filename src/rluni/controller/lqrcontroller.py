@@ -8,17 +8,12 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = [0.35, 0.02, -0.07, 0.0]
-        self._max_rps = 35  # revs/s
-        self._max_del_s = 2.5  # degrees
+        self._K = [0.35, 0.02, -0.07, 0.5]
         self.state_pend_angle = 0
         self.state_pend_vel = 1
         self.state_wheel_vel = 2
         self.state_roll_torque = 3
         self.logger.info(f"{self.__class__.__name__} initialized")
-        self.downsample = 25
-        self.downsample_counter = 0
-        self.buffer = [0] * self.downsample
 
     @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
@@ -31,7 +26,7 @@ class LQRController(Controller):
             torque: Desired torque for the LQR controller.
         """
         # Calculate torque
-        pend_angle = robot_state.pendulum_angle - 1.0
+        pend_angle = robot_state.pendulum_angle
         pend_vel = robot_state.pendulum_vel
         wheel_vel = robot_state.wheel_vel
         roll_torque = robot_state.roll_torque
@@ -44,7 +39,7 @@ class LQRController(Controller):
         )
 
         print(
-            "angle, vel, wheel vel \n{:7.2f} {:7.2f} {:7.2f}".format(
+            "angle, vel, wheel vel, prev torque \n{:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
                 pend_angle,
                 pend_vel,
                 wheel_vel,
@@ -53,7 +48,7 @@ class LQRController(Controller):
         )
 
         print(
-            "contribs: angle, vel, wheel vel, torque \n{:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
+            "contribs: angle, vel, wheel vel, prev torque, torque \n{:7.2f} {:7.2f} {:7.2f} {:7.2f} {:7.2f}".format(
                 self._K[self.state_pend_angle] * pend_angle,
                 self._K[self.state_pend_vel] * pend_vel,
                 self._K[self.state_wheel_vel] * wheel_vel,
