@@ -3,6 +3,7 @@ venv_moteus
 __pycache__/
 .vscode/
 log/saved_logs/*.log
+log/*.log
 **/__pycache__
 **/*.pyc
 *.egg-info/
