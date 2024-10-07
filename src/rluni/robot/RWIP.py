@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 import logging
 import time
 import asyncio
@@ -156,8 +157,8 @@ class RobotSystem:
         and actuator commands at a fixed rate defined by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
+        torque_request = 0
         robot_state = dc.RobotState() # Create a central data structure for state data
-        
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
@@ -182,6 +183,7 @@ class RobotSystem:
                 pendulum_angle=euler_angles[1],  # euler y (robot frame)
                 pendulum_vel=imu_data["gyro_z"],  # gyro z (imu frame angular speed, gyro y in robot frame)
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
+                roll_torque=torque_request,
             )
 
             # Change to negative convention due to motor
