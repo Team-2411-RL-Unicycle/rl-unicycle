@@ -71,7 +71,7 @@ def setup_logging(config_path=None):
         logging.basicConfig(level=logging.INFO)
 
 
-def start_mqtt_process(telemetry_queue, command_queue):
+def start_mqtt_process(telemetry_queue, command_queue, shutdown_event):
     """
     Start the MQTT client process with a lower real-time priority.
 
@@ -85,7 +85,7 @@ def start_mqtt_process(telemetry_queue, command_queue):
     try:
         # Set a lower real-time priority for this process
         set_realtime_priority(priority=70)
-        mqtt_client = MQTTClient(telemetry_queue, command_queue)
+        mqtt_client = MQTTClient(telemetry_queue, command_queue, shutdown_event)
         mqtt_client.start()  # This should be a blocking call that runs the MQTT client
     except Exception as e:
         logging.exception(f"MQTT process encountered an error: {e}")
@@ -139,9 +139,16 @@ async def main():
 
     telemetry_queue = multiprocessing.Queue()
     command_queue = multiprocessing.Queue()
-    shutdown_event = asyncio.Event()
+    shutdown_event = multiprocessing.Event()
 
-    # Initialize the robot with the command-line argument
+    # Start the MQTT process
+    mqtt_process = multiprocessing.Process(
+        target=start_mqtt_process,
+        args=(telemetry_queue, command_queue, shutdown_event),
+    )
+    mqtt_process.start()
+
+    # Initialize and start the robot
     robot = RobotSystem(
         telemetry_queue,
         command_queue,
@@ -149,12 +156,6 @@ async def main():
         controller_type=args.controller,
         config_file=args.config_file,
     )
-    # Start the MQTT communication in its own process
-    mqtt_process = multiprocessing.Process(
-        target=start_mqtt_process,
-        args=(telemetry_queue, command_queue),
-    )
-    mqtt_process.start()
 
     try:
         await robot.start(shutdown_event)
@@ -167,7 +168,7 @@ async def main():
         await robot.shutdown()
 
         # Terminate and clean up the MQTT process
-        mqtt_process.terminate()
+        shutdown_event.set()
         mqtt_process.join(timeout=5)
         if mqtt_process.is_alive():
             mqtt_process.kill()

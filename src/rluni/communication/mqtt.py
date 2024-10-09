@@ -4,13 +4,15 @@ import time
 
 import paho.mqtt.client as mqtt
 
+from rluni.robot.teledata import TelemetryData
+
 logger = logging.getLogger(__name__)
 
 
 class MQTTClient:
     COMMAND_TOPIC = "robot/commands"
 
-    def __init__(self, send_queue, receive_queue):
+    def __init__(self, send_queue, receive_queue, shutdown_event):
         # Define the MQTT settings
         broker_address = "172.22.1.1"  # Lenovo Mosquitto Broker Adress
         port = 1883
@@ -18,11 +20,12 @@ class MQTTClient:
         self.loop_time = 0.001  # 1ms
 
         # Create a client instance
-        self.client = mqtt.Client("UnicycleRobot")
+        self.client = mqtt.Client(clean_session=True)
         self.client.connect(broker_address, port)
 
         self.send_queue = send_queue
         self.receive_queue = receive_queue
+        self.shutdown_event = shutdown_event
 
         self.setup_callbacks()  # Setup MQTT callbacks
         self.client.loop_start()
@@ -45,15 +48,30 @@ class MQTTClient:
         self.telemetry_loop()
 
     def telemetry_loop(self):
-        while True:
+        while not self.shutdown_event.is_set():
             try:
-                # Handle outgoing messages
                 while not self.send_queue.empty():
-                    topic, message = self.send_queue.get()
-                    self.publish_data(topic, message)
+                    batch = self.send_queue.get()
+                    if isinstance(batch, list):
+                        for telemetry_data in batch:
+                            self.process_telemetry_data(telemetry_data)
+                    else:
+                        self.process_telemetry_data(batch)
             except Exception as e:
                 logger.exception(f"Error in telemetry_loop: {e}")
+
             time.sleep(self.loop_time)
+
+    def process_telemetry_data(self, telemetry_data: TelemetryData):
+        # Check that the telemetry data is an instance of the TelemetryData class
+        if not isinstance(telemetry_data, TelemetryData):
+            logger.error(f"Invalid telemetry data: {telemetry_data}")
+            return
+        topic, data = telemetry_data.to_mqtt()
+        try:
+            self.publish_data(topic, data)
+        except Exception as e:
+            logger.exception(f"Error with {topic} {e}")
 
     def publish_data(self, topic, data):
         self.client.publish(topic, json.dumps(data))

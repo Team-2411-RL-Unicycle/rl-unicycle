@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 ControlInput = namedtuple(
-    "ControlInput", ["pendulum_angle", "pendulum_vel", "wheel_vel"]
+    "ControlInput", ["pendulum_angle", "pendulum_vel", "wheel_vel", "roll_torque"]
 )
 
 
@@ -15,7 +15,7 @@ class Controller(ABC):
         # Instantiate a controller logger labeled with the specific subclass name
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         # Number of observations and actions
-        self.num_obs = 3
+        self.num_obs = len(ControlInput._fields)
         self.num_act = 1
 
     @abstractmethod
