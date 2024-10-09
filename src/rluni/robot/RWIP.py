@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 import logging
 import time
 
@@ -166,6 +167,7 @@ class RobotSystem:
                 pendulum_angle=euler_angles.y,
                 pendulum_vel=imudata.gyro_z,
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
+                roll_torque=torque_request,
                 roll_torque=torque_request,
             )
 

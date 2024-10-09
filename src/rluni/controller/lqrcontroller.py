@@ -9,11 +9,13 @@ class LQRController(Controller):
     @call_super_first
     def __init__(self) -> None:
         self._K = np.array([0.35, 0.02, -0.07, 0.5])
+        self._K = np.array([0.35, 0.02, -0.07, 0.5])
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
+        Calculates a torque using the optimal LQR gain matrix multiplied by the current robot state.
         Calculates a torque using the optimal LQR gain matrix multiplied by the current robot state.
         If the calculated torque is greater than the specified maximum, a warning message will be logged
         and the torque will be clamped.
