@@ -1,5 +1,6 @@
 import json
 import logging
+import multiprocessing as mp
 import time
 
 import paho.mqtt.client as mqtt
@@ -12,7 +13,9 @@ logger = logging.getLogger(__name__)
 class MQTTClient:
     COMMAND_TOPIC = "robot/commands"
 
-    def __init__(self, send_queue, receive_queue, shutdown_event):
+    def __init__(
+        self, send_queue: mp.Queue, receive_queue: mp.Queue, shutdown_event: mp.Event
+    ):
         # Define the MQTT settings
         broker_address = "172.22.1.1"  # Lenovo Mosquitto Broker Adress
         port = 1883

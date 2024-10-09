@@ -31,10 +31,12 @@ class TelemetryData(ABC):
 
 @dataclass(frozen=True)
 class IMUData(TelemetryData):
-    accel_x: float
+    """Data returned from the IMU sensor"""
+
+    accel_x: float  # 1.0 = 9.8 m/s^2
     accel_y: float
     accel_z: float
-    gyro_x: float
+    gyro_x: float  # degrees per second
     gyro_y: float
     gyro_z: float
 
@@ -42,16 +44,18 @@ class IMUData(TelemetryData):
     def topic(self) -> str:
         return "robot/sensors/imu"  # Class-level topic
 
-    def get_accel(self):
+    def get_accel(self) -> tuple:
         return (self.accel_x, self.accel_y, self.accel_z)
 
-    def get_gyro(self):
+    def get_gyro(self) -> tuple:
         return (self.gyro_x, self.gyro_y, self.gyro_z)
 
 
 @dataclass(frozen=True)
 class EulerAngles(TelemetryData):
-    x: float
+    """Data related to AHRS system"""
+
+    x: float  # Degrees
     y: float
     z: float
 
@@ -68,6 +72,8 @@ class EulerAngles(TelemetryData):
 
 @dataclass(frozen=True)
 class MotorState(TelemetryData):
+    """Data synchronized with the motor class"""
+
     mode: int
     position: float
     velocity: float
@@ -91,6 +97,8 @@ class MotorState(TelemetryData):
 
 @dataclass(frozen=True)
 class ControlData(TelemetryData):
+    """Data related to control actions and performance."""
+
     loop_time: float
     torque_request: float
 
@@ -101,6 +109,14 @@ class ControlData(TelemetryData):
 
 @dataclass
 class DebugData(TelemetryData):
+    """
+    A special telemetry data class for debugging purposes.
+
+    Initializes with an empty dictionary for data. To add data, use the add_data method.
+
+    e.g. DebugData().add_data(key1=value1, key2=value2)
+    """
+
     data: Dict[str, Any] = field(default_factory=dict)
 
     @property

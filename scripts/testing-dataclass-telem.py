@@ -4,7 +4,7 @@ import signal
 import time
 
 from rluni.communication.mqtt import MQTTClient
-from rluni.robot import teledata as dc
+from rluni.robot import teledata as td
 
 
 def start_mqtt_process(telemetry_queue, command_queue):
@@ -43,12 +43,12 @@ def main():
 
     for _ in range(n_iters):
         start = time.time()
-        imu = dc.IMUData(1.2, 1.2, 1.4, 1.1, 1.2, 1.3)
-        euler = dc.EulerAngles(1.2, 1.2, 1.4)
-        motor = dc.MotorState(1.2, 1.2, 1.4)
-        motor_electrical = dc.MotorElectrical(1.2, 1.2, 1.4, 1.1, 1.2, 1)
-        control = dc.ControlData(1.2)
-        debug = dc.DebugData(1.2)
+        imu = td.IMUData(1.2, 1.2, 1.4, 1.1, 1.2, 1.3)
+        euler = td.EulerAngles(1.2, 1.2, 1.4)
+        motor = td.MotorState(1.2, 1.2, 1.4)
+        motor_electrical = td.MotorElectrical(1.2, 1.2, 1.4, 1.1, 1.2, 1)
+        control = td.ControlData(1.2)
+        debug = td.DebugData(1.2)
 
         # Optionally send either a batch or a single item
         if _ % 2 == 0:

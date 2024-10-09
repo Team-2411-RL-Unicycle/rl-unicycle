@@ -1,12 +1,12 @@
 import asyncio
-import asyncio
 import logging
 import time
+from multiprocessing import Queue
+from typing import List, Union
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-import rluni.robot.LoopTimer as lt
 from rluni.controller import (ControlInput, Controller, LQRController,
                               PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -15,7 +15,7 @@ from rluni.motors.MN6007 import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
-from . import teledata as dc
+from . import teledata as td
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -30,19 +30,16 @@ class RobotSystem:
         LOOP_TIME (float): The fixed period for the control loop in seconds (e.g., 0.01 for 100Hz).
         WRITE_DUTY (float): The fraction of the loop period before actuators are updated
         MAX_TORQUE (float): The maximum torque to request from motors, used for testing and safety constraints.
-        robot_io (RobotIO): The RobotIO instance for handling input/output operations.
-        imu (ICM20948): The IMU sensor instance.
-        sensor_fusion (AHRSfusion): The sensor fusion algorithm instance for processing IMU data.
         xmotor (MN6007 or None): The motor controller instance, if motors are started.
         itr (int): An iteration counter for the control loop.
     """
 
     def __init__(
         self,
-        send_queue,
-        receive_queue,
+        send_queue: Queue,
+        receive_queue: Queue,
         start_motors=True,
-        controller_type="test",
+        controller_type: str = "test",
         config_file=None,
     ):
         self.send_queue = send_queue
@@ -106,7 +103,7 @@ class RobotSystem:
             "rluni", self.pid_config_path
         )
 
-    def _get_controller(self, controller_type):
+    def _get_controller(self, controller_type: str) -> Controller:
         """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
         if controller_type == "pid":
             return PIDController(config_file=self.pid_config_path)
@@ -147,12 +144,13 @@ class RobotSystem:
             loop_start_time = time.time()
             self.itr += 1
 
-            tele_debug_data = dc.DebugData()
+            # Debugging Data Example (add more data as needed)
+            tele_debug_data = td.DebugData()
             tele_debug_data.add_data(your_mama=69)
 
             # Sensor reading and fusion
-            imudata = dc.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
-            euler_angles = dc.EulerAngles(
+            imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
+            euler_angles = td.EulerAngles(
                 *self.sensor_fusion.update(
                     imudata.get_gyro(), imudata.get_accel(), delta_time=loop_period
                 )[0]
@@ -167,7 +165,6 @@ class RobotSystem:
                 pendulum_angle=euler_angles.y,
                 pendulum_vel=imudata.gyro_z,
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
-                roll_torque=torque_request,
                 roll_torque=torque_request,
             )
 
@@ -191,14 +188,14 @@ class RobotSystem:
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
-                control_data = dc.ControlData(
+                control_data = td.ControlData(
                     loop_time=loop_period, torque_request=float(torque_request)
                 )
                 data_list = [imudata, euler_angles, control_data, tele_debug_data]
                 if self.xmotor is not None:
-                    motor_state = dc.MotorState.from_dict(self.xmotor.state)
+                    motor_state = td.MotorState.from_dict(self.xmotor.state)
                     data_list.append(motor_state)
-                self.send_queue.put(data_list)
+                await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
             # Check for and handle new commands sent in via MQTT
@@ -213,6 +210,17 @@ class RobotSystem:
         Command Handling Methods
         #######################  """
 
+    async def _send_telemetry(
+        self, data_packet: Union[List[td.TelemetryData], td.TelemetryData]
+    ) -> None:
+        """
+        Send telemetry data to the telemetry queue.
+
+        Args:
+            data_list (Union[List[TelemetryData], TelemetryData]): The telemetry data to send (list or singletons)
+        """
+        self.send_queue.put(data_packet)
+
     async def _handle_commands(self):
         """Handle commands from the receive queue."""
         while not self.receive_queue.empty():
@@ -223,7 +231,7 @@ class RobotSystem:
             else:
                 logger.error(f"Invalid command format: {message}")
 
-    async def _execute_command(self, command, value):
+    async def _execute_command(self, command: str, value):
         """Execute a specific command."""
         if command == "power":
             await self._handle_power_command(command, value)
@@ -319,6 +327,8 @@ class RobotSystem:
             delay = time.time() - end_time
             if delay >= 0:
                 return delay
+
+    """ Shutdown Methods """
 
     async def shutdown(self):
         """
