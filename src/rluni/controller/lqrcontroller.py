@@ -8,7 +8,7 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = np.array([0.35, 0.02, -0.07, 0.5])
+        self._K = np.array([1.1831, 3.7944, 1.5372, 0.0])
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
