@@ -22,12 +22,14 @@ class LQRController(Controller):
             torque: Desired torque for the LQR controller.
         """
         # Robot states vector
-        state_vector = np.array([
-            robot_state.pendulum_angle,
-            robot_state.pendulum_vel,
-            robot_state.wheel_vel,
-            robot_state.roll_torque
-        ])
+        state_vector = np.array(
+            [
+                robot_state.pendulum_angle,
+                robot_state.pendulum_vel,
+                robot_state.wheel_vel,
+                robot_state.roll_torque,
+            ]
+        )
 
         # Torque computation
         torque = -np.dot(self._K, state_vector)

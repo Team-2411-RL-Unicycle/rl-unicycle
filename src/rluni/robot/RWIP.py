@@ -1,11 +1,12 @@
 import asyncio
 import logging
 import time
+from multiprocessing import Queue
+from typing import List, Union
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-import rluni.robot.LoopTimer as lt
 from rluni.controller import (ControlInput, Controller, LQRController,
                               PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -13,6 +14,8 @@ from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
+
+from . import teledata as td
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -27,53 +30,37 @@ class RobotSystem:
         LOOP_TIME (float): The fixed period for the control loop in seconds (e.g., 0.01 for 100Hz).
         WRITE_DUTY (float): The fraction of the loop period before actuators are updated
         MAX_TORQUE (float): The maximum torque to request from motors, used for testing and safety constraints.
-        robot_io (RobotIO): The RobotIO instance for handling input/output operations.
-        imu (ICM20948): The IMU sensor instance.
-        sensor_fusion (AHRSfusion): The sensor fusion algorithm instance for processing IMU data.
         xmotor (MN6007 or None): The motor controller instance, if motors are started.
         itr (int): An iteration counter for the control loop.
     """
 
     def __init__(
         self,
-        send_queue,
-        receive_queue,
+        send_queue: Queue,
+        receive_queue: Queue,
         start_motors=True,
-        controller_type="test",
+        controller_type: str = "test",
         config_file=None,
     ):
+        self.send_queue = send_queue
+        self.receive_queue = receive_queue
+
         # Load and parse the configuration file
         self._load_config(config_file)
 
-        # Setup the communication queues and the input output over internet system
-        self.robot_io = RobotIO(
-            send_queue,
-            receive_queue,
-            {
-                "power": self.handle_power_command,
-                "P": self.handle_pid_command,
-                "I": self.handle_pid_command,
-                "D": self.handle_pid_command,
-                "controller": self.handle_controller_switch,
-            },
-        )
-
+        # Initialize IMU and sensor fusion
         self.imu = ICM20948(config_file=self.imu_config)
-        # Init sensor fusion
         self.sensor_fusion = AHRSfusion(
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
         )
 
+        # Initialize motor controller (if enabled)
+        self.xmotor = MN6007() if start_motors else None
         self.motors_enabled = start_motors
-        # Initialize all actuators
-        if start_motors:
-            self.xmotor = MN6007()
-        else:
-            self.xmotor = None
 
         # Initialize controller type based on argument
         self.controller_type = controller_type
-        self.controller = self._get_new_controller(controller_type)
+        self.controller = self._get_controller(controller_type)
 
         self.itr = int(0)  # Cycle counter
 
@@ -116,10 +103,8 @@ class RobotSystem:
             "rluni", self.pid_config_path
         )
 
-    def _get_new_controller(self, controller_type):
-        """
-        Initialize the controller based on the type provided ('pid', 'rl', or 'test').
-        """
+    def _get_controller(self, controller_type: str) -> Controller:
+        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
         if controller_type == "pid":
             return PIDController(config_file=self.pid_config_path)
         elif controller_type == "rl":
@@ -153,26 +138,32 @@ class RobotSystem:
         """
         loop_period = self.LOOP_TIME
         torque_request = 0
+
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
 
-            # Poll the imu for positional data
-            ax, ay, az, gx, gy, gz = self.imu.read_accelerometer_gyro(convert=True)
+            # Debugging Data Example (add more data as needed)
+            tele_debug_data = td.DebugData()
+            tele_debug_data.add_data(your_mama=69)
 
-            # Fuse sensor data
-            euler_angles, internal_states, flags = self.sensor_fusion.update(
-                (gx, gy, gz), (ax, ay, az), delta_time=loop_period
+            # Sensor reading and fusion
+            imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
+            euler_angles = td.EulerAngles(
+                *self.sensor_fusion.update(
+                    imudata.get_gyro(), imudata.get_accel(), delta_time=loop_period
+                )[0]
             )
 
             # Update robot state and parameters
             if self.xmotor is not None:
                 await self.xmotor.update_state()
 
+            # Control logic
             control_input = ControlInput(
-                pendulum_angle=euler_angles[1],  # euler y (robot frame)
-                pendulum_vel=gz,  # gyro z (imu frame angular speed, gyro y in robot frame)
+                pendulum_angle=euler_angles.y,
+                pendulum_vel=imudata.gyro_z,
                 wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
                 roll_torque=torque_request,
             )
@@ -180,8 +171,7 @@ class RobotSystem:
             # Change to negative convention due to motor
             torque_request = self.controller.get_torque(
                 control_input, self.MAX_TORQUE - 0.001
-            )  # Floating point buffer
-            self.robot_io.send_debug_data(torque_request=float(torque_request))
+            )
 
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period * self.WRITE_DUTY)
@@ -190,51 +180,69 @@ class RobotSystem:
             # SET TORQUE
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
             if self.motors_enabled and not isCalibrating:
-                # Only set the torque if not in calibration mode
+                # Only set the torque if not in sensor fusion calibration mode
                 await self.xmotor.set_torque(
                     torque=torque_request, max_torque=self.MAX_TORQUE
                 )
 
             ### SEND COMMS ###
-            # Send out all data downsampled to lower rate
-            if (self.itr % 20) == 0:
-                self.robot_io.send_imu_data(ax, ay, az, gx, gy, gz)
-                self.robot_io.send_euler_angles(euler_angles)
-                if self.xmotor is not None:
-                    self.robot_io.send_motor_state(self.xmotor.state)
-
-            # High Frequency data
-            self.robot_io.send_loop_time(loop_period * 1e6)
-            if self.xmotor is not None:
-                self.robot_io.send_motor_electrical(
-                    q_current=self.xmotor.state["Q_CURRENT"],
-                    d_current=self.xmotor.state["D_CURRENT"],
-                    torque=self.xmotor.state["TORQUE"],
-                    voltage=self.xmotor.state["VOLTAGE"],
-                    velocity=self.xmotor.state["VELOCITY"],
-                    motor_fault=self.xmotor.state["FAULT"],
+            # Send out all data downsampled to (optional lower) rate
+            if (self.itr % 1) == 0:
+                control_data = td.ControlData(
+                    loop_time=loop_period, torque_request=float(torque_request)
                 )
+                data_list = [imudata, euler_angles, control_data, tele_debug_data]
+                if self.xmotor is not None:
+                    motor_state = td.MotorState.from_dict(self.xmotor.state)
+                    data_list.append(motor_state)
+                await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
             # Check for and handle new commands sent in via MQTT
-            await self.robot_io.receive_commands()
+            await self._handle_commands()
 
             ### CLOSE LOOP DELAY ###
             end_time = loop_start_time + self.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
 
-    async def shutdown(self):
-        """
-        Shutdown the robot system and its components.
-        """
-        try:
-            await self.xmotor.shutdown()
-            logger.info("Motors shutdown successfully.")
-        except Exception as e:
-            logger.exception(f"Error during RobotSystem shutdown: {e}")
+    """ ####################### 
+        Command Handling Methods
+        #######################  """
 
-    async def handle_power_command(self, command: str, value: bool):
+    async def _send_telemetry(
+        self, data_packet: Union[List[td.TelemetryData], td.TelemetryData]
+    ) -> None:
+        """
+        Send telemetry data to the telemetry queue.
+
+        Args:
+            data_list (Union[List[TelemetryData], TelemetryData]): The telemetry data to send (list or singletons)
+        """
+        self.send_queue.put(data_packet)
+
+    async def _handle_commands(self):
+        """Handle commands from the receive queue."""
+        while not self.receive_queue.empty():
+            message = self.receive_queue.get()
+            if isinstance(message, dict) and len(message) == 1:
+                command, value = next(iter(message.items()))
+                await self._execute_command(command, value)
+            else:
+                logger.error(f"Invalid command format: {message}")
+
+    async def _execute_command(self, command: str, value):
+        """Execute a specific command."""
+        if command == "power":
+            await self._handle_power_command(command, value)
+        elif command in {"P", "I", "D"}:
+            await self._handle_pid_command(command, value)
+        elif command == "controller":
+            await self._handle_controller_switch(command, value)
+        else:
+            logger.error(f"Unrecognized command: {command}")
+
+    async def _handle_power_command(self, command: str, value: bool):
         """
         Handles power on/off commands for the robot.
 
@@ -263,7 +271,7 @@ class RobotSystem:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
 
-    async def handle_pid_command(self, command: str, value: float):
+    async def _handle_pid_command(self, command: str, value: float):
         if self.controller_type != "pid":
             logger.warning(
                 f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command."
@@ -274,16 +282,13 @@ class RobotSystem:
                 f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command."
             )
             return
-        # Code to execute if the PID value is a float (e.g., set value)
-        # Command comes in as P, I, or D
-        # This likely will be offloaded to the PID controller if one is enabled
+
         self.controller.update_parameter(command, value)
-        # Log info and print to console
         msg = f"Setting PID parameter {command} to value {value}."
         logger.info(msg)
         return
 
-    async def handle_controller_switch(self, command: str, value: str):
+    async def _handle_controller_switch(self, command: str, value: str):
         """
         Handles controller switch commands for the robot.
 
@@ -294,7 +299,7 @@ class RobotSystem:
         if isinstance(value, str):
             try:
                 # Delegate the controller initialization to the private method
-                self.controller = self._get_new_controller(value)
+                self.controller = self._get_controller(value)
                 self.controller_type = value
                 logger.info(f"Controller switched to: {value}")
             except ValueError as e:
@@ -323,109 +328,15 @@ class RobotSystem:
             if delay >= 0:
                 return delay
 
+    """ Shutdown Methods """
 
-class RobotIO:  #
-    """
-    The RobotIO class handles all input/output operations for the robot, including sending sensor data,
-    state information, and receiving and processing commands.
-
-    Attributes:
-        send_queue: The queue used for sending data and messages to other system components.
-        receive_queue: The queue used for receiving commands and messages from other system components.
-        command_callbacks (dict): A dictionary mapping command strings to their handling methods.
-    """
-
-    def __init__(self, send_queue, receive_queue, callback: dict) -> None:
-        self.send_queue = send_queue
-        self.receive_queue = receive_queue
-        self.command_callbacks = callback
-
-    def send_debug_data(self, **kwargs):
+    async def shutdown(self):
         """
-        Sends debug data with flexible key-value pairs.
-
-        Each key-value pair in kwargs represents a label and its corresponding value.
-        The function adds a timestamp to the data before sending it off in the queue.
-
-        Example usage:
-            robot_io.send_debug_data(motor_temp=85, battery_voltage=12.6)
-
-        Args:
-            **kwargs: Arbitrary number of named arguments representing debug data labels and values.
+        Shutdown the robot system and its components.
         """
-        debug_data = {
-            **kwargs  # Merge the arbitrary key-value pairs into the debug data
-        }
-        # Define the topic for debug data
-        topic = "robot/debug"
-
-        # Put the debug data into the send queue
-        self.send_queue.put((topic, debug_data))
-
-    def send_motor_electrical(self, **kwargs):
-        debug_data = {
-            **kwargs  # Merge the arbitrary key-value pairs into the debug data
-        }
-        # Define the topic for debug data
-        topic = "robot/sensors/motor_electrical"
-        # Put the debug data into the send queue
-        self.send_queue.put((topic, debug_data))
-
-    def send_imu_data(self, ax, ay, az, gx, gy, gz):
-        topic = "robot/sensors/imu"
-        data = {
-            "accel_x": ax,
-            "accel_y": ay,
-            "accel_z": az,
-            "gyro_x": gx,
-            "gyro_y": gy,
-            "gyro_z": gz,
-        }
-        self.send_queue.put((topic, data))
-
-    def send_euler_angles(self, euler_angles):
-        topic = "robot/state/angles"
-        data = {
-            "euler_x": float(euler_angles[0]),  # Convert to Python float
-            "euler_y": float(euler_angles[1]),
-            "euler_z": float(euler_angles[2]),
-        }
-        self.send_queue.put((topic, data))
-
-    def send_motor_state(self, motor_state):
-        topic = "robot/sensors/motor"
-        data = motor_state
-        self.send_queue.put((topic, data))
-
-    def send_loop_time(self, loop_time):
-        topic = "robot/control/loop_time"
-        data = {"loop_time": loop_time}
-        self.send_queue.put((topic, data))
-
-    async def receive_commands(self):
-        """
-        Processes commands received in the receive queue from MQTT. Each message contains
-        a single command-value pair. The corresponding handler function in the
-        `command_callbacks` dictionary is called with the command and its value.
-
-        If the command does not have a registered handler in `command_callbacks`, an error is logged indicating
-        that the command is unrecognized.
-        """
-        while not self.receive_queue.empty():
-            message = self.receive_queue.get()
-
-            # Directly extract command and value from the message assuming it's a single-entry dict
-            if isinstance(message, dict) and len(message) == 1:
-                command, value = next(iter(message.items()))
-
-                if command in self.command_callbacks:
-                    handler = self.command_callbacks[command]
-                    await handler(
-                        command, value
-                    )  # Invoke the handler with the command value
-                else:
-                    logger.error(f"Unrecognized command: {command}")
-            else:
-                logger.error(
-                    f"Expected a single-entry dictionary for the message, got: {message}"
-                )
+        try:
+            if self.xmotor is not None:
+                await self.xmotor.shutdown()
+                logger.info("Motors shutdown successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")
