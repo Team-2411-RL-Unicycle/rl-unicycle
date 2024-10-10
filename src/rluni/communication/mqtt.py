@@ -30,6 +30,10 @@ class MQTTClient:
         self.receive_queue = receive_queue
         self.shutdown_event = shutdown_event
 
+        # Initialize batch counter
+        self.batch_count = 0
+        self.downsample_rate = 10
+
         self.setup_callbacks()  # Setup MQTT callbacks
         self.client.loop_start()
 
@@ -55,26 +59,47 @@ class MQTTClient:
             try:
                 while not self.send_queue.empty():
                     batch = self.send_queue.get()
+
+                    self.batch_count += 1  # Increment batch counter
+                    if self.batch_count >= self.downsample_rate:
+                        self.batch_count = 0
+                        is_downsampled = True
+                    else:
+                        is_downsampled = False
+
                     if isinstance(batch, list):
                         for telemetry_data in batch:
-                            self.process_telemetry_data(telemetry_data)
+                            self.process_telemetry_data(telemetry_data, is_downsampled)
                     else:
-                        self.process_telemetry_data(batch)
+                        self.process_telemetry_data(batch, is_downsampled)
             except Exception as e:
                 logger.exception(f"Error in telemetry_loop: {e}")
 
             time.sleep(self.loop_time)
 
-    def process_telemetry_data(self, telemetry_data: TelemetryData):
+    def process_telemetry_data(
+        self, telemetry_data: TelemetryData, is_downsampled: bool
+    ):
         # Check that the telemetry data is an instance of the TelemetryData class
         if not isinstance(telemetry_data, TelemetryData):
             logger.error(f"Invalid telemetry data: {telemetry_data}")
             return
-        topic, data = telemetry_data.to_mqtt()
+
         try:
+            topic, data = telemetry_data.to_mqtt()
+
+            # Publish to the original topic
             self.publish_data(topic, data)
+            # logger.debug(f"Published to {topic}: {data}")
+
+            # If this is a downsampled batch, also publish to the downsampled topic
+            if is_downsampled:
+                downsampled_topic = f"downsampled/{topic}"
+                self.publish_data(downsampled_topic, data)
+                # logger.debug(f"Published to {downsampled_topic}: {data}")
+
         except Exception as e:
-            logger.exception(f"Error with {topic} {e}")
+            logger.exception(f"Error processing telemetry data for topic {topic}: {e}")
 
     def publish_data(self, topic, data):
         self.client.publish(topic, json.dumps(data))

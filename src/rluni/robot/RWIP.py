@@ -146,7 +146,7 @@ class RobotSystem:
 
             # Debugging Data Example (add more data as needed)
             tele_debug_data = td.DebugData()
-            tele_debug_data.add_data(your_mama=69)
+            tele_debug_data.add_data(example_debug_data = 42)
 
             # Sensor reading and fusion
             imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
