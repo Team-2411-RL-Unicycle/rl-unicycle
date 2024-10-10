@@ -8,7 +8,8 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = np.array([0.35, 0.02, -0.07, 0.5])
+        # self._K = np.array([20, 1.15, -0.01, 0.5])
+        self._K = np.array([13.1127,1.1050,-0.0122])
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
@@ -23,11 +24,10 @@ class LQRController(Controller):
         """
         # Robot states vector
         state_vector = np.array(
-            [
-                robot_state.pendulum_angle,
-                robot_state.pendulum_vel,
-                robot_state.wheel_vel,
-                robot_state.roll_torque,
+            [   # conversion to radians
+                robot_state.pendulum_angle * np.pi/180, # degrees -> radians
+                robot_state.pendulum_vel * np.pi/180, # degees/s -> radians/s
+                robot_state.wheel_vel * 2*np.pi, # rev/s -> radians/s
             ]
         )
 

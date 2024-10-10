@@ -162,10 +162,10 @@ class RobotSystem:
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=euler_angles.y,
-                pendulum_vel=imudata.gyro_z,
-                wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"],
-                roll_torque=torque_request,
+                pendulum_angle=euler_angles.y, # [degrees]
+                pendulum_vel=imudata.gyro_z, # [degrees / s]
+                wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"], # [rev / s]
+                roll_torque=torque_request, # [N * m]
             )
 
             # Change to negative convention due to motor
