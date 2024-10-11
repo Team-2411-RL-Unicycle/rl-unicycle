@@ -77,6 +77,33 @@ class MPCController(Controller):
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     def euler_lagrange(self, q, dq, lagrangian, Q):
+        """
+        Compute the Euler-Lagrange equations of motion for a given system.
+
+        The Euler-Lagrange equation describes the dynamics of a system, where the 
+        generalized coordinates (state variables) and their derivatives are used to 
+        compute the forces acting on the system.
+
+        Equation:
+            d   dL       dL
+            -- ----  -  ---- = Q
+            dt d(dq)     dq
+
+        Parameters:
+            q : The state vector (generalized coordinates), represented as symbols.
+            dq : The time derivatives of the state vector (generalized velocities), 
+                represented as symbols.
+            lagrangian : The Lagrangian of the system, defined as the difference between kinetic 
+                and potential energy (L = T - V).
+            Q : The generalized forces acting on the system (non-conservative forces).
+
+        Returns:
+            EQ : The Euler-Lagrange equation, which represents the equations of motion 
+                for the system. EQ is an n×1 vector corresponding to the number of 
+                states in the system.
+            dds : A matrix of the second derivatives (accelerations) of the generalized 
+                coordinates, used to solve the equations of motion.
+        """
         dds = sp.Matrix([sp.symbols(f'dd{str(var)}') for var in dq])
         EQ = sp.zeros(len(q), 1)
         for i in range(len(q)):
@@ -88,11 +115,20 @@ class MPCController(Controller):
 
     def compute_lqr_gain(self, X_current):
         """
-        Compute the LQR gain matrix K at the current state X_current
+        Compute the Linear Quadratic Regulator (LQR) gain matrix K for the current state.
 
-        Inputs:
-            - X_current: state vector of the robot holding
-                - [phi, dphi, dtheta]
+        The LQR gain matrix K is computed by linearizing the system dynamics around
+        the current state and solving the continuous-time algebraic Riccati equation.
+
+        Parameters:
+            X_current : The current state of the system, a vector of the form [phi, dphi, dtheta].
+                - phi: Current angle of the pendulum from vertical (radians). Positive CCW
+                - dphi: Current angular velocity of the pendulum (radians/second). Positive CCW
+                - dtheta: Current angular velocity of the wheel (radians/second). Positive CW
+
+        Returns:
+            K : The LQR gain matrix. Used to compute the control input based on the current 
+                state of the system.
         """
         state_subs = {
             self.phi_sym: X_current[0],
@@ -111,10 +147,10 @@ class MPCController(Controller):
     @call_super_first
     def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
         """
-        Calculates a torque using the optimal LQR gain matrix multiplied by the current robot state.
-        If the calculated torque is greater than the specified maximum, a warning message will be logged
-        and the torque will be clamped.
+        Apply the LQR control law to compute the control input (torque) based on the current state.
 
+        Parameters:
+        
         Returns:
             torque: Desired torque for the MPC controller.
         """
