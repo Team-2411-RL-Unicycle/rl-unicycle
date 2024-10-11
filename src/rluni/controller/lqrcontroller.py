@@ -22,7 +22,7 @@ class LQRController(Controller):
         and the torque will be clamped.
 
         Returns:
-            torque: Desired torque for the LQR controller.
+            torque: Desired torque for the LQR controller in [N*m].
         """
         # Robot states vector
         state_vector = np.array(
