@@ -11,9 +11,9 @@ class MPCController(Controller):
     @call_super_first
     def __init__(self) -> None:
         # Define symbolic variables
-        mp, lp, Ip, mw, lw, Iw = sp.symbols('mp lp Ip mw lw Iw', real=True)
-        phi, theta, dphi, dtheta = sp.symbols('phi theta dphi dtheta', real=True)
-        tau = sp.symbols('tau', real=True)
+        mp, lp, Ip, mw, lw, Iw = sp.symbols("mp lp Ip mw lw Iw", real=True)
+        phi, theta, dphi, dtheta = sp.symbols("phi theta dphi dtheta", real=True)
+        tau = sp.symbols("tau", real=True)
         g = 9.81
 
         self.phi_sym = phi
@@ -33,8 +33,7 @@ class MPCController(Controller):
         m0 = (mp * lp + mw * lw) * g  # Effective U = mgh for combined parts
 
         # Mass matrix
-        M = sp.Matrix([[Ip + mp * lp**2 + Iw + mw * lw**2, Iw],
-                       [Iw, Iw]])
+        M = sp.Matrix([[Ip + mp * lp**2 + Iw + mw * lw**2, Iw], [Iw, Iw]])
 
         # Lagrangian (kinetic energy - potential energy)
         lagrangian = 0.5 * dq.T * M * dq - m0 * sp.cos(phi)
@@ -72,7 +71,9 @@ class MPCController(Controller):
         self.torque_penalty = 100
 
         # Store LQR weights
-        self._Q = np.diag([self.phi_penalty, self.phidot_penalty, self.thetadot_penalty])
+        self._Q = np.diag(
+            [self.phi_penalty, self.phidot_penalty, self.thetadot_penalty]
+        )
         self._R = np.array([[self.torque_penalty]])
         self.logger.info(f"{self.__class__.__name__} initialized")
 
@@ -80,8 +81,8 @@ class MPCController(Controller):
         """
         Compute the Euler-Lagrange equations of motion for a given system.
 
-        The Euler-Lagrange equation describes the dynamics of a system, where the 
-        generalized coordinates (state variables) and their derivatives are used to 
+        The Euler-Lagrange equation describes the dynamics of a system, where the
+        generalized coordinates (state variables) and their derivatives are used to
         compute the forces acting on the system.
 
         Equation:
@@ -91,25 +92,27 @@ class MPCController(Controller):
 
         Parameters:
             q : The state vector (generalized coordinates), represented as symbols.
-            dq : The time derivatives of the state vector (generalized velocities), 
+            dq : The time derivatives of the state vector (generalized velocities),
                 represented as symbols.
-            lagrangian : The Lagrangian of the system, defined as the difference between kinetic 
+            lagrangian : The Lagrangian of the system, defined as the difference between kinetic
                 and potential energy (L = T - V).
             Q : The generalized forces acting on the system (non-conservative forces).
 
         Returns:
-            EQ : The Euler-Lagrange equation, which represents the equations of motion 
-                for the system. EQ is an n×1 vector corresponding to the number of 
+            EQ : The Euler-Lagrange equation, which represents the equations of motion
+                for the system. EQ is an n×1 vector corresponding to the number of
                 states in the system.
-            dds : A matrix of the second derivatives (accelerations) of the generalized 
+            dds : A matrix of the second derivatives (accelerations) of the generalized
                 coordinates, used to solve the equations of motion.
         """
-        dds = sp.Matrix([sp.symbols(f'dd{str(var)}') for var in dq])
+        dds = sp.Matrix([sp.symbols(f"dd{str(var)}") for var in dq])
         EQ = sp.zeros(len(q), 1)
         for i in range(len(q)):
             dL_dq = sp.diff(lagrangian, q[i])
             dL_ddq = sp.diff(lagrangian, dq[i])
-            d_dt_dL_ddq = dL_ddq.jacobian(q.tolist() + dq.tolist()) @ sp.Matrix(q.tolist() + dds.tolist())
+            d_dt_dL_ddq = dL_ddq.jacobian(q.tolist() + dq.tolist()) @ sp.Matrix(
+                q.tolist() + dds.tolist()
+            )
             EQ[i] = sp.simplify(Q[i] - d_dt_dL_ddq + dL_dq)
         return EQ, dds
 
@@ -127,7 +130,7 @@ class MPCController(Controller):
                 - dtheta: Current angular velocity of the wheel (radians/second). Positive CW
 
         Returns:
-            K : The LQR gain matrix. Used to compute the control input based on the current 
+            K : The LQR gain matrix. Used to compute the control input based on the current
                 state of the system.
         """
         state_subs = {
@@ -139,9 +142,9 @@ class MPCController(Controller):
         # Convert symbolic matrices to numerical numpy arrays
         A_num = np.array(self._A_sym.subs(state_subs).evalf(), dtype=np.float64)
         B_num = np.array(self._B_sym.subs(state_subs).evalf(), dtype=np.float64)
-        
+
         K, S, E = ct.lqr(A_num, B_num, self._Q, self._R)
-        
+
         return K
 
     @call_super_first
@@ -150,7 +153,7 @@ class MPCController(Controller):
         Apply the LQR control law to compute the control input (torque) based on the current state.
 
         Parameters:
-        
+
         Returns:
             torque: Desired torque for the MPC controller.
         """

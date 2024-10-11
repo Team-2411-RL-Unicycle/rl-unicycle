@@ -8,7 +8,8 @@ from typing import List, Union
 import pkg_resources
 
 from rluni.controller import (ControlInput, Controller, LQRController,
-                              PIDController, RLController, TestController)
+                              MPCController, PIDController, RLController,
+                              TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
@@ -111,6 +112,8 @@ class RobotSystem:
             return RLController(model_pth=self.rlmodel_path)
         elif controller_type == "lqr":
             return LQRController()
+        elif controller_type == "mpc":
+            return MPCController()
         elif controller_type == "test":
             return TestController()
         else:
@@ -146,7 +149,7 @@ class RobotSystem:
 
             # Debugging Data Example (add more data as needed)
             tele_debug_data = td.DebugData()
-            tele_debug_data.add_data(example_debug_data = 42)
+            tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
             imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
