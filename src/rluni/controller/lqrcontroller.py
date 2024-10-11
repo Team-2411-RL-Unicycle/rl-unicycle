@@ -3,13 +3,15 @@ import numpy as np
 from rluni.controller.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
 
+DEG_TO_RAD = np.pi / 180
+REV_TO_RAD = 2 * np.pi
+
 
 class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        # self._K = np.array([20, 1.15, -0.01, 0.5])
-        self._K = np.array([13.1127,1.1050,-0.0122])
+        self._K = np.array([13.1127, 1.1050, 0.0122])
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
@@ -24,10 +26,10 @@ class LQRController(Controller):
         """
         # Robot states vector
         state_vector = np.array(
-            [   # conversion to radians
-                robot_state.pendulum_angle * np.pi/180, # degrees -> radians
-                robot_state.pendulum_vel * np.pi/180, # degees/s -> radians/s
-                robot_state.wheel_vel * 2*np.pi, # rev/s -> radians/s
+            [
+                robot_state.pendulum_angle * DEG_TO_RAD,  # radians
+                robot_state.pendulum_vel * DEG_TO_RAD,  # radians/s
+                -robot_state.wheel_vel * REV_TO_RAD,  # radians/s
             ]
         )
 

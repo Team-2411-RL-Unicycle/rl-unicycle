@@ -146,7 +146,7 @@ class RobotSystem:
 
             # Debugging Data Example (add more data as needed)
             tele_debug_data = td.DebugData()
-            tele_debug_data.add_data(example_debug_data = 42)
+            tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
             imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
@@ -162,10 +162,12 @@ class RobotSystem:
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=euler_angles.y, # [degrees]
-                pendulum_vel=imudata.gyro_z, # [degrees / s]
-                wheel_vel=0 if self.xmotor is None else self.xmotor.state["VELOCITY"], # [rev / s]
-                roll_torque=torque_request, # [N * m]
+                pendulum_angle=euler_angles.y,  # [degrees]
+                pendulum_vel=imudata.gyro_z,  # [degrees / s] positive CCW
+                wheel_vel=(
+                    0 if self.xmotor is None else self.xmotor.state["VELOCITY"]
+                ),  # [rev / s] positive CW
+                roll_torque=torque_request,  # [N * m]
             )
 
             # Change to negative convention due to motor
