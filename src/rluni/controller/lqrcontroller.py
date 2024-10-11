@@ -3,9 +3,6 @@ import numpy as np
 from rluni.controller.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
 
-DEG_TO_RAD = np.pi / 180
-REV_TO_RAD = 2 * np.pi
-
 
 class LQRController(Controller):
 
@@ -27,14 +24,14 @@ class LQRController(Controller):
         # Robot states vector
         state_vector = np.array(
             [
-                robot_state.pendulum_angle * DEG_TO_RAD,  # radians
-                robot_state.pendulum_vel * DEG_TO_RAD,  # radians/s
-                -robot_state.wheel_vel * REV_TO_RAD,  # radians/s
+                robot_state.pendulum_angle,  # radians
+                robot_state.pendulum_vel,  # radians/s
+                robot_state.wheel_vel,  # radians/s
             ]
         )
 
         # Torque computation
-        torque = -np.dot(self._K, state_vector)
+        torque = np.dot(self._K, state_vector)
 
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:

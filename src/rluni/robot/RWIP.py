@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import time
 from multiprocessing import Queue
 from typing import List, Union
@@ -16,6 +17,9 @@ from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
 from . import teledata as td
+
+DEG_TO_RAD = math.pi / 180
+REV_TO_RAD = 2 * math.pi
 
 # Create a logger
 logger = logging.getLogger(__name__)
@@ -162,16 +166,16 @@ class RobotSystem:
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=euler_angles.y,  # [degrees]
-                pendulum_vel=imudata.gyro_z,  # [degrees / s] positive CCW
+                pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
+                pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
                 wheel_vel=(
-                    0 if self.xmotor is None else self.xmotor.state["VELOCITY"]
-                ),  # [rev / s] positive CW
-                roll_torque=torque_request,  # [N * m] positive CW
+                    0 if self.xmotor is None else -self.xmotor.state["VELOCITY"] * REV_TO_RAD
+                ),  # [radians / s] positive CCW
+                roll_torque=torque_request,  # [N * m] positive CCW
             )
 
             # Change to negative convention due to motor
-            torque_request = self.controller.get_torque(
+            torque_request = -self.controller.get_torque(
                 control_input, self.MAX_TORQUE - 0.001
             )
 
