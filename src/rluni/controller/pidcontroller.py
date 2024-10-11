@@ -64,14 +64,14 @@ class PIDController(Controller):
             torque: Desired torque for the PID controller.
         """
         # Update control setpoint based on wheel velocity
-        self.update_control_setpoint(robot_state.wheel_vel)
+        self.update_control_setpoint(-robot_state.wheel_vel / (2 * np.pi))
         # Calculate torque
-        torque = self._pid(robot_state.pendulum_angle)
+        torque = self._pid(robot_state.pendulum_angle * 180 / np.pi)
         # Clamp torque if outside bounds
         if abs(torque) > max_torque:
             torque = max_torque * (1 if torque > 0 else -1)
 
-        return torque
+        return -torque
 
     def update_control_setpoint(self, wheel_vel: float) -> float:
         """
