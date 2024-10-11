@@ -169,7 +169,9 @@ class RobotSystem:
                 pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
                 pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
                 wheel_vel=(
-                    0 if self.xmotor is None else -self.xmotor.state["VELOCITY"] * REV_TO_RAD
+                    0
+                    if self.xmotor is None
+                    else -self.xmotor.state["VELOCITY"] * REV_TO_RAD
                 ),  # [radians / s] positive CCW
                 roll_torque=torque_request,  # [N * m] positive CCW
             )

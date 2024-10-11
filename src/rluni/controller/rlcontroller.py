@@ -18,7 +18,7 @@ class RLController(Controller):
         assert len(robot_state) == self.num_obs
 
         obs = np.zeros((1, 3))
-        obs[:, 0] = robot_state.wheel_vel * -1.0 # redefine to be positive CCW
+        obs[:, 0] = robot_state.wheel_vel * -1.0  # redefine to be positive CCW
         obs[:, 1] = robot_state.pendulum_angle
         obs[:, 2] = robot_state.pendulum_vel
 
