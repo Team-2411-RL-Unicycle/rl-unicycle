@@ -167,7 +167,7 @@ class RobotSystem:
                 wheel_vel=(
                     0 if self.xmotor is None else self.xmotor.state["VELOCITY"]
                 ),  # [rev / s] positive CW
-                roll_torque=torque_request,  # [N * m]
+                roll_torque=torque_request,  # [N * m] positive CW
             )
 
             # Change to negative convention due to motor
