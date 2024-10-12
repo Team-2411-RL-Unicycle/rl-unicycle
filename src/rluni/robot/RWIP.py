@@ -109,7 +109,7 @@ class RobotSystem:
         )
 
     def _get_controller(self, controller_type: str) -> Controller:
-        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
+        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'mpc', 'test')."""
         if controller_type == "pid":
             return PIDController(config_file=self.pid_config_path)
         elif controller_type == "rl":
