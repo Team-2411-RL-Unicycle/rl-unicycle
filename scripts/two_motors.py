@@ -77,7 +77,7 @@ async def main():
                 motors[4].make_query()
             ]
             query_start = time.time()
-            query_results = await fdcanusb_transport.cycle(query_commands)
+            query_task = asyncio.create_task(fdcanusb_transport.cycle(query_commands))
             query_end = time.time()
 
 
@@ -102,6 +102,9 @@ async def main():
             )
             fusion_end_time = time.time()
 
+            # wait on query task
+            query_return = await query_task
+
             request_times.append(request_end_time - request_start_time)
             query_times.append(query_end - query_start)
             imu_times.append(imu_end_time - imu_start_time)
@@ -109,6 +112,8 @@ async def main():
 
             while(time.time() - loop_start_time < 0.01):
                 await asyncio.sleep(0.01)  # Small delay to prevent overwhelming the motors
+
+            print(query_return)
 
     except KeyboardInterrupt:
         print("Keyboard interrupt received. Stopping motors...")
