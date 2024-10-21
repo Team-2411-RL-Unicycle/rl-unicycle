@@ -1,5 +1,6 @@
 venv_moteus/*
 venv_moteus
+venv
 __pycache__/
 .vscode/
 log/saved_logs/*.log
