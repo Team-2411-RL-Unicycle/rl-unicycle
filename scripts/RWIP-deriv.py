@@ -1,14 +1,12 @@
 import control as ct
 import numpy as np
-
-from rluni.controller.controllerABC import ControlInput, Controller
-from rluni.utils.utils import call_super_first
+import time
 
 
-class MPCController(Controller):
+class RWIPDerivation:
 
-    @call_super_first
     def __init__(self) -> None:
+
         # Define LQR weights
         self.phi_penalty = 10000
         self.phidot_penalty = 0.1
@@ -51,18 +49,22 @@ class MPCController(Controller):
 
         return B
 
-    def compute_lqr_gain(self, X_current: np.ndarray) -> np.ndarray:
+    def compute_lqr_gain(self, X_current):
         """
-        Calculate the LQR gain matrix K for the current system state.
+        Compute the Linear Quadratic Regulator (LQR) gain matrix K for the current state.
+
+        The LQR gain matrix K is computed by linearizing the system dynamics around
+        the current state and solving the continuous-time algebraic Riccati equation.
 
         Parameters:
-            X_current (np.ndarray): Current state vector [phi, dphi, dtheta]
-                - phi (float): Pendulum angle from vertical (radians), positive CCW
-                - dphi (float): Pendulum angular velocity (rad/s), positive CCW
-                - dtheta (float): Wheel angular velocity (rad/s), positive CW
+            X_current : The current state of the system, a vector of the form [phi, dphi, dtheta].
+                - phi: Current angle of the pendulum from vertical (radians). Positive CCW
+                - dphi: Current angular velocity of the pendulum (radians/second). Positive CCW
+                - dtheta: Current angular velocity of the wheel (radians/second). Positive CW
 
         Returns:
-            np.ndarray: LQR gain matrix K, used to compute control input.
+            K : The LQR gain matrix. Used to compute the control input based on the current
+                state of the system.
         """
         phi = X_current[0]
 
@@ -73,33 +75,28 @@ class MPCController(Controller):
         K, S, E = ct.lqr(A_num, B_num, self._Q, self._R)
 
         return K.flatten()[:3]
-
-    @call_super_first
-    def get_torque(self, robot_state: ControlInput, max_torque: float) -> float:
-        """
-        Apply the LQR control law to compute the control input (torque) based on the current state.
-
-        Parameters:
-
-        Returns:
-            torque: Desired torque for the MPC controller.
-        """
+    
+    def get_torque(self, state):
         # Robot states vector
-        state_vector = np.array(
-            [
-                robot_state.pendulum_angle,
-                robot_state.pendulum_vel,
-                robot_state.wheel_vel,
-            ]
-        )
-
-        K = self.compute_lqr_gain(state_vector)
+        K = self.compute_lqr_gain(np.append(state, 1))
 
         # Torque computation
-        torque = np.dot(K, state_vector)
+        torque = np.dot(K, state)
 
         # Clamp torque if outside bounds
-        if abs(torque) > max_torque:
-            torque = max_torque * (1 if torque > 0 else -1)
+        if abs(torque) > 0.6:
+            torque = 0.6 * (1 if torque > 0 else -1)
 
         return torque
+
+
+d = RWIPDerivation()
+
+times = []
+
+for i in range(1000):
+    state = [np.random.normal(0, 0.4), np.random.normal(0, 10), np.random.normal(0, 100)]
+    start = time.time()
+    t = d.get_torque(state=state)
+    end = time.time()
+    times.append(end - start)
