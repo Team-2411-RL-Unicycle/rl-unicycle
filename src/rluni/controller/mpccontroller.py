@@ -8,7 +8,11 @@ from rluni.utils.utils import call_super_first
 class MPCController(Controller):
 
     @call_super_first
-    def __init__(self) -> None:
+    def __init__(self, method) -> None:
+
+        # method of computing lqr (set to None by default)
+        self.method = method
+
         # Define LQR weights
         self.phi_penalty = 10000
         self.phidot_penalty = 0.1
@@ -70,7 +74,7 @@ class MPCController(Controller):
         A_num = self.augmented_system_A(phi=phi)
         B_num = self.augmented_system_B()
 
-        K, S, E = ct.lqr(A_num, B_num, self._Q, self._R)
+        K, S, E = ct.lqr(A_num, B_num, self._Q, self._R, method=self.method)
 
         return K.flatten()[:3]
 

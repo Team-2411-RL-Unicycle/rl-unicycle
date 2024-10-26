@@ -117,7 +117,7 @@ class RobotSystem:
         elif controller_type == "lqr":
             return LQRController()
         elif controller_type == "mpc":
-            return MPCController()
+            return MPCController(method=None)
         elif controller_type == "test":
             return TestController()
         else:
