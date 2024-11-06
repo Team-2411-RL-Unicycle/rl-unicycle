@@ -18,12 +18,12 @@ class RLController(Controller):
         assert len(robot_state) == self.num_obs
 
         obs = np.zeros((1, 3))
-        obs[:, 0] = robot_state.wheel_vel * 2 * np.pi
-        obs[:, 1] = robot_state.pendulum_angle * np.pi / 180
-        obs[:, 2] = robot_state.pendulum_vel * np.pi / 180
+        obs[:, 0] = robot_state.wheel_vel * -1.0  # redefine to be positive CCW
+        obs[:, 1] = robot_state.pendulum_angle
+        obs[:, 2] = robot_state.pendulum_vel
 
         actions = self.model.run(None, {"obs": obs.astype(np.float32)})[0][0]
 
         assert actions.shape[0] == self.num_act
 
-        return np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0]
+        return -np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0]
