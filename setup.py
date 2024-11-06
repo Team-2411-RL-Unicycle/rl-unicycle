@@ -21,6 +21,7 @@ setup(
         "smbus2",
         "simple_pid",
         "onnxruntime",
+        "PYyaml"
         # Add other dependencies as needed
     ],
     python_requires=">=3.8",
