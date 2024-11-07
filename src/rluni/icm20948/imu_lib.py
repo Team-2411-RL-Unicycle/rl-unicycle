@@ -2,7 +2,6 @@ import logging
 import struct
 import time
 
-import pkg_resources
 import smbus2
 
 try:
@@ -23,9 +22,8 @@ The ICM-20948 is a 9-axis IMU Library for I2C communication with the Jetson Nano
 
 
 class ICM20948:
-    # Id for generic ICM-20948 device
-    CHIP_ID = 0xEA
-    WRITE_REG_DELAY = 0.0001
+    CHIP_ID = 0xEA     # Id for generic ICM-20948 device from the spec sheet
+    WRITE_REG_DELAY = 0.0001 # 100us delay after writing a register
 
     def __init__(
         self, i2c_addr=0x69, i2c_bus=1, accel_range=2, gyro_range=500, config_file=None
@@ -35,13 +33,15 @@ class ICM20948:
         # Set the device address and bus number
         self._bus = smbus2.SMBus(i2c_bus)
         self._addr = i2c_addr
-        self._bank = 0
+        self._bank = None
         self._accel_range = accel_range
         self._accel_LPF = False  # Low pass filter for accelerometer
         self._accel_LPF_CFG = 0b010  # Default low pass filter configuration
+        self._accel_rate = 500  # Accelerometer sample rate in Hz
         self._gyro_range = gyro_range
         self._gyro_LPF = False  # Low pass filter for gyroscope
         self._gyro_LPF_CFG = 0b010  # Default low pass filter configuration
+        self._gyro_rate = 500  # Gyroscope sample rate in Hz
 
         self._accel_bias = [0, 0, 0]
         self._gyro_bias = [0, 0, 0]
@@ -81,14 +81,12 @@ class ICM20948:
     def initialize(self):
         """Initialize the device"""
         # Power and user configuration
-        self.write(self.reg.REG_BANK_SEL, 0x00)  # Set to user bank
-        time.sleep(0.1)
+        self.select_register_bank(0)
         self.write(self.reg.PWR_MGMT_1, 0b10000000)  # Device Reset command
-        time.sleep(0.1)
-        self.write(self.reg.USER_CTRL, 0b00110000)
-        time.sleep(0.1)
+        time.sleep(0.01)
         self.write(self.reg.PWR_MGMT_1, 0x01)  # Auto select best clock source
-        time.sleep(0.1)
+        self.write(self.reg.PWR_MGMT_2, 0x00)  # Enable Accel and Gyro (Turned On)
+        self.write(self.reg.USER_CTRL, 0b00100000) # Enable I2C Master mode
 
         # The WhoAmI register contains the device ID for the IMU model, this verifies correct device connected.
         who_am_i = self.read(self.reg.WHO_AM_I)
@@ -100,13 +98,14 @@ class ICM20948:
                 "Different device ID returned than expected."
             )
 
-        # Set Accel and Gyro
-        self.write(self.reg.PWR_MGMT_2, 0x00)  # Enable Accel and Gyro (Turned On)
         # Set range and low pass filtering for accel and gyro
         self.set_accel_range(self._accel_range)
         self.set_accel_LPF(dlpf_cfg=self._accel_LPF_CFG, enable=self._accel_LPF)
+        self.set_accel_samplerate(self._accel_rate)
         self.set_gyro_range(self._gyro_range)
         self.set_gyro_LPF(dlpf_cfg=self._gyro_LPF_CFG, enable=self._gyro_LPF)
+        
+        self.configure_magnetometer()
 
     def read(self, reg):
         """Read a single byte from a register"""
@@ -126,14 +125,8 @@ class ICM20948:
         if bank != self._bank:
             if bank > 3:
                 raise ValueError("Bank must be in the range 0-3")
+            self.write(self.reg.REG_BANK_SEL, bank << 4)
             self._bank = bank
-            # Value is shifted to the 5:4 bits from the register
-            new_val = bank << 4
-            # Write the new value back to the register
-            self.write(self.reg.REG_BANK_SEL, new_val)
-            logger.debug(
-                f"Register Bank Changed to: 0x{self.read(self.reg.REG_BANK_SEL):02X}"
-            )
 
     def set_accel_range(self, accel_range=2):
         """Set the range of the accelerometer
@@ -230,6 +223,15 @@ class ICM20948:
         except Exception as e:
             logger.error(f"Error setting accel low pass filter: {e}")
 
+    def set_accel_samplerate(self, rate):
+        """ Sets the accelerometer sample rate in Hz """
+        # rate = 1.125khz/(1+ratediv)
+        ratediv = int(1125 / rate - 1)
+        ratediv = max(0, min(0x0FFF, ratediv))
+        self.select_register_bank(2)
+        self.write(self.reg.ACCEL_SMPLRT_DIV_1, ratediv & 0xFF)
+        self.write(self.reg.ACCEL_SMPLRT_DIV_2, ratediv >> 8)
+
     def set_gyro_range(self, gyro_range=250):
         if gyro_range not in [250, 500, 1000, 2000]:
             raise ValueError("Gyro range must be 250, 500, 1000, or 2000")
@@ -311,6 +313,14 @@ class ICM20948:
         except Exception as e:
             logger.error(f"Error setting gyro low pass filter: {e}")
 
+    def set_gyro_samplerate(self, rate):
+        """ Sets the gyro sample rate in Hz """
+        # rate = 1.125khz/(1+ratediv)
+        ratediv = int(1100 / rate - 1)
+        ratediv = max(0, min(0xFF, ratediv))
+        self.select_register_bank(2)
+        self.write(self.reg.GYRO_SMPLRT_DIV, ratediv)
+
     def read_accelerometer_gyro(self, convert=False):
         """Read accelerometer data and return it as a tuple of x, y, z values
 
@@ -340,29 +350,188 @@ class ICM20948:
     def convert_gyro(self, raw):
         """Convert raw gyroscope data to degrees per second"""
         return raw * (self._gyro_range / 32768)
+    
+    def read_magnetometer(self):
+        """Read magnetometer data and return it as a tuple of x, y, z values in μT"""
+        self.select_register_bank(0)
+        data = self.read_bytes(self.reg.EXT_SLV_SENS_DATA_00, 7)  # Read only magnetometer data registers
+        logger.debug(f"Magnetometer raw data: {[hex(x) for x in data]}")
+
+        # Unpack little-endian signed shorts
+        mx, my, mz = struct.unpack('<hhh', bytes(data[0:6]))
+        logger.debug(f"Raw magnetometer readings: mx={mx}, my={my}, mz={mz}")
+
+        # Scale factor for AK09916 is 0.15 μT per LSB
+        mx_uT = mx * 0.15
+        my_uT = my * 0.15
+        mz_uT = mz * 0.15
+
+        return mx_uT, my_uT, mz_uT
+    
+    """ Magnetometer Functions """
+    def configure_magnetometer(self):
+        """Initialize and configure the magnetometer"""
+        self.i2c_master_reset()
+        self.i2c_master_passthrough(False)
+        self.i2c_master_enable(True)
+        
+        # Reset magnetometer
+        self.i2c_master_single_w(self.reg.AK09916_I2C_ADDR, self.reg.MAG_REG_CNTL3, 0x01)
+        time.sleep(0.01)
+
+        # Reset I2C master if needed
+        for _ in range(5):
+            if self.mag_who_am_i():
+                logger.debug("Magnetometer connected.")
+                break
+            self.i2c_master_reset()
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("Failed to connect to magnetometer.")
+
+        # Set magnetometer to continuous measurement mode at 100Hz
+        self.i2c_master_single_w(self.reg.AK09916_I2C_ADDR, self.reg.MAG_REG_CNTL2, 0x08)
+        time.sleep(0.01)  # Allow time for the magnetometer to initialize
+        
+        # Set I2C Master ODR to 100 Hz
+        self.configure_i2c_master_odr(100)
+        time.sleep(0.01)
+
+        # Configure ICM20948's I2C master to read from ST1 to ST2 registers
+        self.i2c_master_configure_slave(self.reg.AK09916_I2C_ADDR, self.reg.MAG_REG_ST1, 9)
+
+    def monitor_mag_data_ready(self, iterations=10, delay=0.1):
+        """Monitor the magnetometer ST1 register to check if data becomes ready."""
+        for i in range(iterations):
+            st1 = self.i2c_master_single_r(self.reg.AK09916_I2C_ADDR, self.reg.MAG_REG_ST1)
+            logger.debug(f"[{i}] Magnetometer ST1 register: 0x{st1:02X}")
+            if st1 & 0x01:
+                logger.info(f"Data ready at iteration {i}")
+            else:
+                logger.info(f"Data not ready at iteration {i}")
+            time.sleep(delay)
+
+    
+    def i2c_master_passthrough(self, enable):
+        """Enable or disable I2C master passthrough"""
+        self.select_register_bank(0)
+        reg_val = self.read(self.reg.INT_PIN_CFG)
+        if enable:
+            reg_val |= (1 << 1)  # Set BYPASS_EN bit [1]
+        else:
+            reg_val &= ~(1 << 1)  # Clear BYPASS_EN bit [1]
+        self.write(self.reg.INT_PIN_CFG, reg_val)
+        
+    def i2c_master_enable(self, enable):
+        """Enable or disable I2C master"""
+        self.i2c_master_passthrough(False)  # Ensure BYPASS_EN is disabled
+        time.sleep(.005)
+        
+        self.select_register_bank(3)
+        reg_val = self.read(self.reg.I2C_MST_CTRL)
+        reg_val &= ~(0x0F)  # Clear I2C_MST_CLK bits [3:0]
+        reg_val |= 0x07  # Set I2C master clock to 345.6 kHz
+        reg_val |= (1 << 4)  # Set I2C_MST_P_NSR bit [4]
+        self.write(self.reg.I2C_MST_CTRL, reg_val)
+        time.sleep(.005)
+        
+        self.select_register_bank(0)
+        reg_val = self.read(self.reg.USER_CTRL)
+        if enable:
+            reg_val |= (1 << 5)  # Set I2C_MST_EN bit [5]
+        else:
+            reg_val &= ~(1 << 5)  # Clear I2C_MST_EN bit [5]
+        self.write(self.reg.USER_CTRL, reg_val)
+        time.sleep(.005)
+                
+    def i2c_master_reset(self):
+        """Reset I2C master module"""
+        self.select_register_bank(0)
+        reg_val = self.read(self.reg.USER_CTRL)
+        reg_val |= (1 << 1)  # Set I2C_MST_RST bit [1]
+        self.write(self.reg.USER_CTRL, reg_val)
+        
+    def configure_i2c_master_odr(self, odr):
+        """Configure I2C Master ODR (Output Data Rate) to match magnetometer's ODR."""
+        self.select_register_bank(3)
+        odr_values = {
+            0.95: 0x00,
+            12: 0x01,
+            25: 0x02,
+            50: 0x03,
+            100: 0x04,
+            200: 0x05,
+            400: 0x06,
+            800: 0x07,
+            1000: 0x08,
+        }
+        if odr not in odr_values:
+            raise ValueError("Invalid ODR value. Valid options are: " + ", ".join(map(str, odr_values.keys())))
+        reg_val = odr_values[odr]
+        self.write(self.reg.I2C_MST_ODR_CONFIG, reg_val)
+        logger.debug(f"I2C Master ODR set to {odr} Hz")
+        self.select_register_bank(0)
+        
+    def i2c_master_single_w(self, addr, reg, data):
+        """Write a single byte to an I2C slave device via the ICM20948's I2C master"""
+        self.select_register_bank(3)
+        self.write(self.reg.I2C_SLV4_ADDR, addr & 0x7F)  # Write operation
+        self.write(self.reg.I2C_SLV4_REG, reg)
+        self.write(self.reg.I2C_SLV4_DO, data)
+        self.write(self.reg.I2C_SLV4_CTRL, 0x80)  # Enable transaction
+
+        # Wait for completion
+        for _ in range(1000):
+            self.select_register_bank(0)
+            status = self.read(self.reg.I2C_MST_STATUS)
+            if status & (1 << 6):
+                break
+            time.sleep(0.001)
+        else:
+            raise RuntimeError("I2C master write transaction timed out.")
+        
+    def i2c_master_single_r(self, addr, reg):
+        """Read a single byte from an I2C slave device via the ICM20948's I2C master"""
+        self.select_register_bank(3)
+        self.write(self.reg.I2C_SLV4_ADDR, addr | 0x80)  # Read operation
+        self.write(self.reg.I2C_SLV4_REG, reg)
+        self.write(self.reg.I2C_SLV4_CTRL, 0x80)  # Enable transaction
+
+        # Wait for completion
+        for _ in range(1000):
+            self.select_register_bank(0)
+            status = self.read(self.reg.I2C_MST_STATUS)
+            if status & (1 << 6):
+                break
+            time.sleep(0.001)
+        else:
+            raise RuntimeError("I2C master read transaction timed out.")
+
+        self.select_register_bank(3)
+        return self.read(self.reg.I2C_SLV4_DI)
+    
+    def mag_who_am_i(self):
+        """Verify magnetometer connection"""
+        who_am_i = self.i2c_master_single_r(self.reg.AK09916_I2C_ADDR, self.reg.MAG_REG_WIA)
+        return who_am_i == 0x09
+
+    def i2c_master_configure_slave(self, addr, reg, length):
+        """Configure I2C Master to read data from an I2C slave device via Slave0 with WAIT_FOR_ES."""
+        self.select_register_bank(3)
+        self.write(self.reg.I2C_SLV0_ADDR, addr | 0x80)  # Read operation
+        self.write(self.reg.I2C_SLV0_REG, reg)
+        # Set WAIT_FOR_ES (bit 6) and ENABLE (bit 7)
+        self.write(self.reg.I2C_SLV0_CTRL, 0b10000000 | length)  # 0xC0 = 0b11000000
+        logger.debug("I2C Master configured with WAIT_FOR_ES enabled")
+
+        
+    def _twos_complement(self, val, bits):
+        """Compute the 2's complement of int value val"""
+        if val & (1 << (bits - 1)):
+            val -= 1 << bits
+        return val
+
 
     def close(self):
         """Clean up"""
         self._bus.close()
-
-
-if __name__ == "__main__":
-    try:
-
-        imu = ICM20948(config_file="ICM20948_default.ini")
-
-        while True:
-            accel_x, accel_y, accel_z, gx, gy, gz = imu.read_accelerometer_gyro(
-                convert=True
-            )
-
-            print(
-                f"Accel|>  X: {accel_x:.6f}, Y: {accel_y:.6f}, Z: {accel_z:.6f}, <Gyro|> X: {gx:.6f}, Y: {gy:.6f}, Z: {gz:.6f}"
-            )
-
-            time.sleep(0.2)
-
-    except KeyboardInterrupt:
-        print("Program exited")
-    finally:
-        imu.close()

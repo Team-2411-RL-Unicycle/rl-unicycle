@@ -132,6 +132,24 @@ class ICM20948Registers:
     I2C_SLV4_DO = 0x16
     I2C_SLV4_DI = 0x17
     REG_BANK_SEL = 0x7F  # This register is repeated across banks for bank selection.
+    
+    # Magnetometer Registers for Chip
+
+    # Magnetometer I2C address
+    AK09916_I2C_ADDR = 0x0C
+
+    # Magnetometer Registers
+    MAG_REG_WIA = 0x01
+    MAG_REG_ST1 = 0x10
+    MAG_REG_HXL = 0x11
+    MAG_REG_HXH = 0x12
+    MAG_REG_HYL = 0x13
+    MAG_REG_HYH = 0x14
+    MAG_REG_HZL = 0x15
+    MAG_REG_HZH = 0x16
+    MAG_REG_ST2 = 0x18
+    MAG_REG_CNTL2 = 0x31
+    MAG_REG_CNTL3 = 0x32
 
     def __init__(self):
         pass
