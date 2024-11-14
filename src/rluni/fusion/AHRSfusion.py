@@ -36,9 +36,10 @@ class AHRSfusion:
             0.5,  # 0.5 gain (on the accel error correction)
             self._gyro_range,  # gyroscope range
             1,  # acceleration rejection
-            0,  # magnetic rejection
+            .5,  # magnetic rejection
             5 * self.sample_rate,
         )  # recovery trigger period = 5 seconds
+        
 
     def _load_config(self):
         """
@@ -101,10 +102,14 @@ class AHRSfusion:
         accel_data = np.array(self.rotate_frame(*accel_data))
         gyro_data = np.array(self.rotate_frame(*gyro_data))
 
-        if mag_data is None:
+        if mag_data is None or mag_data[0] is None:
             mag_data = np.array([0, 0, 0])
         else:
             mag_data = np.array(mag_data)
+                        
+        mag_data = np.array(self.rotate_frame(*mag_data))
+        
+        
 
         # Update gyro data with offset (this is dynamic bias correction for gyro)
         corrected_gyro = self.offset.update(gyro_data)

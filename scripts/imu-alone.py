@@ -29,32 +29,36 @@ def estimate_read_speed(imu: ICM20948, num_reads=1000):
     return average_time
 
 def test_accel_and_gyro_ranges(imu: ICM20948):
-    logger.info("Testing accelerometer and gyroscope ranges...")
+
     start = time.time()
     read = imu.read_accelerometer_gyro(convert=True)
-    mx, my, mz = imu.read_magnetometer()
+    mx, my, mz, flag = imu.read_magnetometer()
     end = time.time()
     logger.info(f"Read time: {end-start:.6f} seconds.")
     logger.info(f"Accelerometer: {read[0:3]}")
     logger.info(f"Gyroscope: {read[3:6]}")
     logger.info(f"Magnetometer: {mx, my, mz}")
     
+def test_agtm(imu: ICM20948):
+    start = time.time()
+    read = imu.read_agtm()
+    end = time.time()
+    logger.info(f"Read time: {end-start:.6f} seconds.")
+    logger.info(f"Accelerometer: {read[0:3]}")
+    logger.info(f"Gyroscope: {read[3:6]}")
+    logger.info(f"Temperature: {read[6]}")
+    logger.info(f"Magnetometer: {read[7:10]}")
+    
 
 def testing_area(imu : ICM20948):
-    res = imu.mag_who_am_i()
-    print(f"Magnetometer WHO_AM_I: {res}")
-    imu.select_register_bank(2)
-    val1 = imu.read(imu.reg.ACCEL_SMPLRT_DIV_1)
-    val2 = imu.read(imu.reg.ACCEL_SMPLRT_DIV_2)
-    
-    print(f"ACCEL_SMPLRT_DIV_1: {val1}")
-    print(f"ACCEL_SMPLRT_DIV_2: {val2}")
-        
-    
-    # for _ in range(100):
-    #     test_accel_and_gyro_ranges(imu)
-    #     time.sleep(0.01)
-    # pass
+    imu.select_register_bank(0)
+    reg = imu.read(imu.reg.ACCEL_XOUT_L)
+    print(f"Read : {reg}")
+    for _ in range(100):
+        test_accel_and_gyro_ranges(imu)
+        test_agtm(imu)
+        time.sleep(0.01)
+    pass
     
 if __name__ == "__main__":
     try:
