@@ -41,6 +41,11 @@ ICM20948_Configuration:
   # Freq Map: 0=246Hz, 1=246Hz, 2=111.4Hz, 3=50.4Hz, 4=23.9Hz, 5=11.5Hz, 6=5.7Hz, 7=473Hz
   gyro_LPF_CFG: 4
 
+  # Magnetometer On/Off
+  # Options: yes, no
+  # Default: yes
+  mag_enable: no
+
 # Calibration
 
 Calibration:
@@ -62,3 +67,6 @@ Calibration:
   # Adjustment angles for pitch and roll, in degrees
   pitch_adj: 0.0
   roll_adj:  1.0
+
+  # A, b for magnetometer calibration in numpy file or None in imu config folder
+  magnetometer: 'imu1_calibration.npz'

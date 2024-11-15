@@ -3,13 +3,19 @@ import logging
 import math
 import time
 from multiprocessing import Queue
-from typing import List, Union
+from typing import List, Union, Callable
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-from rluni.controller import (ControlInput, Controller, LQRController,
-                              PIDController, RLController, TestController)
+from rluni.controller import (
+    ControlInput,
+    Controller,
+    LQRController,
+    PIDController,
+    RLController,
+    TestController,
+)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.MN6007 import MN6007
@@ -153,10 +159,13 @@ class RobotSystem:
             tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
-            imudata = td.IMUData(*self.imu.read_accelerometer_gyro(convert=True))
+            imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
             euler_angles = td.EulerAngles(
                 *self.sensor_fusion.update(
-                    imudata.get_gyro(), imudata.get_accel(), delta_time=loop_period
+                    imudata.get_gyro(),
+                    imudata.get_accel(),
+                    mag_data=imudata.get_mag(),
+                    delta_time=loop_period,
                 )[0]
             )
 

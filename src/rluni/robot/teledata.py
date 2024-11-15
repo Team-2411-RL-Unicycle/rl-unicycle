@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class TelemetryData(ABC):
@@ -33,12 +33,17 @@ class TelemetryData(ABC):
 class IMUData(TelemetryData):
     """Data returned from the IMU sensor"""
 
-    accel_x: float  # 1.0 = 9.8 m/s^2
+    accel_x: float  # in G's
     accel_y: float
     accel_z: float
-    gyro_x: float  # degrees per second
+    gyro_x: float  # in degrees per second
     gyro_y: float
     gyro_z: float
+    temp: Optional[float] = None  # in degrees Celsius
+    mag_x: Optional[float] = None
+    mag_y: Optional[float] = None
+    mag_z: Optional[float] = None
+    mag_flag: Optional[int] = None  # 0 if data is valid
 
     @property
     def topic(self) -> str:
@@ -49,6 +54,9 @@ class IMUData(TelemetryData):
 
     def get_gyro(self) -> tuple:
         return (self.gyro_x, self.gyro_y, self.gyro_z)
+
+    def get_mag(self) -> tuple:
+        return (self.mag_x, self.mag_y, self.mag_z)
 
 
 @dataclass(frozen=True)
