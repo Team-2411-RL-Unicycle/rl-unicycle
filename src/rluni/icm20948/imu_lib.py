@@ -152,7 +152,6 @@ class ICM20948:
         else:
             raise RuntimeError(
                 "ICM-20948 initialization failed: WHO_AM_I mismatch. "
-                "Different device ID returned than expected."
             )
 
     def read(self, reg):
