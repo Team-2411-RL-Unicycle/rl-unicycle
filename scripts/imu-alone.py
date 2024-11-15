@@ -54,7 +54,7 @@ def testing_area(imu : ICM20948):
     imu.select_register_bank(0)
     reg = imu.read(imu.reg.ACCEL_XOUT_L)
     print(f"Read : {reg}")
-    for _ in range(100):
+    for _ in range(5):
         test_accel_and_gyro_ranges(imu)
         test_agtm(imu)
         time.sleep(0.01)

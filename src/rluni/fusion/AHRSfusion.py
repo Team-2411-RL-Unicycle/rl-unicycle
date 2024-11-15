@@ -36,7 +36,7 @@ class AHRSfusion:
             0.5,  # 0.5 gain (on the accel error correction)
             self._gyro_range,  # gyroscope range
             1,  # acceleration rejection
-            .5,  # magnetic rejection
+            10,  # magnetic rejection
             5 * self.sample_rate,
         )  # recovery trigger period = 5 seconds
         

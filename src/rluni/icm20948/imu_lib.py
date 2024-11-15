@@ -1,8 +1,11 @@
 import logging
 import struct
 import time
+import numpy as np
 
 import smbus2
+
+import importlib.resources as pkg_resources
 
 try:
     from . import icm20948_registers
@@ -55,6 +58,11 @@ class ICM20948:
         self._gyro_bias = [0, 0, 0]
 
         self._enable_mag = enable_mag
+        # Calibration data
+        self.A_1 = np.eye(3)
+        self.b = np.zeros([3, 1])
+        
+        self._mag_calibration_file = None
 
         if config_file != None:
             self.config = load_config_file(config_file)
@@ -88,6 +96,12 @@ class ICM20948:
         
         # Magnetometer settings
         self._enable_mag = gvcv(icm_config, "mag_enable", bool, required=True)
+        
+        if self._enable_mag:
+            # Check for A, b calibration data and load if available
+            self._mag_calibration_file = gvcv(self.config, "Calibration.magnetometer", str, required=False)
+            if self._mag_calibration_file is not None:
+                self.load_calibration()
 
         logger.info("Configuration parsed successfully.")
         
@@ -377,7 +391,7 @@ class ICM20948:
 
         return ax, ay, az, gx, gy, gz
 
-    def read_magnetometer(self):
+    def read_magnetometer(self, calibrated=True):
         """ 
         Read magnetometer data after configure magnetometer has been run at startup
         
@@ -396,7 +410,6 @@ class ICM20948:
         
         # Pick up mag data cached by the ICM20948 and overflow indicator
         data = self.read_bytes(self.reg.EXT_SLV_SENS_DATA_00, self.NUM_MAG_READ_BYTES)        
-        logger.debug(f"Magnetometer raw data: {[hex(x) for x in data]}")
         # Unpack with 2's complement and little-endian byte order
         mx, my, mz = struct.unpack("<hhh", bytes(data[0:6]))
 
@@ -404,7 +417,7 @@ class ICM20948:
         overflow_flag = data[-1] & 0x08
 
         # Convert to actual readings in μT
-        mx_uT, my_uT, mz_uT = self.convert_magnetometer(mx, my, mz)
+        mx_uT, my_uT, mz_uT = self.convert_magnetometer(mx, my, mz, calibrated=calibrated)
 
         return mx_uT, my_uT, mz_uT, overflow_flag
 
@@ -454,7 +467,7 @@ class ICM20948:
         return raw * (self._gyro_range / 32768)
 
 
-    def convert_magnetometer(self, mx, my, mz, rotate=True):
+    def convert_magnetometer(self, mx, my, mz, rotate=True, calibrated=True):
         """ Convert magnetomer to same frame as accel and gyro and uT """
         
         if rotate:
@@ -462,7 +475,16 @@ class ICM20948:
             my = -my
             mz = -mz
             
-        return mx*0.15, my*0.15, mz*0.15
+        mx = mx * 0.15
+        my = my * 0.15
+        mz = mz * 0.15
+         
+        if calibrated:
+            s = np.array([mx, my, mz]).reshape(3, 1)
+            s = np.dot(self.A_1, s - self.b)
+            mx, my, mz = s[0, 0], s[1, 0], s[2, 0]
+        
+        return mx, my, mz
 
 
     def convert_temp(self, raw_temp):
@@ -674,7 +696,18 @@ class ICM20948:
         self.mag_set_mode(0x00)
         # Log successful self-test
         logger.info("Magnetometer self-test passed successfully.")
-        
+    
+    def load_calibration(self):
+        """Loads the calibration data (A_1 and b) from a file if available."""
+        try:
+            with pkg_resources.path('rluni.configs.imu', self._mag_calibration_file) as config_file_path:
+                with np.load(config_file_path) as data:
+                    self.A_1 = data['A_1']
+                    self.b = data['b']
+            
+            print(f'Loaded calibration data from {self._mag_calibration_file}')
+        except FileNotFoundError:
+            print('No calibration data file found. Proceeding without calibration.')  
 
     def close(self):
         """Clean up"""
