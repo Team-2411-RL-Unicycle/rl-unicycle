@@ -28,15 +28,17 @@ class ICM20948:
     CHIP_ID = 0xEA  # Id for generic ICM-20948 device from the spec sheet
     MAG_ID = 0x09  # Id for the AK09916 magnetometer from the spec sheet
     WRITE_REG_DELAY = 0.0001  # 100us delay after writing a register
-    NUM_MAG_READ_BYTES = 8  # Number of sequential bytes to continuously read from the magnetometer
+    NUM_MAG_READ_BYTES = (
+        8  # Number of sequential bytes to continuously read from the magnetometer
+    )
 
     def __init__(
         self,
         i2c_addr=0x69,
         i2c_bus: int = 1,
-        accel_range: int =2,
-        gyro_range: int =500,
-        enable_mag: bool =True,
+        accel_range: int = 2,
+        gyro_range: int = 500,
+        enable_mag: bool = True,
         config_file=None,
     ):
         # Import a register map for the ICM-20948
@@ -61,7 +63,7 @@ class ICM20948:
         # Calibration data
         self.A_1 = np.eye(3)
         self.b = np.zeros([3, 1])
-        
+
         self._mag_calibration_file = None
 
         if config_file != None:
@@ -93,46 +95,48 @@ class ICM20948:
         self._gyro_bias = gvcv(
             self.config, "Calibration.gyro_bias", list, required=True
         )
-        
+
         # Magnetometer settings
         self._enable_mag = gvcv(icm_config, "mag_enable", bool, required=True)
-        
+
         if self._enable_mag:
             # Check for A, b calibration data and load if available
-            self._mag_calibration_file = gvcv(self.config, "Calibration.magnetometer", str, required=False)
+            self._mag_calibration_file = gvcv(
+                self.config, "Calibration.magnetometer", str, required=False
+            )
             if self._mag_calibration_file is not None:
                 self.load_calibration()
 
         logger.info("Configuration parsed successfully.")
-        
+
     def initialize(self):
         """Initialize the device"""
         self.icm_reset(overwrite=True)
         time.sleep(0.01)
         self.verify_device_id()
-        
+
         # Anable master mode and reset slave
         self.write(self.reg.USER_CTRL, 0b00110000)
         time.sleep(0.01)
-        
+
         # Auto select best clock source
-        self.write(self.reg.PWR_MGMT_1, 0x01) 
+        self.write(self.reg.PWR_MGMT_1, 0x01)
         time.sleep(0.01)
-        
+
         # Set Accel and Gyro on
-        self.write(self.reg.PWR_MGMT_2, 0x00)  
-        
+        self.write(self.reg.PWR_MGMT_2, 0x00)
+
         # Set range and low pass filtering for accel and gyro
         self.set_accel_range(self._accel_range)
         self.set_accel_LPF(dlpf_cfg=self._accel_LPF_CFG, enable=self._accel_LPF)
-        
+
         self.set_gyro_range(self._gyro_range)
         self.set_gyro_LPF(dlpf_cfg=self._gyro_LPF_CFG, enable=self._gyro_LPF)
-        
+
         # TODO: Understand implications of setting samplerate, RWIP did not set any
         # self.set_accel_samplerate(self._accel_rate)
         # self.set_gyro_samplerate(self._gyro_rate)
-        
+
         if self._enable_mag:
             self.configure_magnetometer()
 
@@ -140,7 +144,7 @@ class ICM20948:
         """Reset the ICM20948 device"""
         self.select_register_bank(0)
         curr_reg = self.read(self.reg.PWR_MGMT_1) if not overwrite else 0x00
-        new_reg = curr_reg | (1<<7)  # Set bit 7 to reset
+        new_reg = curr_reg | (1 << 7)  # Set bit 7 to reset
         self.write(self.reg.PWR_MGMT_1, new_reg)
         time.sleep(0.01)
 
@@ -150,9 +154,7 @@ class ICM20948:
         if who_am_i == self.CHIP_ID:
             logger.info("ICM-20948 is online!")
         else:
-            raise RuntimeError(
-                "ICM-20948 initialization failed: WHO_AM_I mismatch. "
-            )
+            raise RuntimeError("ICM-20948 initialization failed: WHO_AM_I mismatch. ")
 
     def read(self, reg):
         """Read a single byte from a register"""
@@ -391,24 +393,26 @@ class ICM20948:
         return ax, ay, az, gx, gy, gz
 
     def read_magnetometer(self, calibrated=True):
-        """ 
+        """
         Read magnetometer data after configure magnetometer has been run at startup
-        
+
         Returns:
             mx_uT (float): X-axis magnetometer reading in μT
             my_uT (float): Y-axis magnetometer reading in μT
             mz_uT (float): Z-axis magnetometer reading in μT
             overflow_flag (int): 1 if magnetic sensor overflow, 0 otherwise
         """
-        
+
         if not self._enable_mag:
-            raise ValueError("Magnetometer read attempted, but it is not enabled in imu settings.")
-        
+            raise ValueError(
+                "Magnetometer read attempted, but it is not enabled in imu settings."
+            )
+
         """Read magnetometer data and return it as a tuple of x, y, z values in μT"""
         self.select_register_bank(0)
-        
+
         # Pick up mag data cached by the ICM20948 and overflow indicator
-        data = self.read_bytes(self.reg.EXT_SLV_SENS_DATA_00, self.NUM_MAG_READ_BYTES)        
+        data = self.read_bytes(self.reg.EXT_SLV_SENS_DATA_00, self.NUM_MAG_READ_BYTES)
         # Unpack with 2's complement and little-endian byte order
         mx, my, mz = struct.unpack("<hhh", bytes(data[0:6]))
 
@@ -416,28 +420,30 @@ class ICM20948:
         overflow_flag = data[-1] & 0x08
 
         # Convert to actual readings in μT
-        mx_uT, my_uT, mz_uT = self.convert_magnetometer(mx, my, mz, calibrated=calibrated)
+        mx_uT, my_uT, mz_uT = self.convert_magnetometer(
+            mx, my, mz, calibrated=calibrated
+        )
 
         return mx_uT, my_uT, mz_uT, overflow_flag
 
-    def read_agtm(self, convert = True):
+    def read_agtm(self, convert=True):
         """Read Accelerometer, Gyroscope, Temperature and Magnetometer data in a single I2C read operation"""
         self.select_register_bank(0)
-        
-        total_bytes = 6 + 6 + 2 + self.NUM_MAG_READ_BYTES        
+
+        total_bytes = 6 + 6 + 2 + self.NUM_MAG_READ_BYTES
         data = self.read_bytes(self.reg.ACCEL_XOUT_H, total_bytes)
-        
+
         # Unpack accelerometer and gyroscope data (big-endian format)
         ax, ay, az, gx, gy, gz = struct.unpack(">hhhhhh", bytearray(data[0:12]))
         # Unpack temperature data (big-endian format)
-        temp, = struct.unpack(">h", bytes(data[12:14]))
+        (temp,) = struct.unpack(">h", bytes(data[12:14]))
         # Unpack magetometer data (little-endian format)
         mag_data = data[14:]
-        
+
         mx, my, mz = struct.unpack("<hhh", bytes(mag_data[0:6]))
         overflow_flag = mag_data[-1] & 0x08
-        
-        if convert:      
+
+        if convert:
             ax = self.convert_accel(ax) - self._accel_bias[0]
             ay = self.convert_accel(ay) - self._accel_bias[1]
             az = self.convert_accel(az) - self._accel_bias[2]
@@ -447,15 +453,15 @@ class ICM20948:
             temp = self.convert_temp(temp)
             # Rotate into the same frame as the robot
             mx, my, mz = self.convert_magnetometer(mx, my, mz, rotate=True)
-            
+
         return ax, ay, az, gx, gy, gz, temp, mx, my, mz, overflow_flag
-    
+
     def read_sensor_data(self, convert=True):
-        """ Conditional read depending if magnetometer is enabled """   
+        """Conditional read depending if magnetometer is enabled"""
         if self._enable_mag:
             return self.read_agtm(convert)
         else:
-            return self.read_accelerometer_gyro(convert)    
+            return self.read_accelerometer_gyro(convert)
 
     def convert_accel(self, raw):
         """Convert raw accelerometer data to G's"""
@@ -465,26 +471,24 @@ class ICM20948:
         """Convert raw gyroscope data to degrees per second"""
         return raw * (self._gyro_range / 32768)
 
-
     def convert_magnetometer(self, mx, my, mz, rotate=True, calibrated=True):
-        """ Convert magnetomer to same frame as accel and gyro and uT """
-        
+        """Convert magnetomer to same frame as accel and gyro and uT"""
+
         if rotate:
-            mx =  mx
+            mx = mx
             my = -my
             mz = -mz
-            
+
         mx = mx * 0.15
         my = my * 0.15
         mz = mz * 0.15
-         
+
         if calibrated:
             s = np.array([mx, my, mz]).reshape(3, 1)
             s = np.dot(self.A_1, s - self.b)
             mx, my, mz = s[0, 0], s[1, 0], s[2, 0]
-        
-        return mx, my, mz
 
+        return mx, my, mz
 
     def convert_temp(self, raw_temp):
         """Convert raw temperature to degrees Celsius."""
@@ -494,11 +498,9 @@ class ICM20948:
         # RoomTemp_Offset is device-specific, typically 0 at 21°C
         temp_c = ((raw_temp - 0) / 333.87) + 21
         return temp_c
-        
-        
-    
+
     """ Continuous I2C functions for peripheral communication with the ICM20948 and Magnetometer via I2C Slave 0"""
-    
+
     def i2c_master_passthrough(self, enable):
         """Enable or disable I2C master passthrough"""
         self.select_register_bank(0)
@@ -568,7 +570,6 @@ class ICM20948:
         # bit 6 = Swap bytes: this is handled by the struct.unpack method, so 0
         self.write(self.reg.I2C_SLV0_CTRL, 0b10000000 | length)
 
-    
     """ Magnetometer Functions: Single Read/Write via I2C Slave 4"""
 
     def configure_magnetometer(self):
@@ -599,7 +600,7 @@ class ICM20948:
             self.i2c_master_reset()
             time.sleep(0.01)
         else:
-            raise RuntimeError("Failed to connect to magnetometer.")    
+            raise RuntimeError("Failed to connect to magnetometer.")
 
     def mag_write(self, reg, data):
         """Write a single byte to magnetometer via I2C4"""
@@ -666,10 +667,10 @@ class ICM20948:
         # Set power down mode
         self.mag_set_mode(0x00)
         time.sleep(0.01)
-        
+
         # Set self-test mode
         self.mag_set_mode(0x10)
-        
+
         # Wait for data to be ready
         for _ in range(100):
             check_ready = self.mag_read(self.reg.MAG_REG_ST1) & 0x01
@@ -679,9 +680,12 @@ class ICM20948:
 
         if not check_ready:
             raise RuntimeError("Magnetometer self-test failed, unable to read data.")
-        
+
         # Read HXL to HZH (6 bytes) and unpack them
-        data = [self.mag_read(i) for i in range(self.reg.MAG_REG_HXL, self.reg.MAG_REG_HZH + 1)]
+        data = [
+            self.mag_read(i)
+            for i in range(self.reg.MAG_REG_HXL, self.reg.MAG_REG_HZH + 1)
+        ]
         hx, hy, hz = struct.unpack("<hhh", bytes(data))
 
         # Define the self-test criteria
@@ -690,23 +694,27 @@ class ICM20948:
         if not (-200 <= hy <= 200):
             raise ValueError(f"Self-test failed for HY: {hy} not in range -200 to 200")
         if not (-1000 <= hz <= -200):
-            raise ValueError(f"Self-test failed for HZ: {hz} not in range -1000 to -200")
-        
+            raise ValueError(
+                f"Self-test failed for HZ: {hz} not in range -1000 to -200"
+            )
+
         self.mag_set_mode(0x00)
         # Log successful self-test
         logger.info("Magnetometer self-test passed successfully.")
-    
+
     def load_calibration(self):
         """Loads the calibration data (A_1 and b) from a file if available."""
         try:
-            with pkg_resources.path('rluni.configs.imu', self._mag_calibration_file) as config_file_path:
+            with pkg_resources.path(
+                "rluni.configs.imu", self._mag_calibration_file
+            ) as config_file_path:
                 with np.load(config_file_path) as data:
-                    self.A_1 = data['A_1']
-                    self.b = data['b']
-            
-            print(f'Loaded calibration data from {self._mag_calibration_file}')
+                    self.A_1 = data["A_1"]
+                    self.b = data["b"]
+
+            print(f"Loaded calibration data from {self._mag_calibration_file}")
         except FileNotFoundError:
-            print('No calibration data file found. Proceeding without calibration.')  
+            print("No calibration data file found. Proceeding without calibration.")
 
     def close(self):
         """Clean up"""

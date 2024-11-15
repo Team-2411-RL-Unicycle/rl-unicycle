@@ -44,7 +44,7 @@ ICM20948_Configuration:
   # Magnetometer On/Off
   # Options: yes, no
   # Default: yes
-  mag_enable: yes
+  mag_enable: no
 
 # Calibration
 

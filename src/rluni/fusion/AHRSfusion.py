@@ -39,7 +39,6 @@ class AHRSfusion:
             10,  # magnetic rejection
             5 * self.sample_rate,
         )  # recovery trigger period = 5 seconds
-        
 
     def _load_config(self):
         """
@@ -106,10 +105,8 @@ class AHRSfusion:
             mag_data = np.array([0, 0, 0])
         else:
             mag_data = np.array(mag_data)
-                        
+
         mag_data = np.array(self.rotate_frame(*mag_data))
-        
-        
 
         # Update gyro data with offset (this is dynamic bias correction for gyro)
         corrected_gyro = self.offset.update(gyro_data)

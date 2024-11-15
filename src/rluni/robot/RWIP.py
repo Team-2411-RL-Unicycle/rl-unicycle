@@ -62,7 +62,7 @@ class RobotSystem:
         self.imu = ICM20948(config_file=self.imu_config)
         self.sensor_fusion = AHRSfusion(
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
-        )        
+        )
 
         # Initialize motor controller (if enabled)
         self.xmotor = MN6007() if start_motors else None
@@ -162,7 +162,10 @@ class RobotSystem:
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
             euler_angles = td.EulerAngles(
                 *self.sensor_fusion.update(
-                    imudata.get_gyro(), imudata.get_accel(), mag_data = imudata.get_mag(), delta_time=loop_period
+                    imudata.get_gyro(),
+                    imudata.get_accel(),
+                    mag_data=imudata.get_mag(),
+                    delta_time=loop_period,
                 )[0]
             )
 
