@@ -31,7 +31,16 @@ class TelemetryData(ABC):
 
 @dataclass(frozen=True)
 class IMUData(TelemetryData):
-    """Data returned from the IMU sensor"""
+    """
+    Data returned from the IMU sensor
+    
+    Units
+    -----
+    accel_x, accel_y, accel_z: G's
+    gyro_x, gyro_y, gyro_z: degrees per second
+    temp: Celsius
+    mag_x, mag_y, mag_z: uT
+    """
 
     accel_x: float  # in G's
     accel_y: float
@@ -61,10 +70,17 @@ class IMUData(TelemetryData):
 
 @dataclass(frozen=True)
 class EulerAngles(TelemetryData):
-    """Data related to AHRS system"""
-
-    x: float  # Degrees
-    y: float
+    """
+    Data related to AHRS system Euler angles. Order listed is reversed order of rotation
+    
+    Units
+    -----
+    y: degrees
+    x: degrees
+    z: degrees
+    """
+    y: float  # Degrees
+    x: float
     z: float
 
     def __post_init__(self):
@@ -80,7 +96,18 @@ class EulerAngles(TelemetryData):
 
 @dataclass(frozen=True)
 class MotorState(TelemetryData):
-    """Data synchronized with the motor class"""
+    """Data synchronized with the motor class
+    
+    Units
+    -----
+    position: revs
+    velocity: revs/s
+    torque: Nm
+    q_current: A
+    d_current: A
+    voltage: V
+    temperature: Celsius
+    """
 
     mode: int
     position: float
@@ -105,7 +132,13 @@ class MotorState(TelemetryData):
 
 @dataclass(frozen=True)
 class ControlData(TelemetryData):
-    """Data related to control actions and performance."""
+    """Data related to control actions and performance.
+    
+    Units
+    -----
+    loop_time: seconds
+    torque_request: Nm 
+    """
 
     loop_time: float
     torque_request: float

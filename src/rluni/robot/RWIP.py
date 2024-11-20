@@ -5,6 +5,8 @@ import time
 from multiprocessing import Queue
 from typing import List, Union, Callable
 
+import numpy as np
+
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
@@ -76,16 +78,18 @@ class RobotSystem:
 
     def _load_config(self, config_file):
         """
-        Private method to load and parse the RWIP configuration file.
+        Private method to load and parse the robot configuration file.
         """
-        # Load the RWIP configuration file (use the default if none provided)
+        # Load the robot configuration file (use the default if none provided)
         if config_file is None:
-            config_file = pkg_resources.resource_filename(
-                "rluni.configs.rwip", "default.yaml"
-            )
+            config_file = "rwip.yaml"
             logger.warning(
                 f"No RWIP configuration file provided. Using default configuration: {config_file}"
             )
+
+        config_file = pkg_resources.resource_filename(
+            "rluni.configs.robot", config_file
+        )
 
         config = load_config_file(config_file)
 
@@ -159,15 +163,16 @@ class RobotSystem:
             tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
+
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
-            euler_angles = td.EulerAngles(
-                *self.sensor_fusion.update(
-                    imudata.get_gyro(),
-                    imudata.get_accel(),
-                    mag_data=imudata.get_mag(),
-                    delta_time=loop_period,
-                )[0]
+
+            quaternion, internal_states, flags = self.sensor_fusion.update(
+                imudata.get_gyro(),
+                imudata.get_accel(),
+                mag_data=imudata.get_mag(),
+                delta_time=loop_period,
             )
+            euler_angles = td.EulerAngles(*self.sensor_fusion.get_euler_angles_zxy())
 
             # Update robot state and parameters
             if self.xmotor is not None:
@@ -222,6 +227,37 @@ class RobotSystem:
             end_time = loop_start_time + self.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
+
+    def precise_delay_until(self, end_time):
+        """
+        Sleep until the specified end time, then return the delay time (overshoot)
+        """
+        # Lower accuracy sleep loop
+        while True:
+            now = time.time()
+            remaining = end_time - now
+            if remaining <= 0.0007:
+                break
+            time.sleep(remaining / 2)
+
+        # Busy-while loop to get accurate cutoff at end
+        while True:
+            delay = time.time() - end_time
+            if delay >= 0:
+                return delay
+
+    """ Shutdown Methods """
+
+    async def shutdown(self):
+        """
+        Shutdown the robot system and its components.
+        """
+        try:
+            if self.xmotor is not None:
+                await self.xmotor.shutdown()
+                logger.info("Motors shutdown successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")
 
     """ ####################### 
         Command Handling Methods
@@ -326,34 +362,3 @@ class RobotSystem:
             logger.error(
                 f"Expected a string for the controller switch command, but got: {value}"
             )
-
-    def precise_delay_until(self, end_time):
-        """
-        Sleep until the specified end time, then return the delay time (overshoot)
-        """
-        # Lower accuracy sleep loop
-        while True:
-            now = time.time()
-            remaining = end_time - now
-            if remaining <= 0.0007:
-                break
-            time.sleep(remaining / 2)
-
-        # Busy-while loop to get accurate cutoff at end
-        while True:
-            delay = time.time() - end_time
-            if delay >= 0:
-                return delay
-
-    """ Shutdown Methods """
-
-    async def shutdown(self):
-        """
-        Shutdown the robot system and its components.
-        """
-        try:
-            if self.xmotor is not None:
-                await self.xmotor.shutdown()
-                logger.info("Motors shutdown successfully.")
-        except Exception as e:
-            logger.exception(f"Error during RobotSystem shutdown: {e}")
