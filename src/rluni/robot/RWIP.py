@@ -172,15 +172,15 @@ class RobotSystem:
                 mag_data=imudata.get_mag(),
                 delta_time=loop_period,
             )
-            euler_angles = td.EulerAngles(*self.sensor_fusion.get_euler_angles_zxy())
-
+            rigid_body_state = td.EulerAngles(*self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates)
+            
             # Update robot state and parameters
             if self.xmotor is not None:
                 await self.xmotor.update_state()
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
+                pendulum_angle=rigid_body_state.y * DEG_TO_RAD,  # [radians] positive CCW
                 pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
                 wheel_vel=(
                     0
@@ -213,7 +213,7 @@ class RobotSystem:
                 control_data = td.ControlData(
                     loop_time=loop_period, torque_request=float(torque_request)
                 )
-                data_list = [imudata, euler_angles, control_data, tele_debug_data]
+                data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
                 if self.xmotor is not None:
                     motor_state = td.MotorState.from_dict(self.xmotor.state)
                     data_list.append(motor_state)

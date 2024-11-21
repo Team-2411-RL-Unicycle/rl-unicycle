@@ -82,6 +82,10 @@ class EulerAngles(TelemetryData):
     y: float  # Degrees
     x: float
     z: float
+    
+    x_dot: float
+    y_dot: float
+    z_dot: float
 
     def __post_init__(self):
         # Force conversion to Python's native float

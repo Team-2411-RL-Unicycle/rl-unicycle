@@ -24,6 +24,9 @@ class AHRSfusion:
         self._gyro_range = None
         self.transformation_matrix = np.identity(3)
 
+        self.euler_angles = (0, 0, 0)
+        self.euler_rates = (0, 0, 0)
+
         # Load the configuration file
         self.config = load_config_file(config_file)
         self._load_config()
@@ -67,7 +70,7 @@ class AHRSfusion:
         pitch_angle = np.radians(pitch_angle)
         roll_angle = np.radians(roll_angle)
 
-        # Rotation about the x-axis 
+        # Rotation about the x-axis
         x_rot = np.array(
             [
                 [1, 0, 0],
@@ -76,7 +79,7 @@ class AHRSfusion:
             ]
         )
 
-        # Rotation about the y-axis 
+        # Rotation about the y-axis
         y_rot = np.array(
             [
                 [np.cos(roll_angle), 0, np.sin(roll_angle)],
@@ -85,7 +88,7 @@ class AHRSfusion:
             ]
         )
 
-        M =  rot_mat @ x_rot @ y_rot
+        M = rot_mat @ x_rot @ y_rot
         return M
 
     def rotate_frame_imu_to_robot(self, x, y, z):
@@ -93,13 +96,23 @@ class AHRSfusion:
         Input: x, y, z in IMU frame
         Output: x', y', z' in robot frame"""
         return self.transformation_matrix @ np.array([x, y, z])
-    
-    def get_euler_angles_zxy(self):
-        return np.degrees(euler.quat2euler(self.ahrs.quaternion.wxyz, axes="syxz")) 
-        
+
+    def update_state_from_quaternion(self, gyro_data):
+        """Compute and retururn ZYX Euler angles and rotation matrix A q_dot = gyro"""
+        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="szxy")
+        self.euler_angles = np.rad2deg(angles)
+
+        y, x, z = angles
+        mat = np.array(
+            [
+                [np.cos(y), 0, np.sin(y)],
+                [1.0 * np.sin(y) * np.tan(x), 1, -1.0 * np.cos(y) * np.tan(x)],
+                [-np.sin(y) / np.cos(x), 0, np.cos(y) / np.cos(x)],
+            ]
+        )
+        self.euler_rates = mat@gyro_data
+
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
-        # Change alignment to robot frame:
-        # Y.imu -> X.robot; Z.imu -> Y.robot; X.imu -> Z.robot
 
         # Convert to numpy arrays and rotate to robot frame
         accel_data = np.array(self.rotate_frame_imu_to_robot(*accel_data))
@@ -111,7 +124,7 @@ class AHRSfusion:
             mag_data = np.array(mag_data)
 
         mag_data = np.array(self.rotate_frame_imu_to_robot(*mag_data))
-        
+
         # Update gyro data with offset (this is dynamic bias correction for gyro)
         corrected_gyro = self.offset.update(gyro_data)
 
@@ -138,5 +151,7 @@ class AHRSfusion:
                 self.ahrs.flags.magnetic_recovery,
             ]
         )
+
+        self.update_state_from_quaternion(gyro_data)
 
         return self.ahrs.quaternion, internal_states, flags
