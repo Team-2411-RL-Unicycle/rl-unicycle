@@ -102,7 +102,7 @@ class AHRSfusion:
         angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="szxy")
         self.euler_angles = np.rad2deg(angles)
 
-        y, x, z = angles
+        z, x, y = angles
         mat = np.array(
             [
                 [np.cos(y), 0, np.sin(y)],
@@ -110,7 +110,7 @@ class AHRSfusion:
                 [-np.sin(y) / np.cos(x), 0, np.cos(y) / np.cos(x)],
             ]
         )
-        self.euler_rates = mat@gyro_data
+        self.euler_rates = mat @ gyro_data
 
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
 
