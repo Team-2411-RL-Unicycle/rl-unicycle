@@ -6,6 +6,7 @@ import yaml
 
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
+from transforms3d import euler, quaternions
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
@@ -22,6 +23,9 @@ class AHRSfusion:
         self.sample_rate = sample_rate
         self._gyro_range = None
         self.transformation_matrix = np.identity(3)
+
+        self.euler_angles = (0, 0, 0)
+        self.euler_rates = (0, 0, 0)
 
         # Load the configuration file
         self.config = load_config_file(config_file)
@@ -52,12 +56,12 @@ class AHRSfusion:
         # Parse the rotation matrix from the 'Calibration' section
         rotation_list = gvcv(self.config, "Calibration.rotation", list, required=True)
         rot_mat = np.array(rotation_list).reshape(3, 3)
-        pitch_angle = gvcv(self.config, "Calibration.pitch_adj", float, required=True)
-        roll_angle = gvcv(self.config, "Calibration.roll_adj", float, required=True)
+        x_angle = gvcv(self.config, "Calibration.x_adj", float, required=True)
+        y_angle = gvcv(self.config, "Calibration.y_adj", float, required=True)
 
         # Compute the transformation matrix
         self.transformation_matrix = self._calculate_transformation_matrix(
-            rot_mat, pitch_angle, roll_angle
+            rot_mat, x_angle, y_angle
         )
 
         logger.debug(f"Loaded rotation matrix:\n{self.transformation_matrix}")
@@ -66,8 +70,8 @@ class AHRSfusion:
         pitch_angle = np.radians(pitch_angle)
         roll_angle = np.radians(roll_angle)
 
-        # Rotation about the x-axis (pitch)
-        pitch_rot = np.array(
+        # Rotation about the x-axis
+        x_rot = np.array(
             [
                 [1, 0, 0],
                 [0, np.cos(pitch_angle), -np.sin(pitch_angle)],
@@ -75,8 +79,8 @@ class AHRSfusion:
             ]
         )
 
-        # Rotation about the y-axis (roll)
-        roll_rot = np.array(
+        # Rotation about the y-axis
+        y_rot = np.array(
             [
                 [np.cos(roll_angle), 0, np.sin(roll_angle)],
                 [0, 1, 0],
@@ -84,38 +88,48 @@ class AHRSfusion:
             ]
         )
 
-        M = pitch_rot @ roll_rot @ rot_mat
+        M = rot_mat @ x_rot @ y_rot
         return M
 
-    def rotate_frame(self, x, y, z):
+    def rotate_frame_imu_to_robot(self, x, y, z):
         """
         Input: x, y, z in IMU frame
         Output: x', y', z' in robot frame"""
         return self.transformation_matrix @ np.array([x, y, z])
 
+    def update_state_from_quaternion(self, gyro_data):
+        """Compute and retururn ZYX Euler angles and rotation matrix A q_dot = gyro"""
+        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="szxy")
+        self.euler_angles = np.rad2deg(angles)
+
+        y, x, z = angles
+        mat = np.array(
+            [
+                [np.cos(y), 0, np.sin(y)],
+                [1.0 * np.sin(y) * np.tan(x), 1, -1.0 * np.cos(y) * np.tan(x)],
+                [-np.sin(y) / np.cos(x), 0, np.cos(y) / np.cos(x)],
+            ]
+        )
+        self.euler_rates = mat@gyro_data
+
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
-        # Change alignment to robot frame:
-        # Y.imu -> X.robot; Z.imu -> Y.robot; X.imu -> Z.robot
 
         # Convert to numpy arrays and rotate to robot frame
-        accel_data = np.array(self.rotate_frame(*accel_data))
-        gyro_data = np.array(self.rotate_frame(*gyro_data))
+        accel_data = np.array(self.rotate_frame_imu_to_robot(*accel_data))
+        gyro_data = np.array(self.rotate_frame_imu_to_robot(*gyro_data))
 
         if mag_data is None or mag_data[0] is None:
             mag_data = np.array([0, 0, 0])
         else:
             mag_data = np.array(mag_data)
 
-        mag_data = np.array(self.rotate_frame(*mag_data))
+        mag_data = np.array(self.rotate_frame_imu_to_robot(*mag_data))
 
         # Update gyro data with offset (this is dynamic bias correction for gyro)
         corrected_gyro = self.offset.update(gyro_data)
 
         # Update the AHRS algorithm with the new data
         self.ahrs.update(corrected_gyro, accel_data, mag_data, delta_time)
-
-        # Obtain the Euler angles from the quaternion
-        euler_angles = self.ahrs.quaternion.to_euler()
 
         # Retrieve internal states and flags for logging or further processing
         internal_states = np.array(
@@ -138,4 +152,6 @@ class AHRSfusion:
             ]
         )
 
-        return euler_angles, internal_states, flags
+        self.update_state_from_quaternion(gyro_data)
+
+        return self.ahrs.quaternion, internal_states, flags
