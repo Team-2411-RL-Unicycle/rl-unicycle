@@ -18,14 +18,14 @@ class MN6007:
     MAX_ALLOWABLE_TORQUE = 1.4
     TIMEOUT_SECONDS = 0.1  # Seconds
 
-    def __init__(self):
+    def __init__(self, target):
 
         qr = moteus.QueryResolution()
         qr.q_current = moteus.INT32
         qr.d_current = moteus.INT32
         qr.voltage = moteus.INT32
         qr.velocity = moteus.INT32
-        self._c = moteus.Controller(transport=None, query_resolution=qr)
+        self._c = moteus.Controller(id=target, transport=None, query_resolution=qr)
         logger.debug(f"Connected to Motor Controller: {self._c}")
         # Motor system state (Dictionary of register values)
         self.state = None

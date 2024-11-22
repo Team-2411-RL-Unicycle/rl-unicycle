@@ -78,6 +78,10 @@ class EulerAngles(TelemetryData):
     y: degrees
     x: degrees
     z: degrees
+
+    y_dot: radians
+    x_dot: radians
+    z_dot: radians
     """
     y: float  # Degrees
     x: float
