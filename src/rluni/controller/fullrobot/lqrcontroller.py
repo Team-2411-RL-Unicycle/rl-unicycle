@@ -1,6 +1,6 @@
 import numpy as np
 
-from rluni.controller.controllerABC import ControlInput, Controller
+from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
 
 
@@ -24,9 +24,9 @@ class LQRController(Controller):
         # Robot states vector
         state_vector = np.array(
             [
-                robot_state.euler_angles_x_rad,
-                robot_state.euler_angles_y_rad,
-                robot_state.euler_angles_z_rad,
+                robot_state.euler_angles_x_rads,
+                robot_state.euler_angles_y_rads,
+                robot_state.euler_angles_z_rads,
                 robot_state.euler_rates_x_rad_s,
                 robot_state.euler_rates_y_rad_s,
                 robot_state.euler_rates_z_rad_s,

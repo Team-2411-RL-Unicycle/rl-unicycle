@@ -81,7 +81,7 @@ class RobotSystem:
         self.motors["yaw"] = MN6007(5) if start_motors else None
 
         self.motor_config = motor_config
-        # self.motors_enabled = start_motors
+        self.motors_enabled = start_motors
 
         # Initialize controller type based on argument
         self.controller_type = controller_type

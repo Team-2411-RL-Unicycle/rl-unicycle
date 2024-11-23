@@ -2,7 +2,7 @@ import numpy as np
 import pkg_resources
 from simple_pid import PID
 
-from rluni.controller.controllerABC import ControlInput, Controller
+from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils import call_super_first
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
