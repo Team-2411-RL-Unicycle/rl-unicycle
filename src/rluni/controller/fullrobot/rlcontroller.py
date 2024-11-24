@@ -26,10 +26,10 @@ class RLController(Controller):
         obs[:, 4] = robot_state.euler_angles_y_rads
         obs[:, 5] = robot_state.euler_angles_z_rads
         obs[:, 6] = robot_state.euler_rates_x_rads_s
-        obs[:, 7] = robot_state.euler_rates_x_rads_s
-        obs[:, 8] = robot_state.euler_rates_x_rads_s
-        obs[:, 1] = robot_state.motor_speeds_pitch_rads_s
-        obs[:, 0] = robot_state.motor_speeds_roll_rads_s
+        obs[:, 7] = robot_state.euler_rates_y_rads_s
+        obs[:, 8] = robot_state.euler_rates_z_rads_s
+        obs[:, 0] = robot_state.motor_speeds_pitch_rads_s
+        obs[:, 1] = robot_state.motor_speeds_roll_rads_s
         obs[:, 2] = robot_state.motor_speeds_yaw_rads_s
 
         output = self.model.run(
@@ -47,8 +47,9 @@ class RLController(Controller):
 
         # assert actions.shape[0] == self.num_act
         torques = []
-        torques.append(-np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque))
+        max_torque = 1.0
         torques.append(-np.clip(1.0 * actions[1], a_min=-max_torque, a_max=max_torque))
+        torques.append(-np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque))
         torques.append(-np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17))
 
         return torques
