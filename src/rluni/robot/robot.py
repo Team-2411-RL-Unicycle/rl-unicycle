@@ -264,7 +264,7 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-            if self.motors_enabled and not isCalibrating:
+            if self.motor_config is not EnabledMotors.NONE:
                 # Only set the torque if not in sensor fusion calibration mode
                 # await self.xmotor.set_torque(
                 #     torque=torque_request, max_torque=self.MAX_TORQUE
