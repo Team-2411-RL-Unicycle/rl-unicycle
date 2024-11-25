@@ -14,11 +14,12 @@ class RLController(Controller):
 
         self.hidden_state = np.zeros((1, 1, 64)).astype(np.float32)
         self.output_state = np.zeros((1, 1, 64)).astype(np.float32)
+        print([m.name for m in self.model.get_inputs()])
 
     @call_super_first
-    def get_torques(self, robot_state: ControlInput, max_torque: float) -> float:
-        list(robot_state)
-        assert len(robot_state) == self.num_obs
+    def get_torques(self, robot_state: ControlInput, max_torque: float):
+#         list(robot_state)
+ #       assert len(robot_state) == self.num_obs
 
         obs = np.zeros((1, 9))
         obs[:, 3] = robot_state.euler_angles_x_rads
@@ -44,6 +45,7 @@ class RLController(Controller):
         self.hidden_state = output[-1]
         self.output_state = output[-2]
 
-        assert actions.shape[0] == self.num_act
+        # assert actions.shape[0] == self.num_act
+        torques = -np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)
 
-        return -np.clip(max_torque * actions, a_min=-max_torque, a_max=max_torque)[0]
+        return torques[0:2] + np.clip(
