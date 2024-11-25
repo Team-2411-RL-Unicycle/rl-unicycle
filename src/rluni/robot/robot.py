@@ -247,7 +247,6 @@ class RobotSystem:
                 motor_speeds_pitch_rads_s=self.motors["pitch"].state["VELOCITY"]*REV_TO_RAD,
                 motor_speeds_roll_rads_s=self.motors["roll"].state["VELOCITY"]*REV_TO_RAD,
                 motor_speeds_yaw_rads_s=self.motors["yaw"].state["VELOCITY"]*REV_TO_RAD,
-
             )
 
             # Change to negative convention due to motor
