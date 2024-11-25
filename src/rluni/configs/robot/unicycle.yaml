@@ -5,5 +5,5 @@ RobotSystem:
   calibration_delay: 5.0       # Sensor calibration delay in seconds
 
   imu_config: "configs/imu/full-robot-imu1.yaml"  # Relative path to IMU configuration file
-  rlmodel_path: "configs/rlmodels/2_v_pen.onnx"  # Relative path to RL model file
+  rlmodel_path: "configs/rlmodels/broomy-balance-export.onnx"  # Relative path to RL model file
   pid_config: "configs/controllers/pid_projectfair.yaml"  # Relative path to PID controller configuration file

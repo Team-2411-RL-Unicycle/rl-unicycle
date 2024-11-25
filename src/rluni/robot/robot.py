@@ -263,7 +263,7 @@ class RobotSystem:
             # Apply control decision to robot actuators
             # SET TORQUE
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-            if self.motors_enabled and not isCalibrating:
+            if self.motor_config is not EnabledMotors.NONE:
                 # Only set the torque if not in sensor fusion calibration mode
                 # await self.xmotor.set_torque(
                 #     torque=torque_request, max_torque=self.MAX_TORQUE
@@ -276,7 +276,8 @@ class RobotSystem:
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
                 control_data = td.ControlData(
-                    loop_time=loop_period, torque_request=float(torque_request)
+                    loop_time=loop_period, torque_roll=float(torques[0]),
+                    torque_pitch=float(torques[1]), torque_yaw=float(torques[2])
                 )
                 data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
                 # if self.xmotor is not None:
