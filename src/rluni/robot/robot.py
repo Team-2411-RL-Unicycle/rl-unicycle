@@ -81,20 +81,24 @@ class RobotSystem:
 
         # TODO: Make data class
         self.motors = {}
-        self.motors["roll"] = MN6007(1) if start_motors else None
-        self.motors["pitch"] = MN6007(4) if start_motors else None
-        self.motors["yaw"] = MN6007(5) if start_motors else None
 
         # set self.motor_config using arg string
         if motor_config == "none":
             self.motor_config = EnabledMotors.NONE
         if motor_config == "roll":
+            self.motors["roll"] = MN6007(1) if start_motors else None
             self.motor_config = EnabledMotors.ROLL
         if motor_config == "yaw":
+            self.motors["yaw"] = MN6007(5) if start_motors else None
             self.motor_config = EnabledMotors.YAW
         if motor_config == "roll_pitch":
+            self.motors["roll"] = MN6007(1) if start_motors else None
+            self.motors["pitch"] = MN6007(4) if start_motors else None
             self.motor_config = EnabledMotors.ROLL_PITCH
         if motor_config == "all":
+            self.motors["roll"] = MN6007(1) if start_motors else None
+            self.motors["pitch"] = MN6007(4) if start_motors else None
+            self.motors["yaw"] = MN6007(5) if start_motors else None
             self.motor_config = EnabledMotors.ALL
 
         # Initialize controller type based on argument
