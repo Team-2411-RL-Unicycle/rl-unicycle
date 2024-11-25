@@ -277,7 +277,8 @@ class RobotSystem:
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
                 control_data = td.ControlData(
-                    loop_time=loop_period, torque_request=float(torque_request)
+                    loop_time=loop_period, torque_roll=float(torques[0]),
+                    torque_pitch=float(torques[1]), torque_yaw=float(torques[2])
                 )
                 data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
                 # if self.xmotor is not None:

@@ -149,7 +149,9 @@ class ControlData(TelemetryData):
     """
 
     loop_time: float
-    torque_request: float
+    torque_roll: float
+    torque_pitch: float
+    torque_yaw: float
 
     @property
     def topic(self) -> str:
