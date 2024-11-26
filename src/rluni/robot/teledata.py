@@ -137,6 +137,20 @@ class MotorState(TelemetryData):
         data = {k.lower(): v for k, v in data.items()}
         return MotorState(**data)
 
+class RollMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_roll"
+
+class PitchMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_pitch"
+
+class YawMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_yaw"
 
 @dataclass(frozen=True)
 class ControlData(TelemetryData):

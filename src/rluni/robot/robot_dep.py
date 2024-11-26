@@ -20,7 +20,7 @@ from rluni.controller import (
 
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
-from rluni.motors.MN6007 import MN6007
+from rluni.motors.motors import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
