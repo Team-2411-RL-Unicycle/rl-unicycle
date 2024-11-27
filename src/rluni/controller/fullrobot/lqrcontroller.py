@@ -26,12 +26,12 @@ class LQRController(Controller):
         # Robot states vector
         state_vector = np.array(
             [
-                robot_state.euler_angles_x_rads,
-                robot_state.euler_angles_y_rads,
-                robot_state.euler_angles_z_rads,
-                robot_state.euler_rates_x_rads_s,
-                robot_state.euler_rates_y_rads_s,
-                robot_state.euler_rates_z_rads_s,
+                robot_state.euler_angle_roll_rads,
+                robot_state.euler_angle_pitch_rads,
+                robot_state.euler_angle_yaw_rads,
+                robot_state.euler_rate_roll_rads_s,
+                robot_state.euler_rate_pitch_rads_s,
+                robot_state.euler_rate_yaw_rads_s,
                 robot_state.motor_speeds_roll_rads_s,
                 robot_state.motor_speeds_pitch_rads_s,
                 robot_state.motor_speeds_yaw_rads_s,

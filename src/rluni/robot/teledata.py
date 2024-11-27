@@ -169,7 +169,7 @@ class ControlData(TelemetryData):
 
     @property
     def topic(self) -> str:
-        return "robot/control"
+        return "robot/control/output"
 
 
 @dataclass

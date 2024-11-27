@@ -78,10 +78,15 @@ class RobotSystem:
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
         )
 
-        # # Initialize motor controller (if enabled)
-        # self.xmotor = MN6007() if start_motors else None
+        self._initialize_motors(motor_config)
 
+        # Initialize controller type based on argument
+        self.controller_type = controller_type
+        self.controller = self._get_controller(controller_type)
 
+        self.itr = int(0)  # Cycle counter
+
+    def _initialize_motors(self, motor_config):
         # set self.motor_config using arg string
         if motor_config == "none":
             self.motor_config = EnabledMotors.NONE
@@ -102,11 +107,6 @@ class RobotSystem:
             self.motors = self.motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
 
-        # Initialize controller type based on argument
-        self.controller_type = controller_type
-        self.controller = self._get_controller(controller_type)
-
-        self.itr = int(0)  # Cycle counter
 
     def _load_config(self, config_file):
         """
@@ -212,16 +212,17 @@ class RobotSystem:
                     await motor.update_state()
 
             control_input = ControlInput(
-                euler_angles_x_rads=rigid_body_state.x * DEG_TO_RAD,
-                euler_angles_y_rads=rigid_body_state.y * DEG_TO_RAD,
-                euler_angles_z_rads=rigid_body_state.z * DEG_TO_RAD,
-                euler_rates_x_rads_s=rigid_body_state.x_dot,
-                euler_rates_y_rads_s=rigid_body_state.y_dot,
-                euler_rates_z_rads_s=rigid_body_state.z_dot,
+                euler_angle_roll_rads=rigid_body_state.x * DEG_TO_RAD,
+                euler_angle_pitch_rads=rigid_body_state.y * DEG_TO_RAD,
+                euler_angle_yaw_rads=rigid_body_state.z * DEG_TO_RAD,
+                euler_rate_roll_rads_s=rigid_body_state.x_dot,
+                euler_rate_pitch_rads_s=rigid_body_state.y_dot,
+                euler_rate_yaw_rads_s=rigid_body_state.z_dot,
                 motor_speeds_pitch_rads_s=self.motors.pitch.state["VELOCITY"]*REV_TO_RAD,
                 motor_speeds_roll_rads_s=self.motors.roll.state["VELOCITY"]*REV_TO_RAD,
                 motor_speeds_yaw_rads_s=self.motors.yaw.state["VELOCITY"]*REV_TO_RAD,
             )
+
             torques = self.controller.get_torques(
                 control_input, self.MAX_TORQUE - 0.001
             )
@@ -234,17 +235,18 @@ class RobotSystem:
             # Only set the torque if not in sensor fusion calibration mode
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-            if self.motor_config is not EnabledMotors.NONE:
-                if self.motors.roll is not None: await self.motors.roll.set_torque(torques[0])
-                if self.motors.pitch is not None: await self.motors.pitch.set_torque(torques[1])
-                if self.motors.yaw is not None: await self.motors.yaw.set_torque(torques[2])
+
+            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+                if self.motors.roll is not None: await self.motors.roll.set_torque(torques.roll)
+                if self.motors.pitch is not None: await self.motors.pitch.set_torque(torques.pitch)
+                if self.motors.yaw is not None: await self.motors.yaw.set_torque(torques.yaw)
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
                 control_data = td.ControlData(
-                    loop_time=loop_period, torque_roll=float(torques[0]),
-                    torque_pitch=float(torques[1]), torque_yaw=float(torques[2])
+                    loop_time=loop_period, torque_roll=float(torques.roll),
+                    torque_pitch=float(torques.pitch), torque_yaw=float(torques.yaw)
                 )
                 data_list = [imudata, 
                              rigid_body_state, 

@@ -30,7 +30,7 @@ class Motor:
         self.isfaulted = False
         self.fault_codes = self.load_fault_codes()
         self.name = name
-        self.model = "Generic Motor"
+        self.torque_permitted = False
 
     def __str__(self):
         # Construct a readable description
@@ -160,10 +160,9 @@ class Motor:
             asyncio.TimeoutError: If the operation times out.
         """
         # fail if we are a generic motor 
-        if self.model == "Generic Motor":
-            error_msg = f"Torque commands not allowed on generic motor"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+        if not self.torque_permitted:
+            logger.critical("Torque commands are not permitted on this motor")
+            raise ValueError("Torque commands are not permitted on this motor")
 
         if abs(torque) > self.MAX_ALLOWABLE_TORQUE:
             error_msg = f"Torque set outside maximum allowable motor torque. Attempted to set to {torque:.2f}N*m. Bounds are +/- {self.MAX_ALLOWABLE_TORQUE}"
@@ -240,7 +239,7 @@ class MN6007(Motor):
 
     def __init__(self, target, name):
         super().__init__(target, name)
-        self.model = "MN6007"
+        self.torque_permitted = True
 
 class MN2806(Motor):
     """
@@ -252,7 +251,7 @@ class MN2806(Motor):
 
     def __init__(self, target, name):
         super().__init__(target, name)
-        self.model = "MN2806"
+        self.torque_permitted = True
 
 
 ##################################################################

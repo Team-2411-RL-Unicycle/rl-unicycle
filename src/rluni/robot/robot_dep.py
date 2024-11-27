@@ -213,7 +213,7 @@ class RobotSystem:
             )
 
             control_input = ControlInput(
-                euler_angles_x_rads = euler
+                euler_angle_roll_rads = euler
             )
 
 

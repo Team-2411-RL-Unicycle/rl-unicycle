@@ -9,7 +9,7 @@ class TestController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        # self.gen = self.sine_sequence()
+        self.gen = self.sine_sequence()
         self.MAX_TORQUE = 0.1
         self.logger.info(f"{self.__class__.__name__} initialized")
 
@@ -17,7 +17,7 @@ class TestController(Controller):
         """A generic test mode for the RWIP"""
         # TESTING: A simple control decision for testing
         # Match a proportional response to the detected angle
-        # amplitude = next(self.gen)
+        amplitude = next(self.gen)
         torques = amplitude * np.array([0.05,0.05,0.005]) # , , yaw
         # torques =  np.array([0.05,0.05,0.005]) # , , yaw
         return torques        
