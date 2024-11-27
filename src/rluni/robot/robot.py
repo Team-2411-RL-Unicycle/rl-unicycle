@@ -96,7 +96,7 @@ class RobotSystem:
             self.motors = self.motors(MN6007(1, "roll"), MN6007(4, "pitch"), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
-            self.motors = self.motros(MN6007(1, "roll"), MN6007(4, "pitch"), MN2806(5, "yaw"))
+            self.motors = self.motors(MN6007(1, "roll"), MN6007(4, "pitch"), MN2806(5, "yaw"))
             self.motor_config = EnabledMotors.ALL
         else: # catch-all 
             self.motors = self.motors(None, None, None)
@@ -195,7 +195,6 @@ class RobotSystem:
             tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
-
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
 
             quaternion, internal_states, flags = self.sensor_fusion.update(
@@ -206,25 +205,11 @@ class RobotSystem:
             )
             rigid_body_state = td.EulerAngles(*self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates)
             
+            # TODO: Try to get all 3 motor states in one call
             # Update robot state and parameters
-            # if self.xmotor is not None:
-            #     await self.xmotor.update_state()
-
             for motor in self.motors:
                 if motor is not None: 
                     await motor.update_state()
-
-            # Control logic
-            # control_input = ControlInput(
-            #     pendulum_angle=rigid_body_state.y * DEG_TO_RAD,  # [radians] positive CCW
-            #     pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
-            #     wheel_vel=(
-            #         0
-            #         if self.xmotor is None
-            #         else -self.xmotor.state["VELOCITY"] * REV_TO_RAD
-            #     ),  # [radians / s] positive CCW
-            #     roll_torque=torque_request,  # [N * m] positive CCW
-            # )
 
             control_input = ControlInput(
                 euler_angles_x_rads=rigid_body_state.x * DEG_TO_RAD,
@@ -237,11 +222,6 @@ class RobotSystem:
                 motor_speeds_roll_rads_s=self.motors.roll.state["VELOCITY"]*REV_TO_RAD,
                 motor_speeds_yaw_rads_s=self.motors.yaw.state["VELOCITY"]*REV_TO_RAD,
             )
-
-            # Change to negative convention due to motor
-            # torque_request = -self.controller.get_torque(
-            #     control_input, self.MAX_TORQUE - 0.001
-            # )
             torques = self.controller.get_torques(
                 control_input, self.MAX_TORQUE - 0.001
             )
@@ -251,12 +231,10 @@ class RobotSystem:
 
             # Apply control decision to robot actuators
             # SET TORQUE
+            # Only set the torque if not in sensor fusion calibration mode
+            #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
             if self.motor_config is not EnabledMotors.NONE:
-                # Only set the torque if not in sensor fusion calibration mode
-                # await self.xmotor.set_torque(
-                #     torque=torque_request, max_torque=self.MAX_TORQUE
-                # )
                 if self.motors.roll is not None: await self.motors.roll.set_torque(torques[0])
                 if self.motors.pitch is not None: await self.motors.pitch.set_torque(torques[1])
                 if self.motors.yaw is not None: await self.motors.yaw.set_torque(torques[2])
@@ -312,9 +290,6 @@ class RobotSystem:
         Shutdown the robot system and its components.
         """
         try:
-            # if self.xmotor is not None:
-            #     await self.xmotor.shutdown()
-            #     logger.info("Motors shutdown successfully.")
                 for motor in self.motors:
                     if motor is not None: 
                         await motor.shutdown() 
