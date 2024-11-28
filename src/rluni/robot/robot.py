@@ -39,9 +39,10 @@ class EnabledMotors(Enum):
     NONE = 0
     ROLL = 1
     YAW = 2
-    ROLL_PITCH = 3
-    ALL = 4
-    NUM_CONFIGS = 5
+    PITCH = 3
+    ROLL_PITCH = 4
+    ALL = 5
+    NUM_CONFIGS = 6
 
 
 motors = namedtuple("motors", ["roll", "pitch", "yaw"])
@@ -101,6 +102,9 @@ class RobotSystem:
         elif motor_config == "yaw":
             self.motors = motors(None, None, MN2806(5, "yaw"))
             self.motor_config = EnabledMotors.YAW
+        elif motor_config == "pitch":
+            self.motors = motors(None, MN6007(6, "pitch"), None)
+            self.motor_config = EnabledMotors.PITCH
         elif motor_config == "roll_pitch":
             self.motors = motors(MN6007(4, "roll"), MN6007(6, "pitch"), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
@@ -225,17 +229,17 @@ class RobotSystem:
                 euler_rate_pitch_rads_s=rigid_body_state.y_dot,
                 euler_rate_yaw_rads_s=rigid_body_state.z_dot,
                 motor_speeds_pitch_rads_s=(
-                    None
+                    0.0
                     if self.motors.pitch is None
                     else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
                 ),
                 motor_speeds_roll_rads_s=(
-                    None
+                    0.0
                     if self.motors.roll is None
                     else self.motors.roll.state["VELOCITY"] * REV_TO_RAD
                 ),
                 motor_speeds_yaw_rads_s=(
-                    None
+                    0.0
                     if self.motors.yaw is None
                     else self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),

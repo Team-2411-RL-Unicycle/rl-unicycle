@@ -11,8 +11,8 @@ class LQRController(Controller):
     def __init__(self) -> None:
         self._K = np.array(
             [
-                [21.8516, 0.0, 0.0, 3.2252, 0.0, 0.0, -0.0122, 0.0, 0.0],  # roll
-                [0.0, 20.9947, 0.0, 0.0, 4.5424, 0.0, 0.0, -0.0122, 0.0],  # pitch
+                [-21.8516, 0.0, 0.0, -3.2252, 0.0, 0.0, 0.0122, 0.0, 0.0],  # roll
+                [0.0, -20.9947, 0.0, 0.0, -4.5424, 0.0, 0.0, 0.0122, 0.0],  # pitch
                 [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             ]
         )  # yaw
@@ -39,7 +39,7 @@ class LQRController(Controller):
                 robot_state.euler_rate_pitch_rads_s,
                 robot_state.euler_rate_yaw_rads_s,
                 robot_state.motor_speeds_roll_rads_s,
-                robot_state.motor_speeds_pitch_rads_s,
+                robot_state.motor_speeds_pitch_rads_s + robot_state.euler_rate_pitch_rads_s,
                 robot_state.motor_speeds_yaw_rads_s,
             ]
         )
@@ -53,9 +53,12 @@ class LQRController(Controller):
 
         # needs clipping 
         torques = torques(
-            out[0], # roll
-            out[1], # pitch
-            out[2]  # yaw
+            np.clip(out[0], a_min=-1.0, a_max=1.0), # roll
+            np.clip(out[1], a_min=-1.0, a_max=1.0), # pitch
+            # temporarily clip to 0.1 
+            # np.clip(out[0], a_min=-0.47, a_max=0.47),  # roll
+            # np.clip(out[1], a_min=-0.47, a_max=0.47),  # pitch
+            np.clip(out[2], a_min=-0.17, a_max=0.17)  # yaw
         )
 
         return torques
