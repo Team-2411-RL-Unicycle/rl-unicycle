@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class Motor:
-    # Don't allow torque commands on generic motor 
+    # Don't allow torque commands on generic motor
     TIMEOUT_SECONDS = 0.1  # Seconds
 
     def __init__(self, target, name):
@@ -159,7 +159,7 @@ class Motor:
         Raises:
             asyncio.TimeoutError: If the operation times out.
         """
-        # fail if we are a generic motor 
+        # fail if we are a generic motor
         if not self.torque_permitted:
             logger.critical("Torque commands are not permitted on this motor")
             raise ValueError("Torque commands are not permitted on this motor")
@@ -233,6 +233,7 @@ class MN6007(Motor):
     """
     MN6007 Motor class
     """
+
     MAX_ALLOWABLE_ACCEL = 200.0
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 1.4
@@ -241,10 +242,12 @@ class MN6007(Motor):
         super().__init__(target, name)
         self.torque_permitted = True
 
+
 class MN2806(Motor):
     """
     MN2806 Motor class
     """
+
     MAX_ALLOWABLE_ACCEL = 200.0
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 0.17

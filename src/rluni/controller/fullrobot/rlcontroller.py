@@ -1,9 +1,11 @@
 import numpy as np
 import onnxruntime as ort
+from collections import namedtuple
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
-from rluni.robot.robot import torques
+
+torques = namedtuple("torques", ["roll", "pitch", "yaw"])
 
 
 class RLController(Controller):
@@ -47,7 +49,7 @@ class RLController(Controller):
         self.output_state = output[-2]
 
         # TODO: assert actions.shape[0] == self.num_act
-        out = torques() 
+        out = torques(None, None, None)
         out.roll = -np.clip(1.0 * actions[1], a_min=-max_torque, a_max=max_torque)
         out.pitch = -np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque)
         out.yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)

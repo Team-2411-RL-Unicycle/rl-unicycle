@@ -110,7 +110,9 @@ class AHRSfusion:
                 [-np.sin(y) / np.cos(x), 0, np.cos(y) / np.cos(x)],
             ]
         )
-        self.euler_rates = mat @ (gyro_data * np.pi / 180) # convert from deg/s to rad/s 
+        self.euler_rates = mat @ (
+            gyro_data * np.pi / 180
+        )  # convert from deg/s to rad/s
 
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
 

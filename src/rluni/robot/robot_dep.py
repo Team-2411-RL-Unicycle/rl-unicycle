@@ -32,6 +32,7 @@ REV_TO_RAD = 2 * math.pi
 # Create a logger
 logger = logging.getLogger(__name__)
 
+
 class EnabledMotors(Enum):
     NONE = 0
     ROLL = 1
@@ -39,6 +40,7 @@ class EnabledMotors(Enum):
     ROLL_PITCH = 3
     ALL = 4
     NUM_CONFIGS = 5
+
 
 class RobotSystem:
     """
@@ -199,7 +201,6 @@ class RobotSystem:
                 for motor in self.motors.values():
                     await motor.update_state()
 
-
             # Control logic
             control_input = ControlInput(
                 pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
@@ -212,10 +213,7 @@ class RobotSystem:
                 roll_torque=torque_request,  # [N * m] positive CCW
             )
 
-            control_input = ControlInput(
-                euler_angle_roll_rads = euler
-            )
-
+            control_input = ControlInput(euler_angle_roll_rads=euler)
 
             # Change to negative convention due to motor
             torque_request = -self.controller.get_torque(

@@ -34,6 +34,7 @@ REV_TO_RAD = 2 * math.pi
 # Create a logger
 logger = logging.getLogger(__name__)
 
+
 class EnabledMotors(Enum):
     NONE = 0
     ROLL = 1
@@ -42,8 +43,11 @@ class EnabledMotors(Enum):
     ALL = 4
     NUM_CONFIGS = 5
 
+
 motors = namedtuple("motors", ["roll", "pitch", "yaw"])
 torques = namedtuple("torques", ["roll", "pitch", "yaw"])
+
+
 class RobotSystem:
     """
     The RobotSystem class manages the core functionalities of a robot, including initializing sensors,
@@ -90,23 +94,24 @@ class RobotSystem:
         # set self.motor_config using arg string
         if motor_config == "none":
             self.motor_config = EnabledMotors.NONE
-            self.motors = self.motors(None, None, None)
+            self.motors = motors(None, None, None)
         elif motor_config == "roll":
-            self.motors = self.motors(MN6007(1, "roll"), None, None)
+            self.motors = motors(MN6007(1, "roll"), None, None)
             self.motor_config = EnabledMotors.ROLL
         elif motor_config == "yaw":
-            self.motors = self.motors(None, None, MN2806(5, "yaw"))
+            self.motors = motors(None, None, MN2806(5, "yaw"))
             self.motor_config = EnabledMotors.YAW
         elif motor_config == "roll_pitch":
-            self.motors = self.motors(MN6007(1, "roll"), MN6007(4, "pitch"), None)
+            self.motors = motors(MN6007(1, "roll"), MN6007(4, "pitch"), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
-            self.motors = self.motors(MN6007(1, "roll"), MN6007(4, "pitch"), MN2806(5, "yaw"))
+            self.motors = motors(
+                MN6007(1, "roll"), MN6007(4, "pitch"), MN2806(5, "yaw")
+            )
             self.motor_config = EnabledMotors.ALL
-        else: # catch-all 
+        else:  # catch-all
             self.motors = self.motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
-
 
     def _load_config(self, config_file):
         """
@@ -125,8 +130,7 @@ class RobotSystem:
 
         config = load_config_file(config_file)
 
-        # load the motor config 
-
+        # load the motor config
 
         # Validate and set configuration values for control parameters
         self.LOOP_TIME = gvcv(config, "RobotSystem.loop_time", float, required=True)
@@ -203,12 +207,14 @@ class RobotSystem:
                 mag_data=imudata.get_mag(),
                 delta_time=loop_period,
             )
-            rigid_body_state = td.EulerAngles(*self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates)
-            
+            rigid_body_state = td.EulerAngles(
+                *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
+            )
+
             # TODO: Try to get all 3 motor states in one call
             # Update robot state and parameters
             for motor in self.motors:
-                if motor is not None: 
+                if motor is not None:
                     await motor.update_state()
 
             control_input = ControlInput(
@@ -218,9 +224,21 @@ class RobotSystem:
                 euler_rate_roll_rads_s=rigid_body_state.x_dot,
                 euler_rate_pitch_rads_s=rigid_body_state.y_dot,
                 euler_rate_yaw_rads_s=rigid_body_state.z_dot,
-                motor_speeds_pitch_rads_s=self.motors.pitch.state["VELOCITY"]*REV_TO_RAD,
-                motor_speeds_roll_rads_s=self.motors.roll.state["VELOCITY"]*REV_TO_RAD,
-                motor_speeds_yaw_rads_s=self.motors.yaw.state["VELOCITY"]*REV_TO_RAD,
+                motor_speeds_pitch_rads_s=(
+                    None
+                    if self.motors.pitch is None
+                    else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
+                ),
+                motor_speeds_roll_rads_s=(
+                    None
+                    if self.motors.roll is None
+                    else self.motors.roll.state["VELOCITY"] * REV_TO_RAD
+                ),
+                motor_speeds_yaw_rads_s=(
+                    None
+                    if self.motors.yaw is None
+                    else self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
+                ),
             )
 
             torques = self.controller.get_torques(
@@ -237,25 +255,31 @@ class RobotSystem:
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
 
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
-                if self.motors.roll is not None: await self.motors.roll.set_torque(torques.roll)
-                if self.motors.pitch is not None: await self.motors.pitch.set_torque(torques.pitch)
-                if self.motors.yaw is not None: await self.motors.yaw.set_torque(torques.yaw)
+                if self.motors.roll is not None:
+                    await self.motors.roll.set_torque(torques.roll)
+                if self.motors.pitch is not None:
+                    await self.motors.pitch.set_torque(torques.pitch)
+                if self.motors.yaw is not None:
+                    await self.motors.yaw.set_torque(torques.yaw)
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
                 control_data = td.ControlData(
-                    loop_time=loop_period, torque_roll=float(torques.roll),
-                    torque_pitch=float(torques.pitch), torque_yaw=float(torques.yaw)
+                    loop_time=loop_period,
+                    torque_roll=float(torques.roll),
+                    torque_pitch=float(torques.pitch),
+                    torque_yaw=float(torques.yaw),
                 )
-                data_list = [imudata, 
-                             rigid_body_state, 
-                             control_data, 
-                             tele_debug_data, 
-                             td.RollMotorState.from_dict(self.motors.roll.state),
-                             td.PitchMotorState.from_dict(self.motors.pitch.state),
-                             td.YawMotorState.from_dict(self.motors.yaw.state)
-                             ]
+                data_list = [
+                    imudata,
+                    rigid_body_state,
+                    control_data,
+                    tele_debug_data
+                ]
+                for motor in self.motors: 
+                    if motor is not None: 
+                        data_list.append(td.MotorState.from_dict(motor.state))
                 await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
@@ -292,10 +316,10 @@ class RobotSystem:
         Shutdown the robot system and its components.
         """
         try:
-                for motor in self.motors:
-                    if motor is not None: 
-                        await motor.shutdown() 
-                logger.info("Motors shut down successfully.")
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.shutdown()
+            logger.info("Motors shut down successfully.")
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
 
@@ -353,10 +377,10 @@ class RobotSystem:
                     logger.info(f"No motor to turn on.")
             else:
                 # Code to execute if the power command is False (e.g., turn off the robot)
-                if self.motor_config is not EnabledMotors.NONE: 
+                if self.motor_config is not EnabledMotors.NONE:
                     for motor in self.motors:
-                        if motor is not None: 
-                            await motor.stop() 
+                        if motor is not None:
+                            await motor.stop()
                     # logger.info(f"Motor power disabled to {str(self.xmotor)}.")
                     logger.info("Motor power disabled to all motors.")
                 else:

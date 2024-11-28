@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
 
+
 # Consider how we are representing data
 @dataclass
 class ControlInput:
@@ -16,6 +17,7 @@ class ControlInput:
     motor_speeds_pitch_rads_s: float
     motor_speeds_yaw_rads_s: float
 
+
 class Controller(ABC):
     # This logger will not be directly used, it's here to ensure a logger is created for the base class
     _base_logger = logging.getLogger(__name__)
@@ -25,7 +27,7 @@ class Controller(ABC):
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         # Number of observations and actions
         # self.num_obs = len(ControlInput)
-        self.num_obs = 9 #TODO: Don't hardcode this, similar to above line
+        self.num_obs = 9  # TODO: Don't hardcode this, similar to above line
         self.num_act = 1
 
     @abstractmethod
