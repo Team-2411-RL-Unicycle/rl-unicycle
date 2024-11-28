@@ -96,17 +96,17 @@ class RobotSystem:
             self.motor_config = EnabledMotors.NONE
             self.motors = motors(None, None, None)
         elif motor_config == "roll":
-            self.motors = motors(MN6007(1, "roll"), None, None)
+            self.motors = motors(MN6007(4, "roll"), None, None)
             self.motor_config = EnabledMotors.ROLL
         elif motor_config == "yaw":
             self.motors = motors(None, None, MN2806(5, "yaw"))
             self.motor_config = EnabledMotors.YAW
         elif motor_config == "roll_pitch":
-            self.motors = motors(MN6007(1, "roll"), MN6007(4, "pitch"), None)
+            self.motors = motors(MN6007(4, "roll"), MN6007(6, "pitch"), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
             self.motors = motors(
-                MN6007(1, "roll"), MN6007(4, "pitch"), MN2806(5, "yaw")
+                MN6007(4, "roll"), MN6007(6, "pitch"), MN2806(5, "yaw")
             )
             self.motor_config = EnabledMotors.ALL
         else:  # catch-all

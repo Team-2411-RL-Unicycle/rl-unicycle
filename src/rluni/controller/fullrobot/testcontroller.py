@@ -19,7 +19,7 @@ class TestController(Controller):
                 # TESTING: A simple control decision for testing
         # Match a proportional response to the detected angle
         amplitude = next(self.gen)
-        torques = torques(amplitude*0.05, amplitude*0.05, amplitude*0.005)  # , , yaw
+        torques = torques(amplitude*0.05, amplitude*0.05, amplitude*0.008)  # , , yaw
         return torques
 
     def sine_sequence(self, start_x=0):

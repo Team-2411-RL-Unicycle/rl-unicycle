@@ -1,4 +1,5 @@
 import numpy as np
+from collections import namedtuple
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
@@ -27,6 +28,7 @@ class LQRController(Controller):
         Returns:
             torques (Roll, Pitch, Yaw): Desired torque for the LQR controller in [N*m] positive CW.
         """
+        torques = namedtuple("torques", ["roll", "pitch", "yaw"])
         # Robot states vector
         state_vector = np.array(
             [
@@ -43,8 +45,17 @@ class LQRController(Controller):
         )
 
         # Torque computation
-        torques = np.clip(
-            0.1 * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
+        out = 0.1 * np.dot(self._K, state_vector)
+
+        # torques = np.clip(
+        #     0.1 * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
+        # )
+
+        # needs clipping 
+        torques = torques(
+            out[0], # roll
+            out[1], # pitch
+            out[2]  # yaw
         )
 
         return torques
