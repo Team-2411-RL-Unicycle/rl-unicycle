@@ -60,8 +60,8 @@ Calibration:
   # Rotation Matrix for IMU (3x3 matrix)
   # Maps the IMU's axes to the vehicle's axes
   rotation:
-    - [1, 0, 0]
-    - [0, -1, 0]
+    - [-1, 0, 0]
+    - [0, 1, 0]
     - [0, 0, -1]
 
   # Adjustment angles for pitch and roll, in degrees
