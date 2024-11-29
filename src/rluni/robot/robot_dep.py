@@ -4,8 +4,7 @@ import math
 import time
 from multiprocessing import Queue
 from typing import List, Union, Callable
-
-import numpy as np
+from enum import Enum
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
@@ -18,6 +17,7 @@ from rluni.controller import (
     RLController,
     TestController,
 )
+
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN6007
@@ -31,6 +31,15 @@ REV_TO_RAD = 2 * math.pi
 
 # Create a logger
 logger = logging.getLogger(__name__)
+
+
+class EnabledMotors(Enum):
+    NONE = 0
+    ROLL = 1
+    YAW = 2
+    ROLL_PITCH = 3
+    ALL = 4
+    NUM_CONFIGS = 5
 
 
 class RobotSystem:
@@ -53,6 +62,7 @@ class RobotSystem:
         start_motors=True,
         controller_type: str = "test",
         config_file=None,
+        motor_config=None,
     ):
         self.send_queue = send_queue
         self.receive_queue = receive_queue
@@ -67,7 +77,12 @@ class RobotSystem:
         )
 
         # Initialize motor controller (if enabled)
-        self.xmotor = MN6007() if start_motors else None
+        self.motors = {}
+        self.motors["roll"] = MN6007(1) if start_motors else None
+        self.motors["pitch"] = MN6007(4) if start_motors else None
+        self.motors["yaw"] = MN6007(5) if start_motors else None
+
+        self.motor_config = motor_config
         self.motors_enabled = start_motors
 
         # Initialize controller type based on argument
@@ -78,18 +93,16 @@ class RobotSystem:
 
     def _load_config(self, config_file):
         """
-        Private method to load and parse the robot configuration file.
+        Private method to load and parse the RWIP configuration file.
         """
-        # Load the robot configuration file (use the default if none provided)
+        # Load the RWIP configuration file (use the default if none provided)
         if config_file is None:
-            config_file = "rwip.yaml"
+            config_file = pkg_resources.resource_filename(
+                "rluni.configs.rwip", "default.yaml"
+            )
             logger.warning(
                 f"No RWIP configuration file provided. Using default configuration: {config_file}"
             )
-
-        config_file = pkg_resources.resource_filename(
-            "rluni.configs.robot", config_file
-        )
 
         config = load_config_file(config_file)
 
@@ -135,8 +148,18 @@ class RobotSystem:
         Initializes actuators and starts the control loop.
         """
         # Init actuators
-        if self.xmotor is not None:
-            await self.xmotor.start()
+        if self.motor_config == EnabledMotors.ROLL:
+            await self.motors["roll"].start()
+        elif self.motor_config == EnabledMotors.YAW:
+            await self.motors["yaw"].start()
+        elif self.motor_config == EnabledMotors.ROLL_PITCH:
+            await self.motors["roll"].start()
+            await self.motors["pitch"].start()
+        elif self.motor_config == EnabledMotors.ALL:
+            await self.motors["roll"].start()
+            await self.motors["pitch"].start()
+            await self.motors["yaw"].start()
+
         try:
             await self.control_loop(shutdown_event)
         except asyncio.CancelledError:
@@ -163,27 +186,24 @@ class RobotSystem:
             tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
-
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
-
-            quaternion, internal_states, flags = self.sensor_fusion.update(
-                imudata.get_gyro(),
-                imudata.get_accel(),
-                mag_data=imudata.get_mag(),
-                delta_time=loop_period,
-            )
-            rigid_body_state = td.EulerAngles(
-                *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
+            euler_angles = td.EulerAngles(
+                *self.sensor_fusion.update(
+                    imudata.get_gyro(),
+                    imudata.get_accel(),
+                    mag_data=imudata.get_mag(),
+                    delta_time=loop_period,
+                )[0]
             )
 
             # Update robot state and parameters
-            if self.xmotor is not None:
-                await self.xmotor.update_state()
+            if self.motor_config is not EnabledMotors.NONE:
+                for motor in self.motors.values():
+                    await motor.update_state()
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=rigid_body_state.y
-                * DEG_TO_RAD,  # [radians] positive CCW
+                pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
                 pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
                 wheel_vel=(
                     0
@@ -192,6 +212,8 @@ class RobotSystem:
                 ),  # [radians / s] positive CCW
                 roll_torque=torque_request,  # [N * m] positive CCW
             )
+
+            control_input = ControlInput(euler_angle_roll_rads=euler)
 
             # Change to negative convention due to motor
             torque_request = -self.controller.get_torque(
@@ -216,7 +238,7 @@ class RobotSystem:
                 control_data = td.ControlData(
                     loop_time=loop_period, torque_request=float(torque_request)
                 )
-                data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
+                data_list = [imudata, euler_angles, control_data, tele_debug_data]
                 if self.xmotor is not None:
                     motor_state = td.MotorState.from_dict(self.xmotor.state)
                     data_list.append(motor_state)
@@ -230,37 +252,6 @@ class RobotSystem:
             end_time = loop_start_time + self.LOOP_TIME
             loop_delay = self.precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
-
-    def precise_delay_until(self, end_time):
-        """
-        Sleep until the specified end time, then return the delay time (overshoot)
-        """
-        # Lower accuracy sleep loop
-        while True:
-            now = time.time()
-            remaining = end_time - now
-            if remaining <= 0.0007:
-                break
-            time.sleep(remaining / 2)
-
-        # Busy-while loop to get accurate cutoff at end
-        while True:
-            delay = time.time() - end_time
-            if delay >= 0:
-                return delay
-
-    """ Shutdown Methods """
-
-    async def shutdown(self):
-        """
-        Shutdown the robot system and its components.
-        """
-        try:
-            if self.xmotor is not None:
-                await self.xmotor.shutdown()
-                logger.info("Motors shutdown successfully.")
-        except Exception as e:
-            logger.exception(f"Error during RobotSystem shutdown: {e}")
 
     """ ####################### 
         Command Handling Methods
@@ -309,16 +300,18 @@ class RobotSystem:
         if isinstance(value, bool):
             if value:
                 # Code to execute if the power command is True (e.g., turn on the robot)
-                if self.xmotor is not None:
+                if self.motor_config != EnabledMotors.NONE:
                     self.motors_enabled = True
-                    logger.info(f"Motors power enabled for {str(self.xmotor)}.")
+                    logger.info(f"Motors power enabled for {str(self.motor_config)}.")
                 else:
                     logger.info(f"No motor to turn on.")
             else:
                 # Code to execute if the power command is False (e.g., turn off the robot)
-                if self.xmotor is not None:
-                    await self.xmotor.stop()
-                    logger.info(f"Motor power disabled to {str(self.xmotor)}.")
+                if self.motor_config != EnabledMotors.NONE:
+                    for motor in self.motors.values():
+                        await motor.stop()
+
+                    logger.info(f"Motor power disabled to {str(self.motor_config)}.")
                     self.motors_enabled = False
                 else:
                     self.motors_enabled = False
@@ -365,3 +358,34 @@ class RobotSystem:
             logger.error(
                 f"Expected a string for the controller switch command, but got: {value}"
             )
+
+    def precise_delay_until(self, end_time):
+        """
+        Sleep until the specified end time, then return the delay time (overshoot)
+        """
+        # Lower accuracy sleep loop
+        while True:
+            now = time.time()
+            remaining = end_time - now
+            if remaining <= 0.0007:
+                break
+            time.sleep(remaining / 2)
+
+        # Busy-while loop to get accurate cutoff at end
+        while True:
+            delay = time.time() - end_time
+            if delay >= 0:
+                return delay
+
+    """ Shutdown Methods """
+
+    async def shutdown(self):
+        """
+        Shutdown the robot system and its components.
+        """
+        try:
+            if self.xmotor is not None:
+                await self.xmotor.shutdown()
+                logger.info("Motors shutdown successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")

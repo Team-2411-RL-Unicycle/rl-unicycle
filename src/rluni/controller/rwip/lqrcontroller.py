@@ -1,6 +1,6 @@
 import numpy as np
 
-from rluni.controller.controllerABC import ControlInput, Controller
+from rluni.controller.rwip.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
 
 
