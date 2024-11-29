@@ -1,5 +1,6 @@
-import numpy as np
 from collections import namedtuple
+
+import numpy as np
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
@@ -12,10 +13,10 @@ class LQRController(Controller):
         self._K = np.array(
             [
                 [-21.8516, 0.0, 0.0, -3.2252, 0.0, 0.0, 0.0122, 0.0, 0.0],  # roll
-                [0.0, -20.9947, 0.0, 0.0, -4.5424, 0.0, 0.0, 0.0122, 0.0],  # pitch
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, -10.6087, 0.0, 0.0, -2.5891, 0.0, 0.0, 0.0039, 0.0],  # pitch
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
-        )  # yaw
+        )
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
@@ -39,7 +40,8 @@ class LQRController(Controller):
                 robot_state.euler_rate_pitch_rads_s,
                 robot_state.euler_rate_yaw_rads_s,
                 robot_state.motor_speeds_roll_rads_s,
-                robot_state.motor_speeds_pitch_rads_s + robot_state.euler_rate_pitch_rads_s,
+                robot_state.motor_speeds_pitch_rads_s
+                + robot_state.euler_rate_pitch_rads_s,  # accounting for robot rotation
                 robot_state.motor_speeds_yaw_rads_s,
             ]
         )
@@ -51,14 +53,14 @@ class LQRController(Controller):
         #     0.1 * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
         # )
 
-        # needs clipping 
+        # needs clipping
         torques = torques(
-            np.clip(out[0], a_min=-1.0, a_max=1.0), # roll
-            np.clip(out[1], a_min=-1.0, a_max=1.0), # pitch
-            # temporarily clip to 0.1 
+            np.clip(out[0], a_min=-1.0, a_max=1.0),  # roll
+            np.clip(out[1], a_min=-1.0, a_max=1.0),  # pitch
+            # temporarily clip to 0.1
             # np.clip(out[0], a_min=-0.47, a_max=0.47),  # roll
             # np.clip(out[1], a_min=-0.47, a_max=0.47),  # pitch
-            np.clip(out[2], a_min=-0.17, a_max=0.17)  # yaw
+            np.clip(out[2], a_min=-0.17, a_max=0.17),  # yaw
         )
 
         return torques
