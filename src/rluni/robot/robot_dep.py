@@ -2,22 +2,15 @@ import asyncio
 import logging
 import math
 import time
-from multiprocessing import Queue
-from typing import List, Union, Callable
 from enum import Enum
+from multiprocessing import Queue
+from typing import Callable, List, Union
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
-
+from rluni.controller import (ControlInput, Controller, LQRController,
+                              PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN6007

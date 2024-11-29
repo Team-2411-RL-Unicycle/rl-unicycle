@@ -1,8 +1,10 @@
-import numpy as np
 import math
+from collections import namedtuple
+
+import numpy as np
+
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
-from collections import namedtuple
 
 
 class TestController(Controller):
@@ -16,10 +18,12 @@ class TestController(Controller):
     def get_torques(self, robot_state: ControlInput, max_torque) -> float:
         """A generic test mode for the RWIP"""
         torques = namedtuple("torques", ["roll", "pitch", "yaw"])
-                # TESTING: A simple control decision for testing
+        # TESTING: A simple control decision for testing
         # Match a proportional response to the detected angle
         amplitude = next(self.gen)
-        torques = torques(amplitude*0.05, amplitude*0.05, amplitude*0.008)  # , , yaw
+        torques = torques(
+            amplitude * 0.05, amplitude * 0.05, amplitude * 0.008
+        )  # , , yaw
         return torques
 
     def sine_sequence(self, start_x=0):

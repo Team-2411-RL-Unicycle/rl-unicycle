@@ -1,8 +1,9 @@
-import time
-import logging
-from rluni.icm20948.imu_lib import ICM20948
-from rluni.fusion.AHRSfusion import AHRSfusion
 import importlib.resources as pkg_resources
+import logging
+import time
+
+from rluni.fusion.AHRSfusion import AHRSfusion
+from rluni.icm20948.imu_lib import ICM20948
 
 # Configure logging to display debug messages
 logging.basicConfig(level=logging.DEBUG)

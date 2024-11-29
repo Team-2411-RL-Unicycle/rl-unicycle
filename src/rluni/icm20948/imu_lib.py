@@ -1,11 +1,10 @@
+import importlib.resources as pkg_resources
 import logging
 import struct
 import time
+
 import numpy as np
-
 import smbus2
-
-import importlib.resources as pkg_resources
 
 try:
     from . import icm20948_registers

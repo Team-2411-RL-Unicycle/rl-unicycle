@@ -1,12 +1,13 @@
+import importlib.resources as pkg_resources
 import sys
 import time
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+from scipy import linalg
 
 from rluni.icm20948.imu_lib import ICM20948
-import importlib.resources as pkg_resources
-from scipy import linalg
 
 READ_DELAY = 0.02
 PLOT_FREQUENCY = 500

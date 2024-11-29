@@ -1,6 +1,7 @@
+from collections import namedtuple
+
 import numpy as np
 import onnxruntime as ort
-from collections import namedtuple
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first

@@ -3,10 +3,10 @@ import logging
 import imufusion
 import numpy as np
 import yaml
+from transforms3d import euler, quaternions
 
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
-from transforms3d import euler, quaternions
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
