@@ -139,7 +139,8 @@ class RobotSystem:
         # Validate and set configuration values for control parameters
         self.LOOP_TIME = gvcv(config, "RobotSystem.loop_time", float, required=True)
         self.WRITE_DUTY = gvcv(config, "RobotSystem.write_duty", float, required=True)
-        self.MAX_TORQUE = gvcv(config, "RobotSystem.max_torque", float, required=True)
+        self.MAX_TORQUE_ROLL_PITCH = gvcv(config, "RobotSystem.max_torque_roll_pitch", float, required=True)
+        self.MAX_TORQUE_YAW = gvcv(config, "RobotSystem.max_torque_yaw", float, required=True)
         self.sensor_calibration_delay = gvcv(
             config, "RobotSystem.calibration_delay", float, required=True
         )
@@ -246,7 +247,7 @@ class RobotSystem:
             )
 
             torques = self.controller.get_torques(
-                control_input, self.MAX_TORQUE - 0.001
+                control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
 
             ## DELAY UNTIL FIXED POINT ##
@@ -260,11 +261,11 @@ class RobotSystem:
 
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 if self.motors.roll is not None:
-                    await self.motors.roll.set_torque(torques.roll)
+                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
                 if self.motors.pitch is not None:
-                    await self.motors.pitch.set_torque(torques.pitch)
+                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
                 if self.motors.yaw is not None:
-                    await self.motors.yaw.set_torque(torques.yaw)
+                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
