@@ -120,6 +120,7 @@ class AHRSfusion:
         accel_data = np.array(self.rotate_frame_imu_to_robot(*accel_data))
         gyro_data = np.array(self.rotate_frame_imu_to_robot(*gyro_data))
 
+
         if mag_data is None or mag_data[0] is None:
             mag_data = np.array([0, 0, 0])
         else:

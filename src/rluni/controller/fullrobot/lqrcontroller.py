@@ -46,8 +46,10 @@ class LQRController(Controller):
             ]
         )
 
+
         # Torque computation
-        out = 0.1 * np.dot(self._K, state_vector)
+        # out = 0.1 * np.dot(self._K, state_vector)
+        out = 0.1 * self._K @ state_vector
 
         # torques = np.clip(
         #     0.1 * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
