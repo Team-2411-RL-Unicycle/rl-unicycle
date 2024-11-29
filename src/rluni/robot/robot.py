@@ -87,7 +87,7 @@ class RobotSystem:
 
     def _initialize_motors(self, motor_config):
         # set self.motor_config using arg string
-        if motor_config == "none":
+        if motor_config == "none" or None:
             self.motor_config = EnabledMotors.NONE
             self.motors = motors(None, None, None)
         elif motor_config == "roll":
@@ -108,7 +108,7 @@ class RobotSystem:
             )
             self.motor_config = EnabledMotors.ALL
         else:  # catch-all
-            self.motors = self.motors(None, None, None)
+            self.motors = motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
 
     def _load_config(self, config_file):
@@ -117,9 +117,9 @@ class RobotSystem:
         """
         # Load the robot configuration file (use the default if none provided)
         if config_file is None:
-            config_file = "rwip.yaml"
+            config_file = "unicycle.yaml"
             logger.warning(
-                f"No RWIP configuration file provided. Using default configuration: {config_file}"
+                f"No configuration file provided. Using default configuration: {config_file}"
             )
 
         config_file = pkg_resources.resource_filename(
