@@ -24,7 +24,7 @@ class AHRSfusion:
         self._gyro_range = None
         self.transformation_matrix = np.identity(3)
 
-        self.euler_angles = (0, 0, 0)
+        self.euler_angles = (0, 0, 0) # x, y, z
         self.euler_rates = (0, 0, 0)
 
         # Load the configuration file
@@ -99,10 +99,10 @@ class AHRSfusion:
 
     def update_state_from_quaternion(self, gyro_data):
         """Compute and retururn ZYX Euler angles and rotation matrix A q_dot = gyro"""
-        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="szxy")
+        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="rzxy")
         self.euler_angles = np.rad2deg(angles)
 
-        z, x, y = angles
+        z, x, y = angles        
         mat = np.array(
             [
                 [np.cos(y), 0, np.sin(y)],
