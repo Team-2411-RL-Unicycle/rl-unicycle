@@ -108,6 +108,7 @@ class RobotSystem:
             )
             self.motor_config = EnabledMotors.ALL
         else:  # catch-all
+            logger.warning("No valid motor configuration provided. Disabling motors.")
             self.motors = motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
 
@@ -231,12 +232,12 @@ class RobotSystem:
                 motor_speeds_roll_rads_s=(
                     0.0
                     if self.motors.roll is None
-                    else self.motors.roll.state["VELOCITY"] * REV_TO_RAD
+                    else -self.motors.roll.state["VELOCITY"] * REV_TO_RAD
                 ),
                 motor_speeds_yaw_rads_s=(
                     0.0
                     if self.motors.yaw is None
-                    else self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
+                    else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
             )
 
