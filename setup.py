@@ -21,8 +21,7 @@ setup(
         "smbus2",
         "simple_pid",
         "onnxruntime",
-        "PYyaml"
-        "transforms3d"
+        "PYyaml" "transforms3d",
         # Add other dependencies as needed
     ],
     python_requires=">=3.8",

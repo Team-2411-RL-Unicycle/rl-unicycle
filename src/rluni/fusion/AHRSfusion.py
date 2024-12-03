@@ -3,10 +3,10 @@ import logging
 import imufusion
 import numpy as np
 import yaml
+from transforms3d import euler, quaternions
 
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
-from transforms3d import euler, quaternions
 
 # Create a logger for your module
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class AHRSfusion:
         self._gyro_range = None
         self.transformation_matrix = np.identity(3)
 
-        self.euler_angles = (0, 0, 0)
+        self.euler_angles = (0, 0, 0) # x, y, z
         self.euler_rates = (0, 0, 0)
 
         # Load the configuration file
@@ -99,10 +99,10 @@ class AHRSfusion:
 
     def update_state_from_quaternion(self, gyro_data):
         """Compute and retururn ZYX Euler angles and rotation matrix A q_dot = gyro"""
-        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="szxy")
+        angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="rzxy")
         self.euler_angles = np.rad2deg(angles)
 
-        z, x, y = angles
+        z, x, y = angles        
         mat = np.array(
             [
                 [np.cos(y), 0, np.sin(y)],
@@ -110,13 +110,16 @@ class AHRSfusion:
                 [-np.sin(y) / np.cos(x), 0, np.cos(y) / np.cos(x)],
             ]
         )
-        self.euler_rates = mat @ gyro_data
+        self.euler_rates = mat @ (
+            gyro_data * np.pi / 180
+        )  # convert from deg/s to rad/s
 
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
 
         # Convert to numpy arrays and rotate to robot frame
         accel_data = np.array(self.rotate_frame_imu_to_robot(*accel_data))
         gyro_data = np.array(self.rotate_frame_imu_to_robot(*gyro_data))
+
 
         if mag_data is None or mag_data[0] is None:
             mag_data = np.array([0, 0, 0])

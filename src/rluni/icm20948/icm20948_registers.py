@@ -132,7 +132,7 @@ class ICM20948Registers:
     I2C_SLV4_DO = 0x16
     I2C_SLV4_DI = 0x17
     REG_BANK_SEL = 0x7F  # This register is repeated across banks for bank selection.
-    
+
     # Magnetometer Registers for Chip
 
     # Magnetometer I2C address
