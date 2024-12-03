@@ -33,7 +33,7 @@ class TelemetryData(ABC):
 class IMUData(TelemetryData):
     """
     Data returned from the IMU sensor
-    
+
     Units
     -----
     accel_x, accel_y, accel_z: G's
@@ -72,7 +72,7 @@ class IMUData(TelemetryData):
 class EulerAngles(TelemetryData):
     """
     Data related to AHRS system Euler angles. Order listed is reversed order of rotation
-    
+
     Units
     -----
     y: degrees
@@ -83,10 +83,11 @@ class EulerAngles(TelemetryData):
     x_dot: radians
     z_dot: radians
     """
+
     z: float
     x: float
     y: float  # Degrees
-    
+
     x_dot: float
     y_dot: float
     z_dot: float
@@ -105,7 +106,7 @@ class EulerAngles(TelemetryData):
 @dataclass(frozen=True)
 class MotorState(TelemetryData):
     """Data synchronized with the motor class
-    
+
     Units
     -----
     position: revs
@@ -138,14 +139,32 @@ class MotorState(TelemetryData):
         return MotorState(**data)
 
 
+class RollMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_roll"
+
+
+class PitchMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_pitch"
+
+
+class YawMotorState(MotorState):
+    @property
+    def topic(self) -> str:
+        return "robot/motor_yaw"
+
+
 @dataclass(frozen=True)
 class ControlData(TelemetryData):
     """Data related to control actions and performance.
-    
+
     Units
     -----
     loop_time: seconds
-    torque_request: Nm 
+    torque_request: Nm
     """
 
     loop_time: float
@@ -155,7 +174,7 @@ class ControlData(TelemetryData):
 
     @property
     def topic(self) -> str:
-        return "robot/control"
+        return "robot/control/output"
 
 
 @dataclass

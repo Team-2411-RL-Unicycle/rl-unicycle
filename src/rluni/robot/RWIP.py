@@ -3,24 +3,17 @@ import logging
 import math
 import time
 from multiprocessing import Queue
-from typing import List, Union, Callable
+from typing import Callable, List, Union
 
 import numpy as np
-
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
+from rluni.controller import (ControlInput, Controller, LQRController,
+                              PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
-from rluni.motors.MN6007 import MN6007
+from rluni.motors.motors import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
@@ -172,15 +165,18 @@ class RobotSystem:
                 mag_data=imudata.get_mag(),
                 delta_time=loop_period,
             )
-            rigid_body_state = td.EulerAngles(*self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates)
-            
+            rigid_body_state = td.EulerAngles(
+                *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
+            )
+
             # Update robot state and parameters
             if self.xmotor is not None:
                 await self.xmotor.update_state()
 
             # Control logic
             control_input = ControlInput(
-                pendulum_angle=rigid_body_state.y * DEG_TO_RAD,  # [radians] positive CCW
+                pendulum_angle=rigid_body_state.y
+                * DEG_TO_RAD,  # [radians] positive CCW
                 pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
                 wheel_vel=(
                     0

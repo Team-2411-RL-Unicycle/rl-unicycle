@@ -2,26 +2,21 @@ import asyncio
 import logging
 import math
 import time
-from multiprocessing import Queue
-from typing import List, Union, Callable
+from collections import namedtuple
 from enum import Enum
+from multiprocessing import Queue
+from typing import Callable, List, Union
 
 import numpy as np
-
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-from rluni.controller.fullrobot import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
+from rluni.controller.fullrobot import (ControlInput, Controller,
+                                        LQRController, PIDController,
+                                        RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
-from rluni.motors.MN6007 import MN6007
+from rluni.motors.motors import MN2806, MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
@@ -33,13 +28,20 @@ REV_TO_RAD = 2 * math.pi
 # Create a logger
 logger = logging.getLogger(__name__)
 
+
 class EnabledMotors(Enum):
     NONE = 0
     ROLL = 1
     YAW = 2
-    ROLL_PITCH = 3
-    ALL = 4
-    NUM_CONFIGS = 5
+    PITCH = 3
+    ROLL_PITCH = 4
+    ALL = 5
+    NUM_CONFIGS = 6
+
+
+motors = namedtuple("motors", ["roll", "pitch", "yaw"])
+torques = namedtuple("torques", ["roll", "pitch", "yaw"])
+
 
 class RobotSystem:
     """
@@ -75,27 +77,7 @@ class RobotSystem:
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
         )
 
-        # # Initialize motor controller (if enabled)
-        # self.xmotor = MN6007() if start_motors else None
-        self.motors_enabled = start_motors
-
-        # TODO: Make data class
-        self.motors = {}
-        self.motors["roll"] = MN6007(1) if start_motors else None
-        self.motors["pitch"] = MN6007(4) if start_motors else None
-        self.motors["yaw"] = MN6007(5) if start_motors else None
-
-        # set self.motor_config using arg string
-        if motor_config == "none":
-            self.motor_config = EnabledMotors.NONE
-        if motor_config == "roll":
-            self.motor_config = EnabledMotors.ROLL
-        if motor_config == "yaw":
-            self.motor_config = EnabledMotors.YAW
-        if motor_config == "roll_pitch":
-            self.motor_config = EnabledMotors.ROLL_PITCH
-        if motor_config == "all":
-            self.motor_config = EnabledMotors.ALL
+        self._initialize_motors(motor_config)
 
         # Initialize controller type based on argument
         self.controller_type = controller_type
@@ -103,15 +85,42 @@ class RobotSystem:
 
         self.itr = int(0)  # Cycle counter
 
+    def _initialize_motors(self, motor_config):
+        # set self.motor_config using arg string
+        if motor_config == "none" or None:
+            self.motor_config = EnabledMotors.NONE
+            self.motors = motors(None, None, None)
+        elif motor_config == "roll":
+            self.motors = motors(MN6007(4, "roll"), None, None)
+            self.motor_config = EnabledMotors.ROLL
+        elif motor_config == "yaw":
+            self.motors = motors(None, None, MN2806(5, "yaw"))
+            self.motor_config = EnabledMotors.YAW
+        elif motor_config == "pitch":
+            self.motors = motors(None, MN6007(6, "pitch"), None)
+            self.motor_config = EnabledMotors.PITCH
+        elif motor_config == "roll_pitch":
+            self.motors = motors(MN6007(4, "roll"), MN6007(6, "pitch"), None)
+            self.motor_config = EnabledMotors.ROLL_PITCH
+        elif motor_config == "all":
+            self.motors = motors(
+                MN6007(4, "roll"), MN6007(6, "pitch"), MN2806(5, "yaw")
+            )
+            self.motor_config = EnabledMotors.ALL
+        else:  # catch-all
+            logger.warning("No valid motor configuration provided. Disabling motors.")
+            self.motors = motors(None, None, None)
+            self.motor_config = EnabledMotors.NONE
+
     def _load_config(self, config_file):
         """
         Private method to load and parse the robot configuration file.
         """
         # Load the robot configuration file (use the default if none provided)
         if config_file is None:
-            config_file = "rwip.yaml"
+            config_file = "unicycle.yaml"
             logger.warning(
-                f"No RWIP configuration file provided. Using default configuration: {config_file}"
+                f"No configuration file provided. Using default configuration: {config_file}"
             )
 
         config_file = pkg_resources.resource_filename(
@@ -120,13 +129,13 @@ class RobotSystem:
 
         config = load_config_file(config_file)
 
-        # load the motor config 
-
+        # load the motor config
 
         # Validate and set configuration values for control parameters
         self.LOOP_TIME = gvcv(config, "RobotSystem.loop_time", float, required=True)
         self.WRITE_DUTY = gvcv(config, "RobotSystem.write_duty", float, required=True)
-        self.MAX_TORQUE = gvcv(config, "RobotSystem.max_torque", float, required=True)
+        self.MAX_TORQUE_ROLL_PITCH = gvcv(config, "RobotSystem.max_torque_roll_pitch", float, required=True)
+        self.MAX_TORQUE_YAW = gvcv(config, "RobotSystem.max_torque_yaw", float, required=True)
         self.sensor_calibration_delay = gvcv(
             config, "RobotSystem.calibration_delay", float, required=True
         )
@@ -162,22 +171,8 @@ class RobotSystem:
 
     async def start(self, shutdown_event):
         """
-        Initializes actuators and starts the control loop.
+        Starts the control loop.
         """
-        # Init actuators
-        # Init actuators
-        if self.motor_config == EnabledMotors.ROLL:
-            await self.motors["roll"].start()
-        elif self.motor_config == EnabledMotors.YAW:
-            await self.motors["yaw"].start()
-        elif self.motor_config == EnabledMotors.ROLL_PITCH:
-            await self.motors["roll"].start()
-            await self.motors["pitch"].start()
-        elif self.motor_config == EnabledMotors.ALL:
-            await self.motors["roll"].start()
-            await self.motors["pitch"].start()
-            await self.motors["yaw"].start()
-        
         try:
             await self.control_loop(shutdown_event)
         except asyncio.CancelledError:
@@ -204,7 +199,6 @@ class RobotSystem:
             tele_debug_data.add_data(example_debug_data=42)
 
             # Sensor reading and fusion
-
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
 
             quaternion, internal_states, flags = self.sensor_fusion.update(
@@ -213,49 +207,42 @@ class RobotSystem:
                 mag_data=imudata.get_mag(),
                 delta_time=loop_period,
             )
-            rigid_body_state = td.EulerAngles(*self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates)
-            
-            # Update robot state and parameters
-            # if self.xmotor is not None:
-            #     await self.xmotor.update_state()
-
-            for motor in self.motors.values():
-                if motor is not None: 
-                    await motor.update_state()
-                else: 
-                    motor.state = None
-
-            # Control logic
-            # control_input = ControlInput(
-            #     pendulum_angle=rigid_body_state.y * DEG_TO_RAD,  # [radians] positive CCW
-            #     pendulum_vel=imudata.gyro_z * DEG_TO_RAD,  # [radians / s] positive CCW
-            #     wheel_vel=(
-            #         0
-            #         if self.xmotor is None
-            #         else -self.xmotor.state["VELOCITY"] * REV_TO_RAD
-            #     ),  # [radians / s] positive CCW
-            #     roll_torque=torque_request,  # [N * m] positive CCW
-            # )
-
-            control_input = ControlInput(
-                euler_angles_x_rads=rigid_body_state.x * DEG_TO_RAD,
-                euler_angles_y_rads=rigid_body_state.y * DEG_TO_RAD,
-                euler_angles_z_rads=rigid_body_state.z * DEG_TO_RAD,
-                euler_rates_x_rads_s=rigid_body_state.x_dot,
-                euler_rates_y_rads_s=rigid_body_state.y_dot,
-                euler_rates_z_rads_s=rigid_body_state.z_dot,
-                motor_speeds_pitch_rads_s=self.motors["pitch"].state["VELOCITY"]*REV_TO_RAD,
-                motor_speeds_roll_rads_s=self.motors["roll"].state["VELOCITY"]*REV_TO_RAD,
-                motor_speeds_yaw_rads_s=self.motors["yaw"].state["VELOCITY"]*REV_TO_RAD,
-
+            rigid_body_state = td.EulerAngles(
+                *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
             )
 
-            # Change to negative convention due to motor
-            # torque_request = -self.controller.get_torque(
-            #     control_input, self.MAX_TORQUE - 0.001
-            # )
+            # TODO: Try to get all 3 motor states in one call
+            # Update robot state and parameters
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.update_state()
+
+            control_input = ControlInput(
+                euler_angle_roll_rads=rigid_body_state.x * DEG_TO_RAD,
+                euler_angle_pitch_rads=rigid_body_state.y * DEG_TO_RAD,
+                euler_angle_yaw_rads=rigid_body_state.z * DEG_TO_RAD,
+                euler_rate_roll_rads_s=rigid_body_state.x_dot,
+                euler_rate_pitch_rads_s=rigid_body_state.y_dot,
+                euler_rate_yaw_rads_s=rigid_body_state.z_dot,
+                motor_speeds_pitch_rads_s=(
+                    0.0
+                    if self.motors.pitch is None
+                    else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
+                ),
+                motor_speeds_roll_rads_s=(
+                    0.0
+                    if self.motors.roll is None
+                    else -self.motors.roll.state["VELOCITY"] * REV_TO_RAD
+                ),
+                motor_speeds_yaw_rads_s=(
+                    0.0
+                    if self.motors.yaw is None
+                    else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
+                ),
+            )
+
             torques = self.controller.get_torques(
-                control_input, self.MAX_TORQUE - 0.001
+                control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
 
             ## DELAY UNTIL FIXED POINT ##
@@ -263,31 +250,31 @@ class RobotSystem:
 
             # Apply control decision to robot actuators
             # SET TORQUE
+            # Only set the torque if not in sensor fusion calibration mode
+            #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-            if self.motor_config is not EnabledMotors.NONE:
-                # Only set the torque if not in sensor fusion calibration mode
-                # await self.xmotor.set_torque(
-                #     torque=torque_request, max_torque=self.MAX_TORQUE
-                # )
-                for i, motor in enumerate(self.motors.values()):
-                    if motor is not None: 
-                        await motor.set_torque(torques[i])
+
+            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+                if self.motors.roll is not None:
+                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.pitch is not None:
+                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.yaw is not None:
+                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
                 control_data = td.ControlData(
-                    loop_time=loop_period, torque_roll=float(torques[0]),
-                    torque_pitch=float(torques[1]), torque_yaw=float(torques[2])
+                    loop_time=loop_period,
+                    torque_roll=float(torques.roll),
+                    torque_pitch=float(torques.pitch),
+                    torque_yaw=float(torques.yaw),
                 )
                 data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
-                # if self.xmotor is not None:
-                #     motor_state = td.MotorState.from_dict(self.xmotor.state)
-                #     data_list.append(motor_state)
-                for i, motor in enumerate(self.motors.values()):
-                    if motor is not None: 
-                        motor_state = td.MotorState.from_dict(motor.state)
-                        data_list.append(motor_state)
+                for motor in self.motors:
+                    if motor is not None:
+                        data_list.append(td.MotorState.from_dict(motor.state))
                 await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
@@ -324,14 +311,10 @@ class RobotSystem:
         Shutdown the robot system and its components.
         """
         try:
-            # if self.xmotor is not None:
-            #     await self.xmotor.shutdown()
-            #     logger.info("Motors shutdown successfully.")
-            if self.motor_config is not EnabledMotors.NONE:
-                for i, motor in enumerate(self.motors.values()):
-                    if motor is not None: 
-                        await motor.shutdown() 
-                logger.info("Motors shut down successfully.")
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.shutdown()
+            logger.info("Motors shut down successfully.")
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
 
@@ -382,31 +365,20 @@ class RobotSystem:
         # Ensure the value is a boolean
         if isinstance(value, bool):
             if value:
-                # Code to execute if the power command is True (e.g., turn on the robot)
-                # if self.xmotor is not None:
-                #     self.motors_enabled = True
-                #     logger.info(f"Motors power enabled for {str(self.xmotor)}.")
                 if self.motor_config is not EnabledMotors.NONE:
-                    self.motors_enabled = True 
                     # logger.info(f"Motors power enabled for {str(self.xmotor)}.")
                     logger.info("Motors power enabled for all motors.")
                 else:
                     logger.info(f"No motor to turn on.")
             else:
                 # Code to execute if the power command is False (e.g., turn off the robot)
-                # if self.xmotor is not None:
-                #     await self.xmotor.stop()
-                #     logger.info(f"Motor power disabled to {str(self.xmotor)}.")
-                #     self.motors_enabled = False
-                if self.motor_config is not EnabledMotors.NONE: 
-                    for i, motor in enumerate(self.motors.values()): 
-                        if motor is not None: 
-                            await motor.stop() 
+                if self.motor_config is not EnabledMotors.NONE:
+                    for motor in self.motors:
+                        if motor is not None:
+                            await motor.stop()
                     # logger.info(f"Motor power disabled to {str(self.xmotor)}.")
                     logger.info("Motor power disabled to all motors.")
-                    self.motors_enabled = False
                 else:
-                    self.motors_enabled = False
                     logger.info("No motor to turn off.")
         else:
             # Log an error or handle the case where the value is not a boolean

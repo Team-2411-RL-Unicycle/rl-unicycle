@@ -2,25 +2,18 @@ import asyncio
 import logging
 import math
 import time
-from multiprocessing import Queue
-from typing import List, Union, Callable
 from enum import Enum
+from multiprocessing import Queue
+from typing import Callable, List, Union
 
 # For importing data files from the source, independent of the installation method
 import pkg_resources
 
-from rluni.controller import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    TestController,
-)
-
+from rluni.controller import (ControlInput, Controller, LQRController,
+                              PIDController, RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
-from rluni.motors.MN6007 import MN6007
+from rluni.motors.motors import MN6007
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
@@ -32,6 +25,7 @@ REV_TO_RAD = 2 * math.pi
 # Create a logger
 logger = logging.getLogger(__name__)
 
+
 class EnabledMotors(Enum):
     NONE = 0
     ROLL = 1
@@ -39,6 +33,7 @@ class EnabledMotors(Enum):
     ROLL_PITCH = 3
     ALL = 4
     NUM_CONFIGS = 5
+
 
 class RobotSystem:
     """
@@ -199,7 +194,6 @@ class RobotSystem:
                 for motor in self.motors.values():
                     await motor.update_state()
 
-
             # Control logic
             control_input = ControlInput(
                 pendulum_angle=euler_angles.y * DEG_TO_RAD,  # [radians] positive CCW
@@ -212,10 +206,7 @@ class RobotSystem:
                 roll_torque=torque_request,  # [N * m] positive CCW
             )
 
-            control_input = ControlInput(
-                euler_angles_x_rads = euler
-            )
-
+            control_input = ControlInput(euler_angle_roll_rads=euler)
 
             # Change to negative convention due to motor
             torque_request = -self.controller.get_torque(

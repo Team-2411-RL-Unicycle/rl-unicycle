@@ -123,10 +123,7 @@ def parse_args() -> argparse.Namespace:
         help="Specify an alternative robot configuration YAML file.",
     )
     parser.add_argument(
-        "-mcfg",
-        "--motor-config",
-        type=str,
-        help="Specify which motors should be on."
+        "-mcfg", "--motor-config", type=str, help="Specify which motors should be on."
     )
     return parser.parse_args()
 
@@ -161,7 +158,7 @@ async def main():
         start_motors=not args.no_motors,
         controller_type=args.controller,
         config_file=args.config_file,
-        motor_config=args.motor_config
+        motor_config=args.motor_config,
     )
 
     try:

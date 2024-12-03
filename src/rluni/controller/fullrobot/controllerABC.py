@@ -3,37 +3,19 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from dataclasses import dataclass
 
-@dataclass 
-class EulerAngles:
-    x: float
-    y: float
-    z: float
-
-@dataclass 
-class EulerRates:
-    x: float
-    y: float
-    z: float
-
-@dataclass
-class MotorSpeedsRPM:
-    pitch: float
-    roll: float 
-    yaw: float
 
 # Consider how we are representing data
 @dataclass
 class ControlInput:
-    euler_angles_x_rads: float
-    euler_angles_y_rads: float
-    euler_angles_z_rads: float
-    euler_rates_x_rads_s: float
-    euler_rates_y_rads_s: float
-    euler_rates_z_rads_s: float
+    euler_angle_roll_rads: float
+    euler_angle_pitch_rads: float
+    euler_angle_yaw_rads: float
+    euler_rate_roll_rads_s: float
+    euler_rate_pitch_rads_s: float
+    euler_rate_yaw_rads_s: float
     motor_speeds_roll_rads_s: float
     motor_speeds_pitch_rads_s: float
     motor_speeds_yaw_rads_s: float
-
 
 
 class Controller(ABC):
@@ -45,7 +27,7 @@ class Controller(ABC):
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         # Number of observations and actions
         # self.num_obs = len(ControlInput)
-        self.num_obs = 9 #TODO: Don't hardcode this, similar to above line
+        self.num_obs = 9  # TODO: Don't hardcode this, similar to above line
         self.num_act = 1
 
     @abstractmethod

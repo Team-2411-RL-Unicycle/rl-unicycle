@@ -12,13 +12,11 @@ from moteus.moteus import Register
 logger = logging.getLogger(__name__)
 
 
-class MN6007:
-    MAX_ALLOWABLE_ACCEL = 200.0
-    MAX_ALLOWABLE_VEL = 20.0
-    MAX_ALLOWABLE_TORQUE = 1.4
+class Motor:
+    # Don't allow torque commands on generic motor
     TIMEOUT_SECONDS = 0.1  # Seconds
 
-    def __init__(self, target):
+    def __init__(self, target, name):
 
         qr = moteus.QueryResolution()
         qr.q_current = moteus.INT32
@@ -31,10 +29,12 @@ class MN6007:
         self.state = None
         self.isfaulted = False
         self.fault_codes = self.load_fault_codes()
+        self.name = name
+        self.torque_permitted = False
 
     def __str__(self):
         # Construct a readable description
-        description = f"MN6007 Motor | Max Accel: {self.MAX_ALLOWABLE_ACCEL} m/s² | Max Vel: {self.MAX_ALLOWABLE_VEL} rps | Max Torque: {self.MAX_ALLOWABLE_TORQUE} Nm"
+        description = f"{self.name} Motor | Max Accel: {self.MAX_ALLOWABLE_ACCEL} m/s² | Max Vel: {self.MAX_ALLOWABLE_VEL} rps | Max Torque: {self.MAX_ALLOWABLE_TORQUE} Nm"
         return description
 
     def load_fault_codes(self):
@@ -159,6 +159,11 @@ class MN6007:
         Raises:
             asyncio.TimeoutError: If the operation times out.
         """
+        # fail if we are a generic motor
+        if not self.torque_permitted:
+            logger.critical("Torque commands are not permitted on this motor")
+            raise ValueError("Torque commands are not permitted on this motor")
+
         if abs(torque) > self.MAX_ALLOWABLE_TORQUE:
             error_msg = f"Torque set outside maximum allowable motor torque. Attempted to set to {torque:.2f}N*m. Bounds are +/- {self.MAX_ALLOWABLE_TORQUE}"
             logger.error(error_msg)
@@ -222,6 +227,34 @@ class MN6007:
             await self.stop()
         except Exception as e:
             logger.exception(f"Error stopping the motor: {e}")
+
+
+class MN6007(Motor):
+    """
+    MN6007 Motor class
+    """
+
+    MAX_ALLOWABLE_ACCEL = 200.0
+    MAX_ALLOWABLE_VEL = 20.0
+    MAX_ALLOWABLE_TORQUE = 1.4
+
+    def __init__(self, target, name):
+        super().__init__(target, name)
+        self.torque_permitted = True
+
+
+class MN2806(Motor):
+    """
+    MN2806 Motor class
+    """
+
+    MAX_ALLOWABLE_ACCEL = 200.0
+    MAX_ALLOWABLE_VEL = 20.0
+    MAX_ALLOWABLE_TORQUE = 0.17
+
+    def __init__(self, target, name):
+        super().__init__(target, name)
+        self.torque_permitted = True
 
 
 ##################################################################
