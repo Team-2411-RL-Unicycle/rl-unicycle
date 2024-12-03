@@ -46,14 +46,35 @@ class LQRController(Controller):
             ]
         )
 
-
+        scale = 0.1
         # Torque computation
-        # out = 0.1 * np.dot(self._K, state_vector)
-        out = 0.1 * self._K @ state_vector
+        # out = scale * np.dot(self._K, state_vector)
+        out = scale * self._K @ state_vector
 
         # torques = np.clip(
-        #     0.1 * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
+        #     scale * np.dot(self._K, state_vector), a_max=max_torque, a_min=-max_torque
         # )
+
+        # DEBUG
+        print(f"Roll:")
+        print(f"% Roll angle: {scale*state_vector[0]*self._K[0][0]/out[0]}")
+        print(f"% Roll angular vel: {scale*state_vector[3]*self._K[0][3]/out[0]}")
+        print(f"% Roll wheel spd: {scale*state_vector[6]*self._K[0][6]/out[0]}")
+        print()
+        print(f"Pitch:")
+        print(f"% Pitch angle: {scale*state_vector[1]*self._K[1][1]/out[1]}")
+        print(f"% Pitch angular vel: {scale*state_vector[4]*self._K[1][4]/out[1]}")
+        print(f"% Pitch wheel spd: {scale*state_vector[7]*self._K[1][7]/out[1]}")
+
+
+        # for i, component in enumerate(["roll", "pitch", "yaw"]):
+        #     row_contribution = self._K[i] * state_vector  # Element-wise contribution
+        #     print(f"{component.capitalize()} torque breakdown:")
+        #     for j, value in enumerate(row_contribution):
+        #         print(f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}")
+        #     print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
+        #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
+
 
         # needs clipping
         torques = torques(
