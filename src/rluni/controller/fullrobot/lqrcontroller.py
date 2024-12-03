@@ -12,8 +12,8 @@ class LQRController(Controller):
     def __init__(self) -> None:
         self._K = np.array(
             [
-                [-21.8516, 0.0, 0.0, -3.2252, 0.0, 0.0, 0.0122, 0.0, 0.0],  # roll
-                [0.0, -10.6087, 0.0, 0.0, -2.5891, 0.0, 0.0, 0.0039, 0.0],  # pitch
+                [-14.5702, 0.0, 0.0, -1.7557/10, 0.0, 0.0, 0.015, 0.0, 0.0],  # roll
+                [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
                 [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
         )
@@ -46,7 +46,7 @@ class LQRController(Controller):
             ]
         )
 
-        scale = 0.1
+        scale = 1.0
         # Torque computation
         # out = scale * np.dot(self._K, state_vector)
         out = scale * self._K @ state_vector
@@ -56,15 +56,18 @@ class LQRController(Controller):
         # )
 
         # DEBUG
-        print(f"Roll:")
+        print(f"Roll total torque: {out[0]}")
         print(f"% Roll angle: {scale*state_vector[0]*self._K[0][0]/out[0]}")
         print(f"% Roll angular vel: {scale*state_vector[3]*self._K[0][3]/out[0]}")
         print(f"% Roll wheel spd: {scale*state_vector[6]*self._K[0][6]/out[0]}")
         print()
-        print(f"Pitch:")
+        print(f"Pitch total torque: {out[1]}")
         print(f"% Pitch angle: {scale*state_vector[1]*self._K[1][1]/out[1]}")
         print(f"% Pitch angular vel: {scale*state_vector[4]*self._K[1][4]/out[1]}")
         print(f"% Pitch wheel spd: {scale*state_vector[7]*self._K[1][7]/out[1]}")
+        print()
+
+        # print()
 
 
         # for i, component in enumerate(["roll", "pitch", "yaw"]):
@@ -78,7 +81,7 @@ class LQRController(Controller):
 
         # needs clipping
         torques = torques(
-            np.clip(out[0], a_min=-1.0, a_max=1.0),  # roll
+            np.clip(out[0], a_min=-1.4, a_max=1.4),  # roll
             np.clip(out[1], a_min=-1.0, a_max=1.0),  # pitch
             # temporarily clip to 0.1
             # np.clip(out[0], a_min=-0.47, a_max=0.47),  # roll
