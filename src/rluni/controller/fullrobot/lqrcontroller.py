@@ -56,18 +56,6 @@ class LQRController(Controller):
         # )
 
         # DEBUG
-        print(f"Roll total torque: {out[0]}")
-        print(f"% Roll angle: {scale*state_vector[0]*self._K[0][0]/out[0]}")
-        print(f"% Roll angular vel: {scale*state_vector[3]*self._K[0][3]/out[0]}")
-        print(f"% Roll wheel spd: {scale*state_vector[6]*self._K[0][6]/out[0]}")
-        print()
-        print(f"Pitch total torque: {out[1]}")
-        print(f"% Pitch angle: {scale*state_vector[1]*self._K[1][1]/out[1]}")
-        print(f"% Pitch angular vel: {scale*state_vector[4]*self._K[1][4]/out[1]}")
-        print(f"% Pitch wheel spd: {scale*state_vector[7]*self._K[1][7]/out[1]}")
-        print()
-
-        # print()
 
 
         # for i, component in enumerate(["roll", "pitch", "yaw"]):
