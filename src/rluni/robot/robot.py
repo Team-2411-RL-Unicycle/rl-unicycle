@@ -9,7 +9,7 @@ from typing import Callable, List, Union
 
 import numpy as np
 # For importing data files from the source, independent of the installation method
-import pkg_resources
+from importlib.resources import files
 
 from rluni.controller.fullrobot import (ControlInput, Controller,
                                         LQRController, PIDController,
@@ -123,9 +123,8 @@ class RobotSystem:
                 f"No configuration file provided. Using default configuration: {config_file}"
             )
 
-        config_file = pkg_resources.resource_filename(
-            "rluni.configs.robot", config_file
-        )
+        config_file_path = files("rluni.configs.robot").joinpath(config_file)
+        config_file = str(config_file_path)
 
         config = load_config_file(config_file)
 
@@ -142,19 +141,18 @@ class RobotSystem:
 
         # Validate and resolve paths for IMU config and RL model
         self.imu_config = gvcv(config, "RobotSystem.imu_config", str, required=True)
-        self.imu_config = pkg_resources.resource_filename("rluni", self.imu_config)
+        self.imu_config = str(files("rluni").joinpath(self.imu_config))
 
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
         )
-        self.rlmodel_path = pkg_resources.resource_filename("rluni", self.rlmodel_path)
+        # self.rlmodel_path = pkg_resources.resource_filename("rluni", self.rlmodel_path)
+        self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
 
         self.pid_config_path = gvcv(
             config, "RobotSystem.pid_config", str, required=False
         )
-        self.pid_config_path = pkg_resources.resource_filename(
-            "rluni", self.pid_config_path
-        )
+        self.pid_config_path = str(files("rluni").joinpath(self.pid_config_path))
 
     def _get_controller(self, controller_type: str) -> Controller:
         """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
