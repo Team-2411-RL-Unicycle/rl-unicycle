@@ -1,4 +1,4 @@
-import importlib.resources as pkg_resources
+from importlib.resources import files
 import logging
 import time
 
@@ -28,6 +28,8 @@ def estimate_read_speed(imu: ICM20948, num_reads=1000):
     average_time = elapsed_time / num_reads
 
     logger.info(f"Estimated read speed: {average_time:.6f} seconds per read operation.")
+    # Give the bitrate
+    logger.info(f"Estimated bitrate: {120/average_time:.2f} Hz")
     return average_time
 
 
@@ -55,26 +57,21 @@ def test_agtm(imu: ICM20948):
 
 
 def testing_area(imu: ICM20948):
-    imu.select_register_bank(0)
-    reg = imu.read(imu.reg.ACCEL_XOUT_L)
-    print(f"Read : {reg}")
-    for _ in range(5):
-        test_accel_and_gyro_ranges(imu)
-        test_agtm(imu)
-        time.sleep(0.01)
+    # estimate the read speed
+    estimate_read_speed(imu)
     pass
 
 
 if __name__ == "__main__":
     try:
         # Get the full path to the default.yaml file in rluni.configs.imu
-        with pkg_resources.path(
-            "rluni.configs.imu", "default.yaml"
-        ) as config_file_path:
-            imu_config_path = str(config_file_path)
+        
+        
+        config_file_path = files("rluni.configs.imu").joinpath("default.yaml")
+        config_file = str(config_file_path)
 
         # Create an instance of the ICM20948 class
-        imu = ICM20948(config_file=imu_config_path)
+        imu = ICM20948(config_file=config_file)
         logger.info("IMU Initialized Successfully.")
         testing_area(imu)
 
