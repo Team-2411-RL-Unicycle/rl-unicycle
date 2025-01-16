@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rluni"
+version = "0.1.0"
+description = "A package for controlling a unicycle robot."
+readme = "README.md"
+authors = [
+    { name = "team2411 UBC EngPhys", email = "rlunicycle2411@gmail.com" }
+]
+license = { text = "MIT" } # Replace with your actual license if needed
+homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
+dependencies = [
+    "msgpack",
+    "moteus",
+    "paho-mqtt==1.6.1",
+    "imufusion",
+    "smbus2",
+    "simple_pid",
+    "onnxruntime",
+    "pyyaml",
+    "transforms3d",
+    "numpy==1.26.4",
+    "sympy==1.9",
+    "matplotlib==3.10.0",
+    "scipy==1.15.1",
+    "cvxpy==1.6.0"
+]
+requires-python = ">=3.12"
+
+[project.urls]
+Homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
+Bug Tracker = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.include-package-data]
+enabled = true
