@@ -21,9 +21,14 @@ dependencies = [
     "simple_pid",
     "onnxruntime",
     "pyyaml",
-    "transforms3d"
+    "transforms3d",
+    "numpy==1.26.4",
+    "sympy==1.9",
+    "matplotlib==3.10.0",
+    "scipy==1.15.1",
+    "cvxpy==1.6.0"
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
