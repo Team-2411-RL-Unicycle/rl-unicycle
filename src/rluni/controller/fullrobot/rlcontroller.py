@@ -45,4 +45,4 @@ class RLController(Controller):
         yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)
         out = torques(roll, pitch, yaw)
 
-        return torques
+        return out
