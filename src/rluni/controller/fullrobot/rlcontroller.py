@@ -39,9 +39,10 @@ class RLController(Controller):
         actions = output[0][0]
 
         # TODO: assert actions.shape[0] == self.num_act
-        out = torques(None, None, None)
-        out.roll = -np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque)
-        out.pitch = -np.clip(1.0 * actions[1], a_min=-max_torque, a_max=max_torque)
-        out.yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)
+
+        roll = -np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque)
+        pitch = -np.clip(1.0 * actions[1], a_min=-max_torque, a_max=max_torque)
+        yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)
+        out = torques(roll, pitch, yaw)
 
         return torques
