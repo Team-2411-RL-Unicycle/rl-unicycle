@@ -177,6 +177,40 @@ class ControlData(TelemetryData):
         return "robot/control/output"
 
 
+@dataclass()
+class LoopTimer(TelemetryData):
+    """
+    Data related to control actions and performance.
+
+    Units
+    -----
+    All fields are measured in seconds.
+    """
+
+    imu_read: Optional[float] = None
+    sensor_fusion: Optional[float] = None
+    motor_states: Optional[float] = None
+    control_decision: Optional[float] = None
+    duty_cycle_delay_time: Optional[float] = None
+    torque_application: Optional[float] = None
+    end_loop_buffer: Optional[float] = None
+
+    @property
+    def topic(self) -> str:
+        return "robot/control/loop_time"
+
+    def convert_to_periods(self):
+        """
+        Convert the loop times to time intervals
+        """
+        self.torque_application = self.torque_application - self.duty_cycle_delay_time
+        self.duty_cycle_delay_time = self.duty_cycle_delay_time - self.control_decision
+        self.control_decision = self.control_decision - self.motor_states
+        self.motor_states = self.motor_states - self.sensor_fusion
+        self.sensor_fusion = self.sensor_fusion - self.imu_read
+        self.imu_read = self.imu_read
+
+
 @dataclass
 class DebugData(TelemetryData):
     """
@@ -200,3 +234,10 @@ class DebugData(TelemetryData):
     def add_data(self, **kwargs):
         """Update the data dictionary with new key-value pairs."""
         self.data.update(kwargs)
+
+    def get_data(self):
+        """
+        Override to return the `data` dictionary directly,
+        instead of wrapping it in another dictionary.
+        """
+        return self.data

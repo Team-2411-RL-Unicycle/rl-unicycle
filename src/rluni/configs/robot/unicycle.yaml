@@ -1,5 +1,5 @@
 RobotSystem:
-  loop_time: 0.01              # Control loop time period (in seconds)
+  loop_time: 0.0125             # Control loop time period (in seconds) (#60Hz)
   write_duty: 0.6              # Fraction of the loop period before actuator updates
   max_torque_roll_pitch: 0.6              # Maximum torque for roll and pitch motors
   max_torque_yaw: 0.1             # Maximum torque for yaw motor
