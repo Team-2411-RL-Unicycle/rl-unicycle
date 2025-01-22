@@ -12,7 +12,7 @@ class LQRController(Controller):
     def __init__(self) -> None:
         self._K = np.array(
             [
-                [-14.5702, 0.0, 0.0, -1.7557/10, 0.0, 0.0, 0.015, 0.0, 0.0],  # roll
+                [-42.1348*0.90, 0.0, 0.0, -2.7488/64, 0.0, 0.0, 0.0032*2, 0.0, 0.0],  # roll
                 [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
                 [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
@@ -58,13 +58,13 @@ class LQRController(Controller):
         # DEBUG
 
 
-        # for i, component in enumerate(["roll", "pitch", "yaw"]):
-        #     row_contribution = self._K[i] * state_vector  # Element-wise contribution
-        #     print(f"{component.capitalize()} torque breakdown:")
-        #     for j, value in enumerate(row_contribution):
-        #         print(f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}")
-        #     print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
-        #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
+        for i, component in enumerate(["roll"]):#, "pitch", "yaw"]):
+            row_contribution = self._K[i] * state_vector  # Element-wise contribution
+            print(f"{component.capitalize()} torque breakdown:")
+            for j, value in enumerate(row_contribution):
+                print(f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}")
+            print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
+            print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
 
 
         # needs clipping
