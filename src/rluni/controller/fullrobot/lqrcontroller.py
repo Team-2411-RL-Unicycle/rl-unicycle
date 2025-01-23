@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import numpy as np
+import scipy.linalg as spla
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
@@ -12,11 +13,18 @@ class LQRController(Controller):
     def __init__(self) -> None:
         self._K = np.array(
             [
-                [-42.1348*0.90, 0.0, 0.0, -2.7488/64, 0.0, 0.0, 0.0032*2, 0.0, 0.0],  # roll
+                [-42.1348*1, 0.0, 0.0, -2.7488/32, 0.0, 0.0, 0.0032*10, 0.0, 0.0],  # roll
                 [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
                 [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
         )
+        # Q=np.diag([
+        #     10000, 1, 1/1000,  # roll
+        #     10000/100, 1*10, 1/1000,  # pitch
+        #     0, 0, 0
+        # ])
+        # R=np.diag([100, 100*100, 100])
+        # self._K = self.compute_K_mat(Q,R)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
@@ -78,3 +86,32 @@ class LQRController(Controller):
         )
 
         return torques
+    
+    def compute_K_mat(self, Q, R):
+        A = np.array([
+            [0, 1, 0, 0, 0, 0],       # Row 1 (Roll dynamics)
+            [36.5724, 0, 0, 0, 0, 0], # Row 2 (Roll dynamics)
+            [-36.5724, 0, 0, 0, 0, 0],# Row 3 (Roll dynamics)
+            [0, 0, 0, 0, 1, 0],       # Row 4 (Pitch dynamics)
+            [0, 0, 0, 16.6435, 0, 0], # Row 5 (Pitch dynamics)
+            [0, 0, 0, -1.2029, 0, 0]  # Row 6 (Pitch dynamics)
+        ])
+
+        A_full = np.zeros((9,9))
+        A_full[0:6,0:6]=A
+        A_full[6:9,6:9] = np.eye(3)
+
+        B = np.array([
+            [0, 0],                   # Row 1 (Roll input)
+            [-14.2, 0],               # Row 2 (Roll input)
+            [1316.3, 0],              # Row 3 (Roll input)
+            [0, 0],                   # Row 4 (Pitch input)
+            [0, -3.2179],             # Row 5 (Pitch input)
+            [0, 17.6336]              # Row 6 (Pitch input)
+        ])
+        B_full = np.zeros((9,3))
+        B_full[0:6,0:2]=B
+
+        P = spla.solve_continuous_are(A_full, B_full, Q, R)
+        K = np.linalg.inv(R) @ B_full.T @ P
+        return K
