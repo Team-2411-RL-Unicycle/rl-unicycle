@@ -11,20 +11,25 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self._K = np.array(
+        # self._K = np.array(
+        #     [
+        #         [-42.1348*1, 0.0, 0.0, -2.7488/32, 0.0, 0.0, 0.0032*10, 0.0, 0.0],  # roll
+        #         [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
+        #         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
+        #     ]
+        # )
+        Q = np.diag(
             [
-                [-42.1348*1, 0.0, 0.0, -2.7488/32, 0.0, 0.0, 0.0032*10, 0.0, 0.0],  # roll
-                [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
-                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
+                10000,
+                1,
+                1 / 1000,  # roll
+                10000 / 100,
+                1 * 10,
+                1 / 1000,  # pitch
             ]
         )
-        # Q=np.diag([
-        #     10000, 1, 1/1000,  # roll
-        #     10000/100, 1*10, 1/1000,  # pitch
-        #     0, 0, 0
-        # ])
-        # R=np.diag([100, 100*100, 100])
-        # self._K = self.compute_K_mat(Q,R)
+        R = np.diag([100, 100 * 100])
+        self._K = self.compute_K_mat(Q, R)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
@@ -65,15 +70,15 @@ class LQRController(Controller):
 
         # DEBUG
 
-
-        for i, component in enumerate(["roll"]):#, "pitch", "yaw"]):
+        for i, component in enumerate(["roll"]):  # , "pitch", "yaw"]):
             row_contribution = self._K[i] * state_vector  # Element-wise contribution
             print(f"{component.capitalize()} torque breakdown:")
             for j, value in enumerate(row_contribution):
-                print(f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}")
+                print(
+                    f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}"
+                )
             print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
             print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
-
 
         # needs clipping
         torques = torques(
@@ -86,32 +91,47 @@ class LQRController(Controller):
         )
 
         return torques
-    
-    def compute_K_mat(self, Q, R):
-        A = np.array([
-            [0, 1, 0, 0, 0, 0],       # Row 1 (Roll dynamics)
-            [36.5724, 0, 0, 0, 0, 0], # Row 2 (Roll dynamics)
-            [-36.5724, 0, 0, 0, 0, 0],# Row 3 (Roll dynamics)
-            [0, 0, 0, 0, 1, 0],       # Row 4 (Pitch dynamics)
-            [0, 0, 0, 16.6435, 0, 0], # Row 5 (Pitch dynamics)
-            [0, 0, 0, -1.2029, 0, 0]  # Row 6 (Pitch dynamics)
-        ])
 
-        A_full = np.zeros((9,9))
-        A_full[0:6,0:6]=A
-        A_full[6:9,6:9] = np.eye(3)
+    def compute_K_mat(self, Q, R) -> np.array:
+        """
+        Computes the LQR gain matrix (K) using the state weighting matrix (Q) and 
+        input weighting matrix (R), returning a 9x9 matrix for roll, pitch, and yaw control.
 
-        B = np.array([
-            [0, 0],                   # Row 1 (Roll input)
-            [-14.2, 0],               # Row 2 (Roll input)
-            [1316.3, 0],              # Row 3 (Roll input)
-            [0, 0],                   # Row 4 (Pitch input)
-            [0, -3.2179],             # Row 5 (Pitch input)
-            [0, 17.6336]              # Row 6 (Pitch input)
-        ])
-        B_full = np.zeros((9,3))
-        B_full[0:6,0:2]=B
+        Args:
+            Q (np.array): State weighting matrix for state error penalties.
+            R (np.array): Input weighting matrix for control effort penalties.
 
-        P = spla.solve_continuous_are(A_full, B_full, Q, R)
-        K = np.linalg.inv(R) @ B_full.T @ P
-        return K
+        Returns:
+            K_full (np.array): A 9x9 LQR gain matrix combining roll, pitch, and yaw dynamics.
+        """
+        A = np.array(
+            [
+                [0, 1, 0, 0, 0, 0],         # Row 1 (Roll dynamics)
+                [36.5724, 0, 0, 0, 0, 0],   # Row 2 (Roll dynamics)
+                [-36.5724, 0, 0, 0, 0, 0],  # Row 3 (Roll dynamics)
+                [0, 0, 0, 0, 1, 0],         # Row 4 (Pitch dynamics)
+                [0, 0, 0, 16.6435, 0, 0],   # Row 5 (Pitch dynamics)
+                [0, 0, 0, -1.2029, 0, 0],   # Row 6 (Pitch dynamics)
+            ]
+        )
+
+        B = np.array(
+            [
+                [0, 0],         # Row 1 (Roll input)
+                [-14.2, 0],     # Row 2 (Roll input)
+                [1316.3, 0],    # Row 3 (Roll input)
+                [0, 0],         # Row 4 (Pitch input)
+                [0, -3.2179],   # Row 5 (Pitch input)
+                [0, 17.6336],   # Row 6 (Pitch input)
+            ]
+        )
+
+        P = spla.solve_continuous_are(A, B, Q, R)
+        K = np.linalg.inv(R) @ B.T @ P
+
+        # sub roll and pitch mat into a full roll, pitch, and yaw mat
+        K_full = np.zeros((9, 9))
+        K_full[0, 0], K_full[0, 3], K_full[0, 6] = K[0, 0], K[0, 1], K[0, 2]
+        K_full[1, 1], K_full[1, 4], K_full[1, 7] = K[1, 3], K[1, 4], K[1, 5]
+
+        return K_full

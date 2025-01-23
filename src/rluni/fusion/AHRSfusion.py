@@ -24,7 +24,7 @@ class AHRSfusion:
         self._gyro_range = None
         self.transformation_matrix = np.identity(3)
 
-        self.euler_angles = (0, 0, 0) # x, y, z
+        self.euler_angles = (0, 0, 0)  # x, y, z
         self.euler_rates = (0, 0, 0)
 
         # Load the configuration file
@@ -102,7 +102,7 @@ class AHRSfusion:
         angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="rzxy")
         self.euler_angles = np.rad2deg(angles)
 
-        z, x, y = angles        
+        z, x, y = angles
         mat = np.array(
             [
                 [np.cos(y), 0, np.sin(y)],
@@ -119,7 +119,6 @@ class AHRSfusion:
         # Convert to numpy arrays and rotate to robot frame
         accel_data = np.array(self.rotate_frame_imu_to_robot(*accel_data))
         gyro_data = np.array(self.rotate_frame_imu_to_robot(*gyro_data))
-
 
         if mag_data is None or mag_data[0] is None:
             mag_data = np.array([0, 0, 0])
