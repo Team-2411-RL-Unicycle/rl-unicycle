@@ -16,14 +16,15 @@ class Motor:
     # Don't allow torque commands on generic motor
     TIMEOUT_SECONDS = 0.1  # Seconds
 
-    def __init__(self, target, name):
+    def __init__(self, target, name, transport):
 
         qr = moteus.QueryResolution()
         qr.q_current = moteus.INT32
         qr.d_current = moteus.INT32
         qr.voltage = moteus.INT32
         qr.velocity = moteus.INT32
-        self._c = moteus.Controller(id=target, transport=None, query_resolution=qr)
+        self.transport = transport
+        self._c = moteus.Controller(id=target, transport=transport, query_resolution=qr)
         logger.debug(f"Connected to Motor Controller: {self._c}")
         # Motor system state (Dictionary of register values)
         self.state = None
