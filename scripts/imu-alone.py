@@ -65,8 +65,7 @@ def testing_area(imu: ICM20948):
 if __name__ == "__main__":
     try:
         # Get the full path to the default.yaml file in rluni.configs.imu
-        
-        
+
         config_file_path = files("rluni.configs.imu").joinpath("default.yaml")
         config_file = str(config_file_path)
 
