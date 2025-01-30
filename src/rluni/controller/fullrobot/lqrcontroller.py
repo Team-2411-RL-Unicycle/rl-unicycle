@@ -11,25 +11,25 @@ class LQRController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        # self._K = np.array(
-        #     [
-        #         [-42.1348*1, 0.0, 0.0, -2.7488/32, 0.0, 0.0, 0.0032*10, 0.0, 0.0],  # roll
-        #         [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
-        #         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
-        #     ]
-        # )
-        Q = np.diag(
+        self._K = np.array(
             [
-                10000,
-                1,
-                1 / 1000,  # roll
-                10000 / 100,
-                1 * 10,
-                1 / 1000,  # pitch
+                [-15.4416*1.4, 0.0, 0.0, -1.9102, 0.0, 0.0, 0.0039/8, 0.0, 0.0],  # roll
+                [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
         )
-        R = np.diag([100, 100 * 100])
-        self._K = self.compute_K_mat(Q, R)
+        # Q = np.diag(
+        #     [
+        #         10000,
+        #         1,
+        #         1 / 1000,  # roll
+        #         10000 / 100,
+        #         1 * 10,
+        #         1 / 1000,  # pitch
+        #     ]
+        # )
+        # R = np.diag([100, 100 * 100])
+        # self._K = self.compute_K_mat(Q, R)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
     @call_super_first
