@@ -6,6 +6,7 @@ from collections import namedtuple
 from enum import Enum
 from multiprocessing import Queue
 from typing import Callable, List, Union, Tuple
+import moteus
 
 import numpy as np
 
