@@ -6,6 +6,7 @@ from collections import namedtuple
 from enum import Enum
 from multiprocessing import Queue
 from typing import Callable, List, Union, Tuple
+import moteus
 
 import numpy as np
 
@@ -93,31 +94,37 @@ class RobotSystem:
         self.itr = int(0)  # Cycle counter
 
     def _initialize_motors(self, motor_config):
+        # CHECK THIS
+        self.transport = moteus.Fdcanusb(
+        '/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00')
         # set self.motor_config using arg string
         if motor_config == "none" or None:
             self.motor_config = EnabledMotors.NONE
             self.motors = motors(None, None, None)
         elif motor_config == "roll":
-            self.motors = motors(MN6007(4, "roll"), None, None)
+            self.motors = motors(MN6007(4, "roll", self.transport), None, None)
             self.motor_config = EnabledMotors.ROLL
         elif motor_config == "yaw":
-            self.motors = motors(None, None, MN2806(5, "yaw"))
+            self.motors = motors(None, None, MN2806(5, "yaw"), self.transport)
             self.motor_config = EnabledMotors.YAW
         elif motor_config == "pitch":
-            self.motors = motors(None, MN6007(6, "pitch"), None)
+            self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
         elif motor_config == "roll_pitch":
-            self.motors = motors(MN6007(4, "roll"), MN6007(6, "pitch"), None)
+            self.motors = motors(MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
             self.motors = motors(
-                MN6007(4, "roll"), MN6007(6, "pitch"), MN2806(5, "yaw")
+                MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), MN2806(5, "yaw", self.transport)
             )
             self.motor_config = EnabledMotors.ALL
+
+            self.enabled_motors = [motor for motor in self.motors if motor is not None]
         else:  # catch-all
             logger.warning("No valid motor configuration provided. Disabling motors.")
             self.motors = motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
+            self.enabled_motors = []
 
     def _load_config(self, config_file):
         """
@@ -191,7 +198,12 @@ class RobotSystem:
     async def control_loop(self, shutdown_event):
         """
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
-        and actuator commands at a fixed rate defined by LOOP_TIME.
+        and actuator commands at a fixed rate defi                if self.motors.roll is not None:
+                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.pitch is not None:
+                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.yaw is not None:
+                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)ned by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
 
@@ -267,7 +279,7 @@ class RobotSystem:
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
 
-            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+            if False and not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 if self.motors.roll is not None:
                     await self.motors.roll.set_torque(
                         torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001
@@ -287,6 +299,19 @@ class RobotSystem:
             timer_tele.end_loop_buffer = self.LOOP_TIME - (
                 time.time() - loop_start_time
             )
+
+            # Control decision - but using transports
+            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+                commands = []
+                if self.motors.roll is not None:
+                    commands.append(self.motors.roll._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.roll, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                if self.motors.pitch is not None:
+                    commands.append(self.motors.pitch._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.pitch, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                if self.motors.yaw is not None:
+                    commands.append(self.motors.yaw._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.yaw, maximum_torque=self.MAX_TORQUE_YAW - 0.001))
+
+                await self.transport.cycle(commands)
+
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
