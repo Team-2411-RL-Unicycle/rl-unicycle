@@ -239,8 +239,8 @@ class MN6007(Motor):
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 1.4
 
-    def __init__(self, target, name):
-        super().__init__(target, name)
+    def __init__(self, target, name, transport):
+        super().__init__(target, name, transport)
         self.torque_permitted = True
 
 
@@ -253,8 +253,8 @@ class MN2806(Motor):
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 0.17
 
-    def __init__(self, target, name):
-        super().__init__(target, name)
+    def __init__(self, target, name, transport):
+        super().__init__(target, name, transport)
         self.torque_permitted = True
 
 

@@ -95,7 +95,7 @@ class RobotSystem:
     def _initialize_motors(self, motor_config):
         # CHECK THIS
         self.transport = moteus.Fdcanusb(
-        '/dev/serial/by-id/usb-mjbots_fdcanusb_B1457958-if00')
+        '/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00')
         # set self.motor_config using arg string
         if motor_config == "none" or None:
             self.motor_config = EnabledMotors.NONE
@@ -303,11 +303,11 @@ class RobotSystem:
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 commands = []
                 if self.motors.roll is not None:
-                    commands.append(self.motors.roll._c.make_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                    commands.append(self.motors.roll._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.roll, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
                 if self.motors.pitch is not None:
-                    commands.append(self.motors.pitch._c.make_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                    commands.append(self.motors.pitch._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.pitch, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
                 if self.motors.yaw is not None:
-                    commands.append(self.motors.yaw._c.make_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001))
+                    commands.append(self.motors.yaw._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.yaw, maximum_torque=self.MAX_TORQUE_YAW - 0.001))
 
                 await self.transport.cycle(commands)
 
