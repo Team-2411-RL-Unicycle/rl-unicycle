@@ -16,14 +16,15 @@ class Motor:
     # Don't allow torque commands on generic motor
     TIMEOUT_SECONDS = 0.1  # Seconds
 
-    def __init__(self, target, name):
+    def __init__(self, target, name, transport):
 
         qr = moteus.QueryResolution()
         qr.q_current = moteus.INT32
         qr.d_current = moteus.INT32
         qr.voltage = moteus.INT32
         qr.velocity = moteus.INT32
-        self._c = moteus.Controller(id=target, transport=None, query_resolution=qr)
+        self.transport = transport
+        self._c = moteus.Controller(id=target, transport=transport, query_resolution=qr)
         logger.debug(f"Connected to Motor Controller: {self._c}")
         # Motor system state (Dictionary of register values)
         self.state = None
@@ -238,8 +239,8 @@ class MN6007(Motor):
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 1.4
 
-    def __init__(self, target, name):
-        super().__init__(target, name)
+    def __init__(self, target, name, transport):
+        super().__init__(target, name, transport)
         self.torque_permitted = True
 
 
@@ -252,8 +253,8 @@ class MN2806(Motor):
     MAX_ALLOWABLE_VEL = 20.0
     MAX_ALLOWABLE_TORQUE = 0.17
 
-    def __init__(self, target, name):
-        super().__init__(target, name)
+    def __init__(self, target, name, transport):
+        super().__init__(target, name, transport)
         self.torque_permitted = True
 
 

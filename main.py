@@ -102,6 +102,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Start the robot system with optional motor control."
     )
+    # TODO: this needs to be removed or changed to actually work
     parser.add_argument(
         "-nm",
         "--no-motors",

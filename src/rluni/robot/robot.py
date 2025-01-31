@@ -5,18 +5,25 @@ import time
 from collections import namedtuple
 from enum import Enum
 from multiprocessing import Queue
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Tuple
+import moteus
 
 import numpy as np
+
 # For importing data files from the source, independent of the installation method
 from importlib.resources import files
 
-from rluni.controller.fullrobot import (ControlInput, Controller,
-                                        LQRController, PIDController,
-                                        RLController, TestController)
+from rluni.controller.fullrobot import (
+    ControlInput,
+    Controller,
+    LQRController,
+    PIDController,
+    RLController,
+    TestController,
+)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
-from rluni.motors.motors import MN2806, MN6007
+from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
@@ -77,6 +84,7 @@ class RobotSystem:
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
         )
 
+        self.motors: Tuple[Motor, ...] = None
         self._initialize_motors(motor_config)
 
         # Initialize controller type based on argument
@@ -86,31 +94,37 @@ class RobotSystem:
         self.itr = int(0)  # Cycle counter
 
     def _initialize_motors(self, motor_config):
+        # CHECK THIS
+        self.transport = moteus.Fdcanusb(
+        '/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00')
         # set self.motor_config using arg string
         if motor_config == "none" or None:
             self.motor_config = EnabledMotors.NONE
             self.motors = motors(None, None, None)
         elif motor_config == "roll":
-            self.motors = motors(MN6007(4, "roll"), None, None)
+            self.motors = motors(MN6007(4, "roll", self.transport), None, None)
             self.motor_config = EnabledMotors.ROLL
         elif motor_config == "yaw":
-            self.motors = motors(None, None, MN2806(5, "yaw"))
+            self.motors = motors(None, None, MN2806(5, "yaw"), self.transport)
             self.motor_config = EnabledMotors.YAW
         elif motor_config == "pitch":
-            self.motors = motors(None, MN6007(6, "pitch"), None)
+            self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
         elif motor_config == "roll_pitch":
-            self.motors = motors(MN6007(4, "roll"), MN6007(6, "pitch"), None)
+            self.motors = motors(MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
             self.motors = motors(
-                MN6007(4, "roll"), MN6007(6, "pitch"), MN2806(5, "yaw")
+                MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), MN2806(5, "yaw", self.transport)
             )
             self.motor_config = EnabledMotors.ALL
+
+            self.enabled_motors = [motor for motor in self.motors if motor is not None]
         else:  # catch-all
             logger.warning("No valid motor configuration provided. Disabling motors.")
             self.motors = motors(None, None, None)
             self.motor_config = EnabledMotors.NONE
+            self.enabled_motors = []
 
     def _load_config(self, config_file):
         """
@@ -128,13 +142,15 @@ class RobotSystem:
 
         config = load_config_file(config_file)
 
-        # load the motor config
-
         # Validate and set configuration values for control parameters
         self.LOOP_TIME = gvcv(config, "RobotSystem.loop_time", float, required=True)
         self.WRITE_DUTY = gvcv(config, "RobotSystem.write_duty", float, required=True)
-        self.MAX_TORQUE_ROLL_PITCH = gvcv(config, "RobotSystem.max_torque_roll_pitch", float, required=True)
-        self.MAX_TORQUE_YAW = gvcv(config, "RobotSystem.max_torque_yaw", float, required=True)
+        self.MAX_TORQUE_ROLL_PITCH = gvcv(
+            config, "RobotSystem.max_torque_roll_pitch", float, required=True
+        )
+        self.MAX_TORQUE_YAW = gvcv(
+            config, "RobotSystem.max_torque_yaw", float, required=True
+        )
         self.sensor_calibration_delay = gvcv(
             config, "RobotSystem.calibration_delay", float, required=True
         )
@@ -146,7 +162,7 @@ class RobotSystem:
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
         )
-        # self.rlmodel_path = pkg_resources.resource_filename("rluni", self.rlmodel_path)
+
         self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
 
         self.pid_config_path = gvcv(
@@ -182,22 +198,29 @@ class RobotSystem:
     async def control_loop(self, shutdown_event):
         """
         The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
-        and actuator commands at a fixed rate defined by LOOP_TIME.
+        and actuator commands at a fixed rate defi                if self.motors.roll is not None:
+                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.pitch is not None:
+                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                if self.motors.yaw is not None:
+                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)ned by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
-        torque_request = 0
 
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
+            timer_tele = td.LoopTimer()
             self.itr += 1
 
             # Debugging Data Example (add more data as needed)
             tele_debug_data = td.DebugData()
-            tele_debug_data.add_data(example_debug_data=42)
+            tele_debug_data.add_data(example_debug_data=99)
+            tele_debug_data.add_data(another_debug_data=42)
 
             # Sensor reading and fusion
             imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
+            timer_tele.imu_read = time.time() - loop_start_time
 
             quaternion, internal_states, flags = self.sensor_fusion.update(
                 imudata.get_gyro(),
@@ -208,12 +231,14 @@ class RobotSystem:
             rigid_body_state = td.EulerAngles(
                 *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
             )
+            timer_tele.sensor_fusion = time.time() - loop_start_time
 
             # TODO: Try to get all 3 motor states in one call
             # Update robot state and parameters
             for motor in self.motors:
                 if motor is not None:
                     await motor.update_state()
+            timer_tele.motor_states = time.time() - loop_start_time
 
             control_input = ControlInput(
                 euler_angle_roll_rads=rigid_body_state.x * DEG_TO_RAD,
@@ -242,9 +267,11 @@ class RobotSystem:
             torques = self.controller.get_torques(
                 control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
+            timer_tele.control_decision = time.time() - loop_start_time
 
             ## DELAY UNTIL FIXED POINT ##
             self.precise_delay_until(loop_start_time + loop_period * self.WRITE_DUTY)
+            timer_tele.duty_cycle_delay_time = time.time() - loop_start_time
 
             # Apply control decision to robot actuators
             # SET TORQUE
@@ -252,13 +279,39 @@ class RobotSystem:
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
 
-            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+            if False and not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 if self.motors.roll is not None:
-                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                    await self.motors.roll.set_torque(
+                        torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001
+                    )
                 if self.motors.pitch is not None:
-                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
+                    await self.motors.pitch.set_torque(
+                        torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001
+                    )
                 if self.motors.yaw is not None:
-                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)
+                    await self.motors.yaw.set_torque(
+                        torques.yaw, self.MAX_TORQUE_YAW - 0.001
+                    )
+
+            # Handle loop timer telemetry data processing
+            timer_tele.torque_application = time.time() - loop_start_time
+            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
+            timer_tele.end_loop_buffer = self.LOOP_TIME - (
+                time.time() - loop_start_time
+            )
+
+            # Control decision - but using transports
+            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
+                commands = []
+                if self.motors.roll is not None:
+                    commands.append(self.motors.roll._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.roll, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                if self.motors.pitch is not None:
+                    commands.append(self.motors.pitch._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.pitch, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                if self.motors.yaw is not None:
+                    commands.append(self.motors.yaw._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.yaw, maximum_torque=self.MAX_TORQUE_YAW - 0.001))
+
+                await self.transport.cycle(commands)
+
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
@@ -269,7 +322,13 @@ class RobotSystem:
                     torque_pitch=float(torques.pitch),
                     torque_yaw=float(torques.yaw),
                 )
-                data_list = [imudata, rigid_body_state, control_data, tele_debug_data]
+                data_list = [
+                    imudata,
+                    rigid_body_state,
+                    control_data,
+                    timer_tele,
+                    tele_debug_data,
+                ]
                 for motor in self.motors:
                     if motor is not None:
                         data_list.append(td.MotorState.from_dict(motor.state))

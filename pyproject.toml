@@ -11,7 +11,7 @@ authors = [
     { name = "team2411 UBC EngPhys", email = "rlunicycle2411@gmail.com" }
 ]
 license = { text = "MIT" } # Replace with your actual license if needed
-homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
+# homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
 dependencies = [
     "msgpack",
     "moteus",
@@ -32,10 +32,10 @@ requires-python = ">=3.12"
 
 [project.urls]
 Homepage = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle"
-Bug Tracker = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle/issues"
+"Bug Tracker" = "https://github.com/Team-2411-RL-Unicycle/rl-unicycle/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.include-package-data]
-enabled = true
+[tool.setuptools]
+include-package-data = true

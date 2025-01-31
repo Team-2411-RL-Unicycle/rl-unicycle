@@ -1,8 +1,8 @@
 RobotSystem:
-  loop_time: 0.01              # Control loop time period (in seconds)
+  loop_time: 0.0125             # Control loop time period (in seconds) (#60Hz)
   write_duty: 0.6              # Fraction of the loop period before actuator updates
-  max_torque_roll_pitch: 1.0              # Maximum torque for roll and pitch motors
-  max_torque_yaw: 0.17            # Maximum torque for yaw motor
+  max_torque_roll_pitch: 1.4              # Maximum torque for roll and pitch motors
+  max_torque_yaw: 0.1             # Maximum torque for yaw motor
   calibration_delay: 5.0       # Sensor calibration delay in seconds
 
   imu_config: "configs/imu/full-robot-imu1.yaml"  # Relative path to IMU configuration file
