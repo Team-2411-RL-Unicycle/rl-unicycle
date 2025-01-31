@@ -16,6 +16,10 @@ class RLController(Controller):
         self.model = ort.InferenceSession(model_pth)
         self.logger.info(f"{self.__class__.__name__} initialized")
 
+        self.out_state = np.zeros((1, 1, 128)).astype(np.float32)
+        self.hidden_state = np.zeros((1, 1, 128)).astype(np.float32)
+
+
     @call_super_first
     def get_torques(self, robot_state: ControlInput, max_torque: float):
         obs = np.zeros((1, 9))
@@ -33,10 +37,15 @@ class RLController(Controller):
             None,
             {
                 "obs": obs.astype(np.float32),
+                "out_state.1" : self.out_state, 
+                "hidden_state.1" : self.hidden_state,
             },
         )
 
         actions = output[0][0]
+
+        self.out_state = output[3]
+        self.hidden_state = output[4]
 
         # TODO: assert actions.shape[0] == self.num_act
 
