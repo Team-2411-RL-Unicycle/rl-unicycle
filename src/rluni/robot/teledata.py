@@ -118,15 +118,15 @@ class MotorState(TelemetryData):
     temperature: Celsius
     """
 
-    mode: int
-    position: float
+    # mode: int
+    # position: float
     velocity: float
-    torque: float
+    # torque: float
     q_current: float
     d_current: float
-    voltage: float
-    temperature: float
-    fault: int
+    # voltage: float
+    # temperature: float
+    # fault: int
 
     @property
     def topic(self) -> str:

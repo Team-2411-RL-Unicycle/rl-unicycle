@@ -19,10 +19,16 @@ class Motor:
     def __init__(self, target, name, transport):
 
         qr = moteus.QueryResolution()
-        qr.q_current = moteus.INT32
-        qr.d_current = moteus.INT32
-        qr.voltage = moteus.INT32
-        qr.velocity = moteus.INT32
+        qr.mode = moteus.IGNORE
+        qr.position = moteus.IGNORE
+        qr.velocity = moteus.F32
+        qr.torque = moteus.IGNORE
+        qr.q_current = moteus.INT16
+        qr.d_current = moteus.INT16
+        qr.voltage = moteus.IGNORE
+        qr.temperature = moteus.IGNORE
+        qr.fault = moteus.IGNORE
+
         self.transport = transport
         self._c = moteus.Controller(id=target, transport=transport, query_resolution=qr)
         logger.debug(f"Connected to Motor Controller: {self._c}")
