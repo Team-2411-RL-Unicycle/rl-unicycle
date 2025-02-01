@@ -2,7 +2,6 @@
 import numpy as np
 import importlib.resources as pkg_resources
 import sympy as sp
-import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import scipy.linalg
 import cvxpy as cp
