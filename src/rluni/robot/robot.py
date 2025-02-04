@@ -19,6 +19,7 @@ from rluni.controller.fullrobot import (
     LQRController,
     PIDController,
     RLController,
+    MPCController,
     TestController,
 )
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -178,6 +179,8 @@ class RobotSystem:
             return RLController(model_pth=self.rlmodel_path)
         elif controller_type == "lqr":
             return LQRController()
+        elif controller_type == "mpc":
+            return MPCController(dt=self.LOOP_TIME)
         elif controller_type == "test":
             return TestController()
         else:
