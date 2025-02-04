@@ -129,7 +129,7 @@ class MPCController(Controller):
             self.u_var.value = self.last_u_sol
 
         # Solve the problem
-        self.prob.solve(solver=cp.CLARABEL, warm_start=warm_start, **self.solver_kwargs)
+        self.prob.solve(solver=cp.CLARABEL, warm_start=warm_start, time_limit=.003, **self.solver_kwargs)
 
         # Store solution
         self.last_x_sol = self.x_var.value
@@ -158,8 +158,8 @@ class MPCController(Controller):
             ]
         )
         # Compute control input
-        u = self.get_control(0, state_vector)
+        u = self.solve_mpc(state_vector, warm_start=True)
         # Return the computed torques
 
-        out = torques(u[0], 0.0, 0.0)
+        out = torques(-u[0], 0.0, 0.0)
         return out
