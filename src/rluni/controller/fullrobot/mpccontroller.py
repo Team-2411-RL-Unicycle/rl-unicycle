@@ -70,9 +70,10 @@ class MPCController(Controller):
         self.m = self.B.shape[1]
         self.A_tilde = np.eye(3) + self.A * self.dt
         self.B_tilde = self.B * self.dt
-        self.Q = np.diag([1e4, 0.1, 25e-3])
-        self.R = np.diag([100])
-        self.w_final = 3.0
+        self.Q = np.diag([1e6, 5, 16e-1])
+        # self.Q = np.diag([1e6, .1, 16e-1]) balanced when IMU bias was corrected
+        self.R = np.diag([3e4])
+        self.w_final = 5.0
         self.Qf = self.w_final * self.Q
         self.tau_max = tau_max
         self.N = N
@@ -129,7 +130,7 @@ class MPCController(Controller):
             self.u_var.value = self.last_u_sol
 
         # Solve the problem
-        self.prob.solve(solver=cp.CLARABEL, warm_start=warm_start, time_limit=.003, **self.solver_kwargs)
+        self.prob.solve(solver=cp.CLARABEL, warm_start=warm_start, time_limit=.004, **self.solver_kwargs)
 
         # Store solution
         self.last_x_sol = self.x_var.value

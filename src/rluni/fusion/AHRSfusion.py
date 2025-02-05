@@ -39,8 +39,8 @@ class AHRSfusion:
             imufusion.CONVENTION_NWU,  # convention
             0.5,  # 0.5 gain (on the accel error correction)
             self._gyro_range,  # gyroscope range
-            1,  # acceleration rejection
-            10,  # magnetic rejection
+            10,  # acceleration rejection
+            0,  # magnetic rejection
             5 * self.sample_rate,
         )  # recovery trigger period = 5 seconds
 
