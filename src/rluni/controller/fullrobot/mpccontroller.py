@@ -1,4 +1,3 @@
-
 import numpy as np
 import importlib.resources as pkg_resources
 import sympy as sp
@@ -15,9 +14,17 @@ from rluni.utils import load_config_file
 
 torques = namedtuple("torques", ["roll", "pitch", "yaw"])
 
+
 class MPCController(Controller):
     def __init__(
-        self, dt, params=None, Qf=None, N=20, tau_max=1.0, warm_start=True, solver_kwargs={}
+        self,
+        dt,
+        params=None,
+        Qf=None,
+        N=20,
+        tau_max=1.0,
+        warm_start=True,
+        solver_kwargs={},
     ):
         """
         Model Predictive Controller class.
@@ -35,8 +42,8 @@ class MPCController(Controller):
 
         super().__init__()
         # A: roll_angle, roll_rate, motor_speed_roll
-        # [       ] 
-        # [  3x3  ]  
+        # [       ]
+        # [  3x3  ]
         # [       ]
         robot_params = {
             "g0": 9.81,
@@ -63,9 +70,7 @@ class MPCController(Controller):
         self.A = np.array(
             [[0, 1, 0], [self.m0 / self.Inet, 0, 0], [-self.m0 / self.Inet, 0, 0]]
         )
-        self.B = np.array(
-            [[0], [-1 / self.Inet], [1 / self.Iw]]
-        )
+        self.B = np.array([[0], [-1 / self.Inet], [1 / self.Iw]])
         self.n = self.A.shape[0]
         self.m = self.B.shape[1]
         self.A_tilde = np.eye(3) + self.A * self.dt
@@ -130,7 +135,12 @@ class MPCController(Controller):
             self.u_var.value = self.last_u_sol
 
         # Solve the problem
-        self.prob.solve(solver=cp.CLARABEL, warm_start=warm_start, time_limit=.004, **self.solver_kwargs)
+        self.prob.solve(
+            solver=cp.CLARABEL,
+            warm_start=warm_start,
+            time_limit=0.004,
+            **self.solver_kwargs,
+        )
 
         # Store solution
         self.last_x_sol = self.x_var.value
@@ -147,7 +157,7 @@ class MPCController(Controller):
         # Solve the MPC problem
         # x = x[[0, 2, 3]]  # pare down to 3 states of interest
         return self.solve_mpc(x, warm_start=True)
-    
+
     def get_torques(self, robot_state: ControlInput, max_torque: float):
         """Linearize dynamics about state point, state = [phi, phidot, thetadot]."""
         # Robot states vector

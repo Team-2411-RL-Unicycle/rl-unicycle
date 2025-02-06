@@ -94,13 +94,14 @@ class RobotSystem:
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
         self.ema_control_input = None
-        self.ema_alpha = .7  #.72 roll
+        self.ema_alpha = 0.7  # .72 roll
         self.itr = int(0)  # Cycle counter
 
     def _initialize_motors(self, motor_config):
         # CHECK THIS
         self.transport = moteus.Fdcanusb(
-        '/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00')
+            "/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00"
+        )
         # set self.motor_config using arg string
         if motor_config == "none" or None:
             self.motor_config = EnabledMotors.NONE
@@ -115,11 +116,17 @@ class RobotSystem:
             self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
         elif motor_config == "roll_pitch":
-            self.motors = motors(MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), None)
+            self.motors = motors(
+                MN6007(4, "roll", self.transport),
+                MN6007(6, "pitch", self.transport),
+                None,
+            )
             self.motor_config = EnabledMotors.ROLL_PITCH
         elif motor_config == "all":
             self.motors = motors(
-                MN6007(4, "roll", self.transport), MN6007(6, "pitch", self.transport), MN2806(5, "yaw", self.transport)
+                MN6007(4, "roll", self.transport),
+                MN6007(6, "pitch", self.transport),
+                MN2806(5, "yaw", self.transport),
             )
             self.motor_config = EnabledMotors.ALL
 
@@ -232,9 +239,9 @@ class RobotSystem:
             timer_tele.imu_read = time.time() - loop_start_time
 
             quaternion, internal_states, flags = self.sensor_fusion.update(
-                imudata.get_gyro(),
-                imudata.get_accel(),
-                mag_data=imudata.get_mag(),
+                imudata1.get_gyro(),
+                imudata1.get_accel(),
+                mag_data=imudata1.get_mag(),
                 delta_time=loop_period,
             )
             rigid_body_state = td.EulerAngles(
@@ -272,7 +279,7 @@ class RobotSystem:
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
             )
-            
+
             self._update_ema_control_input(control_input)
 
             torques = self.controller.get_torques(
@@ -301,14 +308,37 @@ class RobotSystem:
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 commands = []
                 if self.motors.roll is not None:
-                    commands.append(self.motors.roll._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.roll, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                    commands.append(
+                        self.motors.roll._c.make_position(
+                            position=math.nan,
+                            kp_scale=0.0,
+                            kd_scale=0.0,
+                            feedforward_torque=torques.roll,
+                            maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
+                        )
+                    )
                 if self.motors.pitch is not None:
-                    commands.append(self.motors.pitch._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.pitch, maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001))
+                    commands.append(
+                        self.motors.pitch._c.make_position(
+                            position=math.nan,
+                            kp_scale=0.0,
+                            kd_scale=0.0,
+                            feedforward_torque=torques.pitch,
+                            maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
+                        )
+                    )
                 if self.motors.yaw is not None:
-                    commands.append(self.motors.yaw._c.make_position(position=math.nan, kp_scale=0.0, kd_scale=0.0, feedforward_torque=torques.yaw, maximum_torque=self.MAX_TORQUE_YAW - 0.001))
+                    commands.append(
+                        self.motors.yaw._c.make_position(
+                            position=math.nan,
+                            kp_scale=0.0,
+                            kd_scale=0.0,
+                            feedforward_torque=torques.yaw,
+                            maximum_torque=self.MAX_TORQUE_YAW - 0.001,
+                        )
+                    )
 
                 await self.transport.cycle(commands)
-
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
@@ -329,7 +359,9 @@ class RobotSystem:
                 ]
                 for motor in self.motors:
                     if motor is not None:
-                        data_list.append(td.MotorState.from_dict(data = motor.state, name = motor.name))
+                        data_list.append(
+                            td.MotorState.from_dict(data=motor.state, name=motor.name)
+                        )
                 await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
@@ -372,7 +404,7 @@ class RobotSystem:
             logger.info("Motors shut down successfully.")
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
-            
+
     def _update_ema_control_input(self, control_input):
         ema_fields = {
             "euler_angle_roll_rads",
@@ -380,7 +412,7 @@ class RobotSystem:
             "euler_rate_roll_rads_s",
             # "euler_rate_pitch_rads_s",
         }
-                    
+
         # Convert dataclass to dictionary for compact EMA update
         control_input_dict = asdict(control_input)
         # Apply Exponential Moving Average (EMA)
@@ -388,14 +420,19 @@ class RobotSystem:
             self.ema_control_input = control_input  # Initialize EMA with first input
         else:
             ema_dict = asdict(self.ema_control_input)
-            
+
             # Apply EMA only to selected fields, copy the rest
             for key in control_input_dict:
                 if key in ema_fields:
-                    ema_dict[key] = self.ema_alpha * ema_dict[key] + (1 - self.ema_alpha) * control_input_dict[key]
+                    ema_dict[key] = (
+                        self.ema_alpha * ema_dict[key]
+                        + (1 - self.ema_alpha) * control_input_dict[key]
+                    )
                 else:
-                    ema_dict[key] = control_input_dict[key]  # Direct copy for non-smoothed fields
-            
+                    ema_dict[key] = control_input_dict[
+                        key
+                    ]  # Direct copy for non-smoothed fields
+
             # Convert updated dictionary back to ControlInput dataclass
             self.ema_control_input = ControlInput(**ema_dict)
 
