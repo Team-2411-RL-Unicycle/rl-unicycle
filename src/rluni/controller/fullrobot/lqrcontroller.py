@@ -15,11 +15,14 @@ class LQRController(Controller):
         # Q_roll = np.diag([1e6, 5, 16e-1])
         # R_roll = np.diag([8e4])
         
-        Q_roll = np.diag([1e6, 5, 16e-1])
+        Q_roll = np.diag([1.4e6, 5, 16e-1])
         R_roll = np.diag([8e4])
-        Q_pitch = np.diag([1e2, 1e2, 1e-1])
-        R_pitch = np.diag([1e4])
+        Q_pitch = np.diag([1e-6, 1e-1, 1e5])
+        R_pitch = np.diag([1e12]) 
         self._K= self.compute_LQR_gain(Q_roll, R_roll, Q_pitch, R_pitch)  
+        
+        #Temporary overide
+        self._K[1, 1], self._K[1, 4], self._K[1, 7] = -10.6/3, -2.5392/10, .0059
 
         self.logger.info(f"{self.__class__.__name__} initialized")
         
@@ -100,10 +103,9 @@ class LQRController(Controller):
 
         scale = 1.0
         out = scale * self._K @ state_vector
-        out[1] = out[1]*.6
         
         # DEBUG
-        # for i, component in enumerate(["roll"]):  # , "pitch", "yaw"]):
+        # for i, component in enumerate(["roll", "pitch", "yaw"]):
         #     row_contribution = self._K[i] * state_vector  # Element-wise contribution
         #     print(f"{component.capitalize()} torque breakdown:")
         #     for j, value in enumerate(row_contribution):
