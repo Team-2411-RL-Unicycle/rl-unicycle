@@ -81,9 +81,10 @@ class RobotSystem:
         self._load_config(config_file)
 
         # Initialize IMU and sensor fusion
-        self.imu = ICM20948(config_file=self.imu_config)
+        self.imu1 = ICM20948(config_file=self.imu_config1)
+        self.imu2 = ICM20948(config_file=self.imu_config2)
         self.sensor_fusion = AHRSfusion(
-            sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config
+            sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config1
         )
 
         self.motors: Tuple[Motor, ...] = None
@@ -159,8 +160,10 @@ class RobotSystem:
         )
 
         # Validate and resolve paths for IMU config and RL model
-        self.imu_config = gvcv(config, "RobotSystem.imu_config", str, required=True)
-        self.imu_config = str(files("rluni").joinpath(self.imu_config))
+        self.imu_config1 = gvcv(config, "RobotSystem.imu_config1", str, required=True)
+        self.imu_config1 = str(files("rluni").joinpath(self.imu_config1))
+        self.imu_config2 = gvcv(config, "RobotSystem.imu_config2", str, required=True)
+        self.imu_config2 = str(files("rluni").joinpath(self.imu_config2))
 
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
@@ -224,7 +227,8 @@ class RobotSystem:
             tele_debug_data.add_data(another_debug_data=42)
 
             # Sensor reading and fusion
-            imudata = td.IMUData(*self.imu.read_sensor_data(convert=True))
+            imudata1 = td.IMUData(1, *self.imu1.read_sensor_data(convert=True))
+            imudata2 = td.IMUData(2, *self.imu2.read_sensor_data(convert=True))
             timer_tele.imu_read = time.time() - loop_start_time
 
             quaternion, internal_states, flags = self.sensor_fusion.update(
@@ -316,7 +320,8 @@ class RobotSystem:
                     torque_yaw=float(torques.yaw),
                 )
                 data_list = [
-                    imudata,
+                    imudata1,
+                    imudata2,
                     rigid_body_state,
                     control_data,
                     timer_tele,
@@ -371,9 +376,9 @@ class RobotSystem:
     def _update_ema_control_input(self, control_input):
         ema_fields = {
             "euler_angle_roll_rads",
-            "euler_angle_pitch_rads",
+            # "euler_angle_pitch_rads",
             "euler_rate_roll_rads_s",
-            "euler_rate_pitch_rads_s",
+            # "euler_rate_pitch_rads_s",
         }
                     
         # Convert dataclass to dictionary for compact EMA update
