@@ -105,7 +105,7 @@ class EulerAngles(TelemetryData):
 
 @dataclass(frozen=True)
 class MotorState(TelemetryData):
-    """Data synchronized with the motor class
+    """Data synchronized with the motor class.
 
     Units
     -----
@@ -118,6 +118,7 @@ class MotorState(TelemetryData):
     temperature: Celsius
     """
 
+    name: str  # Motor name for topic differentiation (e.g., 'roll', 'pitch', 'yaw')
     mode: int
     position: float
     velocity: float
@@ -130,13 +131,23 @@ class MotorState(TelemetryData):
 
     @property
     def topic(self) -> str:
-        return "robot/motor"
+        """Dynamically generates the topic based on motor name."""
+        return f"robot/motor/{self.name}"
 
     @staticmethod
-    def from_dict(data: dict):
-        # Convert dictionary keys to lowercase and pass as kwargs
+    def from_dict(data: dict, name: str):
+        """Creates a MotorState instance from a dictionary, ensuring key consistency.
+
+        Args:
+            data (dict): Dictionary containing motor telemetry data.
+            name (str): Name of the motor (e.g., 'roll', 'pitch', 'yaw').
+
+        Returns:
+            MotorState: An instance of the MotorState class.
+        """
+        # Convert dictionary keys to lowercase to standardize input format
         data = {k.lower(): v for k, v in data.items()}
-        return MotorState(**data)
+        return MotorState(name=name, **data)
 
 
 class RollMotorState(MotorState):

@@ -6,6 +6,7 @@ from collections import namedtuple
 from enum import Enum
 from multiprocessing import Queue
 from typing import Callable, List, Union, Tuple
+from dataclasses import asdict
 import moteus
 
 import numpy as np
@@ -19,6 +20,7 @@ from rluni.controller.fullrobot import (
     LQRController,
     PIDController,
     RLController,
+    MPCController,
     TestController,
 )
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -90,7 +92,8 @@ class RobotSystem:
         # Initialize controller type based on argument
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
-
+        self.ema_control_input = None
+        self.ema_alpha = .7  #.72 roll
         self.itr = int(0)  # Cycle counter
 
     def _initialize_motors(self, motor_config):
@@ -178,6 +181,8 @@ class RobotSystem:
             return RLController(model_pth=self.rlmodel_path)
         elif controller_type == "lqr":
             return LQRController()
+        elif controller_type == "mpc":
+            return MPCController(dt=self.LOOP_TIME)
         elif controller_type == "test":
             return TestController()
         else:
@@ -263,9 +268,11 @@ class RobotSystem:
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
             )
+            
+            self._update_ema_control_input(control_input)
 
             torques = self.controller.get_torques(
-                control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
+                self.ema_control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
             timer_tele.control_decision = time.time() - loop_start_time
 
@@ -278,20 +285,6 @@ class RobotSystem:
             # Only set the torque if not in sensor fusion calibration mode
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-
-            if False and not isCalibrating and self.motor_config is not EnabledMotors.NONE:
-                if self.motors.roll is not None:
-                    await self.motors.roll.set_torque(
-                        torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001
-                    )
-                if self.motors.pitch is not None:
-                    await self.motors.pitch.set_torque(
-                        torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001
-                    )
-                if self.motors.yaw is not None:
-                    await self.motors.yaw.set_torque(
-                        torques.yaw, self.MAX_TORQUE_YAW - 0.001
-                    )
 
             # Handle loop timer telemetry data processing
             timer_tele.torque_application = time.time() - loop_start_time
@@ -331,7 +324,7 @@ class RobotSystem:
                 ]
                 for motor in self.motors:
                     if motor is not None:
-                        data_list.append(td.MotorState.from_dict(motor.state))
+                        data_list.append(td.MotorState.from_dict(data = motor.state, name = motor.name))
                 await self._send_telemetry(data_packet=data_list)
 
             ### RECEIVE COMMS ###
@@ -374,6 +367,32 @@ class RobotSystem:
             logger.info("Motors shut down successfully.")
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
+            
+    def _update_ema_control_input(self, control_input):
+        ema_fields = {
+            "euler_angle_roll_rads",
+            "euler_angle_pitch_rads",
+            "euler_rate_roll_rads_s",
+            "euler_rate_pitch_rads_s",
+        }
+                    
+        # Convert dataclass to dictionary for compact EMA update
+        control_input_dict = asdict(control_input)
+        # Apply Exponential Moving Average (EMA)
+        if self.ema_control_input is None:
+            self.ema_control_input = control_input  # Initialize EMA with first input
+        else:
+            ema_dict = asdict(self.ema_control_input)
+            
+            # Apply EMA only to selected fields, copy the rest
+            for key in control_input_dict:
+                if key in ema_fields:
+                    ema_dict[key] = self.ema_alpha * ema_dict[key] + (1 - self.ema_alpha) * control_input_dict[key]
+                else:
+                    ema_dict[key] = control_input_dict[key]  # Direct copy for non-smoothed fields
+            
+            # Convert updated dictionary back to ControlInput dataclass
+            self.ema_control_input = ControlInput(**ema_dict)
 
     """ ####################### 
         Command Handling Methods
