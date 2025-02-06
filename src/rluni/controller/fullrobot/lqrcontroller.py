@@ -13,7 +13,7 @@ class LQRController(Controller):
     def __init__(self) -> None:
         self._K = np.array(
             [
-                [-15.4416*1.4, 0.0, 0.0, -1.9102, 0.0, 0.0, 0.0039/8, 0.0, 0.0],  # roll
+                [-16.6805, 0.0, 0.0, -0.7182/6, 0.0, 0.0, 0.0015, 0.0, 0.0],  # roll
                 [0.0, -10.6087/3, 0.0, 0.0, -2.5392/10, 0.0, 0.0, 0.0039, 0.0],  # pitch
                 [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # yaw
             ]
@@ -63,15 +63,15 @@ class LQRController(Controller):
         out = scale * self._K @ state_vector
         
         # DEBUG
-        # for i, component in enumerate(["roll"]):  # , "pitch", "yaw"]):
-        #     row_contribution = self._K[i] * state_vector  # Element-wise contribution
-        #     print(f"{component.capitalize()} torque breakdown:")
-        #     for j, value in enumerate(row_contribution):
-        #         print(
-        #             f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}"
-        #         )
-        #     print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
-        #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
+        for i, component in enumerate(["roll"]):  # , "pitch", "yaw"]):
+            row_contribution = self._K[i] * state_vector  # Element-wise contribution
+            print(f"{component.capitalize()} torque breakdown:")
+            for j, value in enumerate(row_contribution):
+                print(
+                    f"  State {j}: Gain {self._K[i, j]:.3f} * State {state_vector[j]:.3f} = {value:.3f}"
+                )
+            print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
+            print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
 
         # needs clipping
         torques = torques(
@@ -97,10 +97,10 @@ class LQRController(Controller):
         A = np.array(
             [
                 [0, 1, 0, 0, 0, 0],         # Row 1 (Roll dynamics)
-                [36.5724, 0, 0, 0, 0, 0],   # Row 2 (Roll dynamics)
-                [-36.5724, 0, 0, 0, 0, 0],  # Row 3 (Roll dynamics)
+                [38.0980, 0, 0, 0, 0, 0],   # Row 2 (Roll dynamics)
+                [-38.0980, 0, 0, 0, 0, 0],  # Row 3 (Roll dynamics)
                 [0, 0, 0, 0, 1, 0],         # Row 4 (Pitch dynamics)
-                [0, 0, 0, 16.6435, 0, 0],   # Row 5 (Pitch dynamics)
+                [0, 0, 0, 17.0505, 0, 0],   # Row 5 (Pitch dynamics)
                 [0, 0, 0, -1.2029, 0, 0],   # Row 6 (Pitch dynamics)
             ]
         )
@@ -108,11 +108,11 @@ class LQRController(Controller):
         B = np.array(
             [
                 [0, 0],         # Row 1 (Roll input)
-                [-14.2, 0],     # Row 2 (Roll input)
-                [1316.3, 0],    # Row 3 (Roll input)
+                [-13.8, 0],     # Row 2 (Roll input)
+                [1315.8, 0],    # Row 3 (Roll input)
                 [0, 0],         # Row 4 (Pitch input)
                 [0, -3.2179],   # Row 5 (Pitch input)
-                [0, 17.6336],   # Row 6 (Pitch input)
+                [0, 17.6321],   # Row 6 (Pitch input)
             ]
         )
 
