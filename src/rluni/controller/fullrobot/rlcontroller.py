@@ -19,7 +19,6 @@ class RLController(Controller):
         self.out_state = np.zeros((1, 1, 128)).astype(np.float32)
         self.hidden_state = np.zeros((1, 1, 128)).astype(np.float32)
 
-
     @call_super_first
     def get_torques(self, robot_state: ControlInput, max_torque: float):
         obs = np.zeros((1, 9))
@@ -28,7 +27,7 @@ class RLController(Controller):
         obs[:, 2] = robot_state.motor_speeds_yaw_rads_s
         obs[:, 3] = robot_state.euler_angle_pitch_rads
         obs[:, 4] = robot_state.euler_angle_roll_rads
-        obs[:, 5] = robot_state.euler_angle_yaw_rads*0
+        obs[:, 5] = robot_state.euler_angle_yaw_rads
         obs[:, 6] = robot_state.euler_rate_yaw_rads_s
         obs[:, 7] = robot_state.euler_rate_pitch_rads_s
         obs[:, 8] = robot_state.euler_rate_roll_rads_s
@@ -37,8 +36,8 @@ class RLController(Controller):
             None,
             {
                 "obs": obs.astype(np.float32),
-                "out_state.1" : self.out_state, 
-                "hidden_state.1" : self.hidden_state,
+                "out_state.1": self.out_state,
+                "hidden_state.1": self.hidden_state,
             },
         )
 
@@ -49,9 +48,12 @@ class RLController(Controller):
 
         # TODO: assert actions.shape[0] == self.num_act
 
-        roll = np.clip(1.0 * actions[0], a_min=-max_torque, a_max=max_torque) # CHECK SIGNS @JACKSON
+        roll = np.clip(
+            1.0 * actions[0], a_min=-max_torque, a_max=max_torque
+        )  # CHECK SIGNS @JACKSON
         pitch = -np.clip(1.0 * actions[1], a_min=-max_torque, a_max=max_torque)
-        yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)
+        # yaw = -np.clip(0.17 * actions[2], a_min=-0.17, a_max=0.17)
+        yaw = 0.0
         out = torques(roll, pitch, yaw)
 
         return out
