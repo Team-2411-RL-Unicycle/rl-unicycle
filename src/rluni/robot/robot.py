@@ -93,7 +93,7 @@ class RobotSystem:
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
         self.ema_control_input = None
-        self.ema_alpha = .7  #.72 roll
+        self.ema_alpha = .4  #.72 roll
         self.itr = int(0)  # Cycle counter
 
     def _initialize_motors(self, motor_config):
@@ -371,9 +371,9 @@ class RobotSystem:
     def _update_ema_control_input(self, control_input):
         ema_fields = {
             "euler_angle_roll_rads",
-            "euler_angle_pitch_rads",
+            # "euler_angle_pitch_rads",
             "euler_rate_roll_rads_s",
-            "euler_rate_pitch_rads_s",
+            # "euler_rate_pitch_rads_s",
         }
                     
         # Convert dataclass to dictionary for compact EMA update

@@ -66,7 +66,7 @@ Calibration:
 
   # Adjustment angles for pitch and roll, in degrees
   x_adj: 3.1
-  y_adj: 2.5
+  y_adj: 5.0
 
   # A, b for magnetometer calibration in numpy file or None in imu config folder
   # magnetometer: 'imu1_calibration.npz'
