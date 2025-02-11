@@ -297,12 +297,6 @@ class RobotSystem:
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
 
-            # Handle loop timer telemetry data processing
-            timer_tele.torque_application = time.time() - loop_start_time
-            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
-            timer_tele.end_loop_buffer = self.LOOP_TIME - (
-                time.time() - loop_start_time
-            )
 
             # Control decision - but using transports
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
@@ -339,6 +333,13 @@ class RobotSystem:
                     )
 
                 await self.transport.cycle(commands)
+                
+            # Handle loop timer telemetry data processing
+            timer_tele.torque_application = time.time() - loop_start_time
+            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
+            timer_tele.end_loop_buffer = self.LOOP_TIME - (
+                time.time() - loop_start_time
+            )
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
@@ -407,7 +408,7 @@ class RobotSystem:
 
     def _update_ema_control_input(self, control_input):
         ema_fields = {
-            "euler_angle_roll_rads",
+            # "euler_angle_roll_rads",
             # "euler_angle_pitch_rads",
             "euler_rate_roll_rads_s",
             # "euler_rate_pitch_rads_s",
