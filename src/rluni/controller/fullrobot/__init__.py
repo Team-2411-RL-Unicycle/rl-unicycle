@@ -4,3 +4,4 @@ from .pidcontroller import PIDController
 from .rlcontroller import RLController
 from .mpccontroller import MPCController
 from .testcontroller import TestController
+from .torque_filter import TorqueFilter
