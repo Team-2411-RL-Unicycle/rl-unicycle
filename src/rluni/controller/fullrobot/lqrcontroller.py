@@ -7,6 +7,8 @@ from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
 from rluni.utils.utils import call_super_first
 
+DEG_TO_RAD = np.pi / 180
+
 
 class LQRController(Controller):
 
@@ -105,6 +107,18 @@ class LQRController(Controller):
                 robot_state.motor_speeds_yaw_rads_s,
             ]
         )
+
+        print(
+            robot_state.motor_position_pitch_rads,
+            robot_state.motor_position_pitch_rads / (2 * np.pi),
+        )
+
+        # pitch drift correction
+        angle_limit = 2.5 * DEG_TO_RAD
+        angle_offset = np.clip(
+            robot_state.motor_position_pitch_rads, a_min=-angle_limit, a_max=angle_limit
+        )
+        state_vector[1] += angle_offset
 
         scale = 1.0
         out = scale * self._K @ state_vector

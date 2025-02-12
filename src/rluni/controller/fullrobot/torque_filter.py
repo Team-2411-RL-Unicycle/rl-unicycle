@@ -4,6 +4,7 @@ import numpy as np
 from scipy.signal import butter, filtfilt, iirnotch
 
 
+
 class TorqueFilter:
     def __init__(self, fs=80, target_freq=19.5, buffer_size=20):
         """

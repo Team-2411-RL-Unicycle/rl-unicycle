@@ -104,6 +104,11 @@ class RobotSystem:
         self.ema_alpha = 0.7  # .72 roll
 
         self.itr = int(0)  # Cycle counter
+        self.pitch_motor_offset = (
+            0.0
+            if self.motors.pitch is None
+            else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+        )
 
     def _load_config(self, config_file):
         """Load the robot configuration file and set relevant parameters."""
