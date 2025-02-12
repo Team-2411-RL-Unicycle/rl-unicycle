@@ -30,6 +30,7 @@ from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
 from . import teledata as td
+from . import safety_buffer as sb
 
 DEG_TO_RAD = math.pi / 180
 REV_TO_RAD = 2 * math.pi
@@ -79,6 +80,7 @@ class RobotSystem:
 
         # Load and parse the configuration file
         self._load_config(config_file)
+        self.safety_buffer = sb.SafetyBuffer()
 
         # Initialize IMU and sensor fusion
         self.imu1 = ICM20948(config_file=self.imu_config1)
@@ -278,9 +280,14 @@ class RobotSystem:
                     if self.motors.yaw is None
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
+                motor_position_pitch_rads=(
+                    0.0
+                    if self.motors.pitch is None
+                    else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+                ),
             )
 
-            if abs(control_input.motor_speeds_pitch_rads_s) > 10:
+            if self.safety_buffer.evaluate_state(control_input) == False:
                 logger.warning("Pitch motor speed too high, shutting down.")
                 shutdown_event.set()
 
