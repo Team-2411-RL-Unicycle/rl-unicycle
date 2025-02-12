@@ -3,7 +3,7 @@ from rluni.controller.fullrobot.controllerABC import ControlInput
 
 
 class SafetyBuffer:
-    """SafetyBuffer class is used to store the state of the robot and evaluate the state of the robot
+    """SafetyBuffer class is used to store a buffer state of the robot and evaluate the state of the robot
     for safety related decisions.
     """
 
@@ -16,20 +16,22 @@ class SafetyBuffer:
         self.state_buffer.append(robot_state)
 
     def evaluate_state(self, robot_state: ControlInput) -> bool:
-        """Evaluate the state of the robot and return a boolean value indicating if the robot is in a safe state.
+        """Evaluate the buffer state of the robot and return a boolean value indicating if the robot is in a safe state.
         
         Returns:
             safe_state (bool): True = safe, False = not safe.
         """
         self.add_state(robot_state)
-
-        # Check if the robot is in a safe state
         safe_state = self.check_pitch_speed()
 
         return safe_state
 
     def check_pitch_speed(self) -> bool:
-        """Check the pitch speed of the robot and return a boolean value indicating if the robot is in a safe state."""
+        """Check the pitch speed of the robot and return a boolean value indicating if the robot is in a safe state.
+        
+        Returns:
+            safe_state (bool): True = safe, False = not safe.
+        """
         safe_state = False
         for state in self.state_buffer:
             if abs(state.motor_speeds_pitch_rads_s) < 15:
