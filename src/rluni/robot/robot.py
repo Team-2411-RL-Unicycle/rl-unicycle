@@ -285,9 +285,9 @@ class RobotSystem:
                 )
             )
 
-            if abs(control_input.motor_speeds_pitch_rads_s) > 10:
-                logger.warning("Pitch motor speed too high, shutting down.")
-                shutdown_event.set()
+            # if abs(control_input.motor_speeds_pitch_rads_s) > 10:
+            #     logger.warning("Pitch motor speed too high, shutting down.")
+            #     shutdown_event.set()
 
             self._update_ema_control_input(control_input)
 
