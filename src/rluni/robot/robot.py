@@ -115,7 +115,7 @@ class RobotSystem:
         elif motor_config == "pitch":
             self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
-        elif motor_config == "roll_pitch":
+        elif motor_config == "roll_pitch" or motor_config == "pitch_roll":
             self.motors = motors(
                 MN6007(4, "roll", self.transport),
                 MN6007(6, "pitch", self.transport),
@@ -279,6 +279,10 @@ class RobotSystem:
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
             )
+
+            if abs(control_input.motor_speeds_pitch_rads_s) > 10:
+                logger.warning("Pitch motor speed too high, shutting down.")
+                shutdown_event.set()
 
             self._update_ema_control_input(control_input)
 
