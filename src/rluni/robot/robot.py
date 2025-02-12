@@ -29,6 +29,7 @@ from rluni.utils import load_config_file
 
 from . import safety_buffer as sb
 from . import teledata as td
+from . import safety_buffer as sb
 
 logger = logging.getLogger(__name__)
 
