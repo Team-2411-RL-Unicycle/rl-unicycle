@@ -278,6 +278,11 @@ class RobotSystem:
                     if self.motors.yaw is None
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
+                motor_position_pitch_rads=(
+                    0.0
+                    if self.motors.pitch is None
+                    else self.motors.pitch.state[""]
+                )
             )
 
             if abs(control_input.motor_speeds_pitch_rads_s) > 10:
