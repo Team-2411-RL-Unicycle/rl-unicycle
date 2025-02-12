@@ -115,14 +115,7 @@ class RobotSystem:
         elif motor_config == "pitch":
             self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
-        elif motor_config == "roll_pitch":
-            self.motors = motors(
-                MN6007(4, "roll", self.transport),
-                MN6007(6, "pitch", self.transport),
-                None,
-            )
-            self.motor_config = EnabledMotors.ROLL_PITCH
-        elif motor_config == "pitch_roll":
+        elif motor_config == "roll_pitch" or motor_config == "pitch_roll":
             self.motors = motors(
                 MN6007(4, "roll", self.transport),
                 MN6007(6, "pitch", self.transport),
