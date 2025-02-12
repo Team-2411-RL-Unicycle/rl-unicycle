@@ -17,7 +17,7 @@ class SafetyBuffer:
 
     def evaluate_state(self, robot_state: ControlInput) -> bool:
         """Evaluate the buffer state of the robot and return a boolean value indicating if the robot is in a safe state.
-        
+
         Returns:
             safe_state (bool): True = safe, False = not safe.
         """
@@ -28,7 +28,7 @@ class SafetyBuffer:
 
     def check_pitch_speed(self) -> bool:
         """Check the pitch speed of the robot and return a boolean value indicating if the robot is in a safe state.
-        
+
         Returns:
             safe_state (bool): True = safe, False = not safe.
         """

@@ -4,6 +4,7 @@ import numpy as np
 
 from scipy.signal import iirnotch
 
+
 class TorqueFilter:
     def __init__(self, fs=80, target_freq=19.5, buffer_size=20):
         """
@@ -14,16 +15,16 @@ class TorqueFilter:
         self.fs = fs
         self.target_freq = target_freq
         self.buffer = deque(maxlen=buffer_size)
-        
+
     def process_torque(self, torque):
         """
         Filters the torque signal and returns the amplitude and phase at the target frequency.
         """
         self.add_sample(torque)
         amp, phas = self.compute_amp_phase()
-        torque = torque + 2*amp * np.sin(phas)
+        torque = torque + 2 * amp * np.sin(phas)
         print(amp, phas)
-        
+
         return torque
 
     def add_sample(self, sample):

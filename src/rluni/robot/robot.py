@@ -98,6 +98,11 @@ class RobotSystem:
         self.ema_control_input = None
         self.ema_alpha = 0.7  # .72 roll
         self.itr = int(0)  # Cycle counter
+        self.pitch_motor_offset = (
+            0.0
+            if self.motors.pitch is None
+            else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+        )
 
     def _initialize_motors(self, motor_config):
         # CHECK THIS
@@ -281,9 +286,10 @@ class RobotSystem:
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
                 motor_position_pitch_rads=(
-                    0.0
+                    0.0 - self.pitch_motor_offset
                     if self.motors.pitch is None
                     else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+                    - self.pitch_motor_offset
                 ),
             )
 
@@ -307,7 +313,6 @@ class RobotSystem:
             # Only set the torque if not in sensor fusion calibration mode
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-
 
             # Control decision - but using transports
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
@@ -344,7 +349,7 @@ class RobotSystem:
                     )
 
                 await self.transport.cycle(commands)
-                
+
             # Handle loop timer telemetry data processing
             timer_tele.torque_application = time.time() - loop_start_time
             timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
