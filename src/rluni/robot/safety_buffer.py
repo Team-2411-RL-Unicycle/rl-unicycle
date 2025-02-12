@@ -9,7 +9,7 @@ class SafetyBuffer:
 
     def __init__(self):
         """Initialize the SafetyBuffer object."""
-        self.state_buffer = deque(maxsize=10)
+        self.state_buffer = deque(maxlen=10)
 
     def add_state(self, robot_state: ControlInput):
         """Add the state of the robot to the buffer."""
@@ -35,5 +35,4 @@ class SafetyBuffer:
             if abs(state.motor_speeds_pitch_rads_s) < 15:
                 safe_state = True
                 break
-
         return safe_state
