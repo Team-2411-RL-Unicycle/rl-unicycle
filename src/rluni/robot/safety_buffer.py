@@ -1,4 +1,5 @@
 from collections import deque
+
 from rluni.controller.fullrobot.controllerABC import ControlInput
 
 

@@ -1,5 +1,6 @@
-import numpy as np
 import importlib.resources as pkg_resources
+
+import numpy as np
 from simple_pid import PID
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller

@@ -1,8 +1,7 @@
 from collections import deque
-from scipy.signal import butter, filtfilt
-import numpy as np
 
-from scipy.signal import iirnotch
+import numpy as np
+from scipy.signal import butter, filtfilt, iirnotch
 
 
 class TorqueFilter:
