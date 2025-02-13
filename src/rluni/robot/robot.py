@@ -91,6 +91,11 @@ class RobotSystem:
 
         self.motors: Tuple[Motor, ...] = None
         self._initialize_motors(motor_config)
+        if self.motors.pitch is None:
+            self.pitch_motor_offset = 0.0
+        else:
+            self.motors.pitch.update_state()
+            self.pitch_motor_offset = self.motors.pitch.state["POSITION"] * REV_TO_RAD
 
         # Initialize controller type based on argument
         self.controller_type = controller_type
@@ -98,11 +103,6 @@ class RobotSystem:
         self.ema_control_input = None
         self.ema_alpha = 0.7  # .72 roll
         self.itr = int(0)  # Cycle counter
-        self.pitch_motor_offset = (
-            0.0
-            if self.motors.pitch is None
-            else self.motors.pitch.state["POSITION"] * REV_TO_RAD
-        )
 
     def _initialize_motors(self, motor_config):
         # CHECK THIS
