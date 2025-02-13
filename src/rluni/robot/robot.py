@@ -281,7 +281,9 @@ class RobotSystem:
                 ),
             )
 
-            if self.safety_buffer.evaluate_state(control_input) == False:
+            safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
+            if safe_state == False:
+                logger.warning(f"Robot is not in a safe state: {safe_msg}")
                 shutdown_event.set()
 
             self._update_ema_control_input(control_input)

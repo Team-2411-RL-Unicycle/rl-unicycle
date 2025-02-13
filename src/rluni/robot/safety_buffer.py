@@ -1,6 +1,7 @@
 import math
 from collections import deque
 
+
 from rluni.controller.fullrobot.controllerABC import ControlInput
 
 PITCH_MOTOR_SPEED_LIM = 15  # rads/s
@@ -25,16 +26,21 @@ class SafetyBuffer:
         """Add the state of the robot to the buffer."""
         self.state_buffer.append(robot_state)
 
-    def evaluate_state(self, robot_state: ControlInput) -> bool:
+    def evaluate_state(self, robot_state: ControlInput) -> bool, str:
         """Evaluate the buffer state of the robot and return a boolean value indicating if the robot is in a safe state.
 
         Returns:
             safe_state (bool): True = safe, False = not safe.
         """
         self.add_state(robot_state)
-        safe_state = self.check_pitch_speed()
 
-        return safe_state
+        # run checks but return False if any check fails with an appropriate message
+        if not self.check_pitch_speed():
+            return False, "Pitch motor speed too high, shutting down."
+        if not self.check_roll_spool():
+            return False, "Roll motor spooled up, shutting down."
+
+        return True, ""
 
     def check_pitch_speed(self) -> bool:
         """Check the pitch speed of the robot and return a boolean value indicating if the robot is in a safe state.
@@ -48,7 +54,7 @@ class SafetyBuffer:
             if abs(state.motor_speeds_pitch_rads_s) < PITCH_MOTOR_SPEED_LIM:
                 safe_state = True
                 return safe_state
-        # logger.warning("Pitch motor speed too high, shutting down.")
+
         return safe_state
 
     def check_roll_spool(self) -> bool:
@@ -63,24 +69,24 @@ class SafetyBuffer:
         for state in self.state_buffer:
             if (state.euler_angle_roll_rads < ROLL_ANGLE_LIM * DEG_TO_RAD) and (
                 state.euler_angle_roll_rads > -ROLL_ANGLE_LIM * DEG_TO_RAD
-            ):
+            ): # if the robot is upright
                 safe_state = True
                 return safe_state
             elif (
                 state.motor_speeds_roll_rads_s > -ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
             ) and (
                 state.motor_speeds_roll_rads_s < ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
-            ):
+            ): # if the robot is not spooled up
                 safe_state = True
                 return safe_state
             elif (state.euler_angle_roll_rads > 0) and (
                 state.motor_speeds_roll_rads_s < 0
-            ):
+            ): # if we still have control authority
                 safe_state = True
                 return safe_state
             elif (state.euler_angle_roll_rads < 0) and (
                 state.motor_speeds_roll_rads_s > 0
-            ):
+            ): # if we still have control authority
                 safe_state = True
                 return safe_state
         return safe_state
