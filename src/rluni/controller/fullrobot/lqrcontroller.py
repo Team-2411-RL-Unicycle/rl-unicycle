@@ -108,19 +108,19 @@ class LQRController(Controller):
             ]
         )
 
-        # print(
-        #     robot_state.motor_position_pitch_rads,
-        #     robot_state.motor_position_pitch_rads / (2 * np.pi),
-        # )
-
         # pitch drift correction
-        angle_limit = 2.0 * DEG_TO_RAD
-        angle_offset = robot_state.motor_position_pitch_rads % (2*np.pi)
-        angle_offset = angle_offset - (2*np.pi) if angle_offset > np.pi else angle_offset
-        angle_offset_clipped = np.clip(
-            angle_offset, a_min=-angle_limit, a_max=angle_limit
+
+        # angle_limit = 2.0 * DEG_TO_RAD
+        # angle_offset = robot_state.motor_position_pitch_rads % (2*np.pi)
+        # angle_offset = angle_offset - (2*np.pi) if angle_offset > np.pi else angle_offset
+        # angle_offset_clipped = np.clip(
+        #     angle_offset, a_min=-angle_limit, a_max=angle_limit
+        # )
+        # state_vector[1] += angle_offset_clipped
+        state_vector[1] = self.pitch_drift_correction(
+            angle_limit=2.0 * DEG_TO_RAD,
+            motor_position=robot_state.motor_position_pitch_rads,
         )
-        state_vector[1] += angle_offset_clipped
 
         scale = 1.0
         out = scale * self._K @ state_vector
@@ -197,3 +197,22 @@ class LQRController(Controller):
         K_full[1, 1], K_full[1, 4], K_full[1, 7] = K[1, 3], K[1, 4], K[1, 5]
 
         return K_full
+    
+    def pitch_drift_correction(angle_limit: float, motor_position: float) -> float:
+        """
+        Corrects the pitch angle drift by adding a bias on either side of a local point.
+
+        Args:
+            angle_limit (float): The maximum bias in radians.
+            motor_position (float): The current angle offset in radians.
+
+        Returns:
+            angle_offset_clipped (float): The bias to add to pitch angle.
+        """
+        angle_offset = motor_position % (2 * np.pi)
+        angle_offset = angle_offset - (2 * np.pi) if angle_offset > np.pi else angle_offset
+        angle_offset = angle_offset * angle_limit / np.pi
+        angle_offset_clipped = np.clip(
+            angle_offset, a_min=-angle_limit, a_max=angle_limit
+        )
+        return angle_offset_clipped
