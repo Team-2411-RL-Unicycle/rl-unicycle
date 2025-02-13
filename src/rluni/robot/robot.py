@@ -288,7 +288,6 @@ class RobotSystem:
             )
 
             if self.safety_buffer.evaluate_state(control_input) == False:
-                logger.warning("Pitch motor speed too high, shutting down.")
                 shutdown_event.set()
 
             self._update_ema_control_input(control_input)
