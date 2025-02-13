@@ -108,16 +108,7 @@ class LQRController(Controller):
             ]
         )
 
-        # pitch drift correction
-
-        # angle_limit = 2.0 * DEG_TO_RAD
-        # angle_offset = robot_state.motor_position_pitch_rads % (2*np.pi)
-        # angle_offset = angle_offset - (2*np.pi) if angle_offset > np.pi else angle_offset
-        # angle_offset_clipped = np.clip(
-        #     angle_offset, a_min=-angle_limit, a_max=angle_limit
-        # )
-        # state_vector[1] += angle_offset_clipped
-        state_vector[1] = self.pitch_drift_correction(
+        state_vector[1] += self.pitch_drift_correction(
             angle_limit=2.0 * DEG_TO_RAD,
             motor_position=robot_state.motor_position_pitch_rads,
         )
@@ -209,12 +200,17 @@ class LQRController(Controller):
         Returns:
             angle_offset_clipped (float): The bias to add to pitch angle.
         """
+        print("\n\n******")
         angle_offset = motor_position % (2 * np.pi)
+        print("local", angle_offset)
         angle_offset = (
             angle_offset - (2 * np.pi) if angle_offset > np.pi else angle_offset
         )
-        angle_offset = angle_offset * angle_limit / np.pi
+        print("centered", angle_offset)
+        angle_offset = -angle_offset * angle_limit / np.pi
+        print("scaled", angle_offset)
         angle_offset_clipped = np.clip(
             angle_offset, a_min=-angle_limit, a_max=angle_limit
         )
+        print("clipped", angle_offset_clipped)
         return angle_offset_clipped
