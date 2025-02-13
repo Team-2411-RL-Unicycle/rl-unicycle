@@ -26,7 +26,7 @@ class SafetyBuffer:
         """Add the state of the robot to the buffer."""
         self.state_buffer.append(robot_state)
 
-    def evaluate_state(self, robot_state: ControlInput) -> bool, str:
+    def evaluate_state(self, robot_state: ControlInput) -> tuple[bool, str]:
         """Evaluate the buffer state of the robot and return a boolean value indicating if the robot is in a safe state.
 
         Returns:
