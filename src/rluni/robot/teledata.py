@@ -42,6 +42,7 @@ class IMUData(TelemetryData):
     mag_x, mag_y, mag_z: uT
     """
 
+    id: int
     accel_x: float  # in G's
     accel_y: float
     accel_z: float
@@ -56,7 +57,7 @@ class IMUData(TelemetryData):
 
     @property
     def topic(self) -> str:
-        return "robot/sensors/imu"  # Class-level topic
+        return f"robot/sensors/imu{self.id}"  # Class-level topic
 
     def get_accel(self) -> tuple:
         return (self.accel_x, self.accel_y, self.accel_z)
