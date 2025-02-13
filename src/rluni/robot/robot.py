@@ -3,34 +3,28 @@ import logging
 import math
 import time
 from collections import namedtuple
-from enum import Enum
-from multiprocessing import Queue
-from typing import Callable, List, Union, Tuple
 from dataclasses import asdict
-import moteus
-
-import numpy as np
-
+from enum import Enum
 # For importing data files from the source, independent of the installation method
 from importlib.resources import files
+from multiprocessing import Queue
+from typing import Callable, List, Tuple, Union
 
-from rluni.controller.fullrobot import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    MPCController,
-    TestController,
-)
+import moteus
+import numpy as np
+
+from rluni.controller.fullrobot import (ControlInput, Controller,
+                                        LQRController, MPCController,
+                                        PIDController, RLController,
+                                        TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
-from . import teledata as td
 from . import safety_buffer as sb
+from . import teledata as td
 
 DEG_TO_RAD = math.pi / 180
 REV_TO_RAD = 2 * math.pi
@@ -307,7 +301,6 @@ class RobotSystem:
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
 
-
             # Control decision - but using transports
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
                 commands = []
@@ -343,7 +336,7 @@ class RobotSystem:
                     )
 
                 await self.transport.cycle(commands)
-                
+
             # Handle loop timer telemetry data processing
             timer_tele.torque_application = time.time() - loop_start_time
             timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)

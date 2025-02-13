@@ -1,6 +1,6 @@
-from importlib.resources import files
 import logging
 import time
+from importlib.resources import files
 
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
