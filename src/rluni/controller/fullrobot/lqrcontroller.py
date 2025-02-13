@@ -108,17 +108,19 @@ class LQRController(Controller):
             ]
         )
 
-        print(
-            robot_state.motor_position_pitch_rads,
-            robot_state.motor_position_pitch_rads / (2 * np.pi),
-        )
+        # print(
+        #     robot_state.motor_position_pitch_rads,
+        #     robot_state.motor_position_pitch_rads / (2 * np.pi),
+        # )
 
         # pitch drift correction
-        angle_limit = 2.5 * DEG_TO_RAD
-        angle_offset = np.clip(
-            robot_state.motor_position_pitch_rads, a_min=-angle_limit, a_max=angle_limit
+        angle_limit = 2.0 * DEG_TO_RAD
+        angle_offset = robot_state.motor_position_pitch_rads % (2*np.pi)
+        angle_offset = angle_offset - (2*np.pi) if angle_offset > np.pi else angle_offset
+        angle_offset_clipped = np.clip(
+            angle_offset, a_min=-angle_limit, a_max=angle_limit
         )
-        state_vector[1] += angle_offset
+        state_vector[1] += angle_offset_clipped
 
         scale = 1.0
         out = scale * self._K @ state_vector
