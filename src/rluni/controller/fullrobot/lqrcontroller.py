@@ -197,7 +197,7 @@ class LQRController(Controller):
         K_full[1, 1], K_full[1, 4], K_full[1, 7] = K[1, 3], K[1, 4], K[1, 5]
 
         return K_full
-    
+
     def pitch_drift_correction(angle_limit: float, motor_position: float) -> float:
         """
         Corrects the pitch angle drift by adding a bias on either side of a local point.
@@ -210,7 +210,9 @@ class LQRController(Controller):
             angle_offset_clipped (float): The bias to add to pitch angle.
         """
         angle_offset = motor_position % (2 * np.pi)
-        angle_offset = angle_offset - (2 * np.pi) if angle_offset > np.pi else angle_offset
+        angle_offset = (
+            angle_offset - (2 * np.pi) if angle_offset > np.pi else angle_offset
+        )
         angle_offset = angle_offset * angle_limit / np.pi
         angle_offset_clipped = np.clip(
             angle_offset, a_min=-angle_limit, a_max=angle_limit
