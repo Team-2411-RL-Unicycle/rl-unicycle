@@ -1,11 +1,12 @@
-import numpy as np
 import importlib.resources as pkg_resources
-import sympy as sp
-from scipy.integrate import solve_ivp
-import scipy.linalg
-import cvxpy as cp
 import time as clock
 from collections import namedtuple
+
+import cvxpy as cp
+import numpy as np
+import scipy.linalg
+import sympy as sp
+from scipy.integrate import solve_ivp
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils import call_super_first

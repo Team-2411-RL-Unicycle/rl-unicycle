@@ -4,8 +4,8 @@ import numpy as np
 import scipy.linalg as spla
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
-from rluni.utils.utils import call_super_first
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
+from rluni.utils.utils import call_super_first
 
 
 class LQRController(Controller):
