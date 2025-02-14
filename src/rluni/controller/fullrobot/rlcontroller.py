@@ -25,8 +25,8 @@ class RLController(Controller):
         obs[:, 0] = robot_state.motor_speeds_roll_rads_s
         obs[:, 1] = robot_state.motor_speeds_pitch_rads_s
         obs[:, 2] = robot_state.motor_speeds_yaw_rads_s
-        obs[:, 4] = robot_state.euler_angle_pitch_rads
-        obs[:, 3] = robot_state.euler_angle_roll_rads
+        obs[:, 4] = robot_state.euler_angle_pitch_rads+2*np.pi/180
+        obs[:, 3] = robot_state.euler_angle_roll_rads+2*np.pi/180
         obs[:, 5] = robot_state.euler_angle_yaw_rads
         obs[:, 6] = robot_state.euler_rate_yaw_rads_s
         obs[:, 8] = robot_state.euler_rate_pitch_rads_s
