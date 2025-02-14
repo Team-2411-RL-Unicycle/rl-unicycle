@@ -108,10 +108,10 @@ class LQRController(Controller):
             ]
         )
 
-        state_vector[1] += self.pitch_drift_correction(
-            angle_limit=2.0 * DEG_TO_RAD,
-            motor_position=robot_state.motor_position_pitch_rads,
-        )
+        # state_vector[1] += self.pitch_drift_correction(
+        #     angle_limit=2.0 * DEG_TO_RAD,
+        #     motor_position=robot_state.motor_position_pitch_rads,
+        # )
 
         scale = 1.0
         out = scale * self._K @ state_vector
@@ -126,8 +126,6 @@ class LQRController(Controller):
         #         )
         #     print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
         #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
-
-        # needs clipping
 
         # Trim the roll torque
         roll_t = np.clip(out[0], a_min=-1.4, a_max=1.4)

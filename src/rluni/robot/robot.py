@@ -218,6 +218,7 @@ class RobotSystem:
                     await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)ned by LOOP_TIME.
         """
         loop_period = self.LOOP_TIME
+        pitch_absement = 0.0  # [rads * s]
 
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
@@ -281,6 +282,8 @@ class RobotSystem:
                     else self.motors.pitch.state["POSITION"] * REV_TO_RAD
                 ),
             )
+            if abs(control_input.motor_position_pitch_rads) > 0.01:
+                pitch_absement += control_input.motor_position_pitch_rads
 
             if self.safety_buffer.evaluate_state(control_input) == False:
                 logger.warning("Pitch motor speed too high, shutting down.")
@@ -291,6 +294,10 @@ class RobotSystem:
             torques = self.controller.get_torques(
                 self.ema_control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
+
+            # Integrate error
+            torques.pitch += 0.001 * pitch_absement
+
             timer_tele.control_decision = time.time() - loop_start_time
 
             ## DELAY UNTIL FIXED POINT ##
