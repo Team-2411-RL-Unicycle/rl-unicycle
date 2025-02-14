@@ -259,7 +259,7 @@ class RobotSystem:
           8) Sleep until next iteration
         """
         loop_period = self.LOOP_TIME
-        pitch_absement = 0.0  # [rads * s]
+        pitch_absition = 0.0  # [rads * s]
 
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
@@ -292,7 +292,7 @@ class RobotSystem:
                 eulers_deg, euler_rates_rads
             )
             if abs(control_input.motor_position_pitch_rads) > 0.01:
-                pitch_absement += control_input.motor_position_pitch_rads
+                pitch_absition += control_input.motor_position_pitch_rads
 
             # Evaluate system safety
             safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
@@ -309,7 +309,7 @@ class RobotSystem:
             )
 
             # Integrate error
-            torques.pitch += 0.001 * pitch_absement
+            torques.pitch += 0.001 * pitch_absition
 
             timer_tele.control_decision = time.time() - loop_start_time
 
