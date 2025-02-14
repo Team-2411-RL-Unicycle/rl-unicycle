@@ -1,7 +1,8 @@
 import asyncio
 import math
-import moteus
 import time
+
+import moteus
 import numpy as np
 
 

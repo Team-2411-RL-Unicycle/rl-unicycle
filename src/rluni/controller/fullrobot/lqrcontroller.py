@@ -4,8 +4,8 @@ import numpy as np
 import scipy.linalg as spla
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
-from rluni.utils.utils import call_super_first
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
+from rluni.utils.utils import call_super_first
 
 
 class LQRController(Controller):
@@ -26,7 +26,7 @@ class LQRController(Controller):
         # Temporary overide
         self._K[0, 0], self._K[0, 3], self._K[0, 6] = (
             self._K[0, 0] * 0.75,
-            self._K[0, 3] * .65,
+            self._K[0, 3] * 0.65,
             self._K[0, 6] * 1.0,
         )
         self._K[1, 1], self._K[1, 4], self._K[1, 7] = -10.6 / 3, -2.5392 / 10, 0.0059
@@ -121,15 +121,15 @@ class LQRController(Controller):
         #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
 
         # needs clipping
-        
+
         # Trim the roll torque
         roll_t = np.clip(out[0], a_min=-1.4, a_max=1.4)
         roll_t = np.sign(roll_t) * np.abs(roll_t) ** 1.1
-        
+
         # TODO conditioning on the torque
         # # Apply filter only to the roll torque
         # filtered_roll = self.torque_filter.process_torque(roll_t)
-        
+
         torques = torques(
             roll_t,  # roll
             np.clip(out[1], a_min=-1.0, a_max=1.0),  # pitch
