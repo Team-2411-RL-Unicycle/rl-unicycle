@@ -1,0 +1,3 @@
+[console_scripts]
+moteus_tool = moteus.moteus_tool:main
+
