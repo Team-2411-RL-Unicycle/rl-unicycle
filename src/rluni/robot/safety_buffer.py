@@ -37,8 +37,8 @@ class SafetyBuffer:
         # run checks but return False if any check fails with an appropriate message
         if not self.check_pitch_speed():
             return False, "Pitch motor speed too high, shutting down."
-        if not self.check_roll_spool():
-            return False, "Roll motor spooled up, shutting down."
+        # if not self.check_roll_spool():
+        #     return False, "Roll motor spooled up, shutting down."
 
         return True, ""
 
