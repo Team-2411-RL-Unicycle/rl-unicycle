@@ -25,7 +25,6 @@ from rluni.utils import load_config_file
 
 from . import safety_buffer as sb
 from . import teledata as td
-from . import safety_buffer as sb
 
 DEG_TO_RAD = math.pi / 180
 REV_TO_RAD = 2 * math.pi
@@ -288,8 +287,9 @@ class RobotSystem:
             print("scaled absition", 0.005*pitch_absition)
             print("pitch angle", control_input.euler_angle_pitch_rads)
 
-            if self.safety_buffer.evaluate_state(control_input) == False:
-                logger.warning("Pitch motor speed too high, shutting down.")
+            safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
+            if safe_state == False:
+                logger.warning(f"Robot is not in a safe state: {safe_msg}")
                 shutdown_event.set()
 
             self._update_ema_control_input(control_input)

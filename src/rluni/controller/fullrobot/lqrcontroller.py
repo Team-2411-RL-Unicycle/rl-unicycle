@@ -7,8 +7,6 @@ from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
 from rluni.utils.utils import call_super_first
 
-DEG_TO_RAD = np.pi / 180
-
 
 class LQRController(Controller):
 
@@ -126,6 +124,8 @@ class LQRController(Controller):
         #         )
         #     print(f"  Total {component} torque before scaling: {out[i] / 0.1:.3f}")
         #     print(f"  Total {component} torque after scaling: {out[i]:.3f}\n")
+
+        # needs clipping
 
         # Trim the roll torque
         roll_t = np.clip(out[0], a_min=-1.4, a_max=1.4)
