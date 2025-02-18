@@ -283,8 +283,10 @@ class RobotSystem:
                 ),
             )
             if abs(control_input.euler_angle_pitch_rads) > 0.005 and abs(control_input.euler_angle_pitch_rads) < 0.2:
-                pitch_absition += control_input.euler_angle_pitch_rads
-            print(0.001 * pitch_absition)
+                pitch_absition += control_input.euler_angle_pitch_rads - 0.005 * pitch_absition
+            print("pitch absition", pitch_absition)
+            print("scaled absition", 0.005*pitch_absition)
+            print("pitch angle", control_input.euler_angle_pitch_rads)
 
             if self.safety_buffer.evaluate_state(control_input) == False:
                 logger.warning("Pitch motor speed too high, shutting down.")
@@ -297,6 +299,8 @@ class RobotSystem:
             )
 
             print("pitch torque", torques.pitch)
+            print()
+
             # Integrate error
             # torques.pitch += 0.001 * pitch_absition
 
@@ -331,7 +335,7 @@ class RobotSystem:
                             position=math.nan,
                             kp_scale=0.0,
                             kd_scale=0.0,
-                            feedforward_torque=torques.pitch + 0.001 * pitch_absition,
+                            feedforward_torque=torques.pitch - 0.005 * pitch_absition,
                             maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
                         )
                     )
