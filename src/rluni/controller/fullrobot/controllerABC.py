@@ -16,6 +16,7 @@ class ControlInput:
     motor_speeds_roll_rads_s: float
     motor_speeds_pitch_rads_s: float
     motor_speeds_yaw_rads_s: float
+    motor_position_pitch_rads: float
 
 
 class Controller(ABC):

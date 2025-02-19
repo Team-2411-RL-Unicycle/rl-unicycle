@@ -3,32 +3,27 @@ import logging
 import math
 import time
 from collections import namedtuple
-from enum import Enum
-from multiprocessing import Queue
-from typing import Callable, List, Union, Tuple
 from dataclasses import asdict
-import moteus
-
-import numpy as np
-
+from enum import Enum
 # For importing data files from the source, independent of the installation method
 from importlib.resources import files
+from multiprocessing import Queue
+from typing import Callable, List, Tuple, Union
 
-from rluni.controller.fullrobot import (
-    ControlInput,
-    Controller,
-    LQRController,
-    PIDController,
-    RLController,
-    MPCController,
-    TestController,
-)
+import moteus
+import numpy as np
+
+from rluni.controller.fullrobot import (ControlInput, Controller,
+                                        LQRController, MPCController,
+                                        PIDController, RLController,
+                                        TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
+from . import safety_buffer as sb
 from . import teledata as td
 
 DEG_TO_RAD = math.pi / 180
@@ -79,6 +74,7 @@ class RobotSystem:
 
         # Load and parse the configuration file
         self._load_config(config_file)
+        self.safety_buffer = sb.SafetyBuffer()
 
         # Initialize IMU and sensor fusion
         self.imu1 = ICM20948(config_file=self.imu_config1)
@@ -115,7 +111,7 @@ class RobotSystem:
         elif motor_config == "pitch":
             self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
             self.motor_config = EnabledMotors.PITCH
-        elif motor_config == "roll_pitch":
+        elif motor_config == "roll_pitch" or motor_config == "pitch_roll":
             self.motors = motors(
                 MN6007(4, "roll", self.transport),
                 MN6007(6, "pitch", self.transport),
@@ -278,7 +274,17 @@ class RobotSystem:
                     if self.motors.yaw is None
                     else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
                 ),
+                motor_position_pitch_rads=(
+                    0.0
+                    if self.motors.pitch is None
+                    else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+                ),
             )
+
+            safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
+            if safe_state == False:
+                logger.warning(f"Robot is not in a safe state: {safe_msg}")
+                shutdown_event.set()
 
             self._update_ema_control_input(control_input)
 
@@ -296,13 +302,6 @@ class RobotSystem:
             # Only set the torque if not in sensor fusion calibration mode
             #  TODO: Can all motors be set in one transport or more efficiently?
             isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-
-            # Handle loop timer telemetry data processing
-            timer_tele.torque_application = time.time() - loop_start_time
-            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
-            timer_tele.end_loop_buffer = self.LOOP_TIME - (
-                time.time() - loop_start_time
-            )
 
             # Control decision - but using transports
             if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
@@ -339,6 +338,13 @@ class RobotSystem:
                     )
 
                 await self.transport.cycle(commands)
+
+            # Handle loop timer telemetry data processing
+            timer_tele.torque_application = time.time() - loop_start_time
+            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
+            timer_tele.end_loop_buffer = self.LOOP_TIME - (
+                time.time() - loop_start_time
+            )
 
             ### SEND COMMS ###
             # Send out all data downsampled to (optional lower) rate
@@ -407,7 +413,7 @@ class RobotSystem:
 
     def _update_ema_control_input(self, control_input):
         ema_fields = {
-            "euler_angle_roll_rads",
+            # "euler_angle_roll_rads",
             # "euler_angle_pitch_rads",
             "euler_rate_roll_rads_s",
             # "euler_rate_pitch_rads_s",
