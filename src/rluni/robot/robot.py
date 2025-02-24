@@ -18,6 +18,7 @@ from rluni.controller.fullrobot import (
     LQRController,
     MPCController,
     RLController,
+                                        PositionController,
     TestController,
     HighLevelXboxController,
 )
