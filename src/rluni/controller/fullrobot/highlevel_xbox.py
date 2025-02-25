@@ -8,7 +8,7 @@ from rluni.controller.fullrobot.torque_filter import TorqueFilter
 from rluni.controller.fullrobot import YawController, LQRController
 from rluni.utils.utils import call_super_first
 
-def HighLevelXboxController(Controller):
+class HighLevelXboxController(Controller):
     @call_super_first
     def __init__(self) -> None:
         self.logger.info(f"{self.__class__.__name__} initialized")
