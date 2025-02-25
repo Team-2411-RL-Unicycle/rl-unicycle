@@ -55,7 +55,7 @@ Calibration:
 
   # Gyroscope X, Y, Z Bias Calibration
   # Default: 0.0, 0.0, 0.0
-  gyro_bias: [-0.4, 0.0, 0.1]
+  gyro_bias: [-0.27, 0.2, 0.17]
 
   # Rotation Matrix for IMU (3x3 matrix)
   # Maps the IMU's axes to the vehicle's axes

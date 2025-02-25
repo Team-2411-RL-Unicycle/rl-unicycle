@@ -16,7 +16,8 @@ import numpy as np
 from rluni.controller.fullrobot import (ControlInput, Controller,
                                         LQRController, MPCController,
                                         PIDController, RLController,
-                                        TestController)
+                                        TestController, YawController,
+                                        HighLevelXboxController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
@@ -89,6 +90,7 @@ class RobotSystem:
         # Initialize controller type based on argument
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
+
         self.ema_control_input = None
         self.ema_alpha = 0.7  # .72 roll
         self.itr = int(0)  # Cycle counter
@@ -180,7 +182,7 @@ class RobotSystem:
         self.pid_config_path = str(files("rluni").joinpath(self.pid_config_path))
 
     def _get_controller(self, controller_type: str) -> Controller:
-        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
+        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test', 'xbox')."""
         if controller_type == "pid":
             return PIDController(config_file=self.pid_config_path)
         elif controller_type == "rl":
@@ -191,6 +193,8 @@ class RobotSystem:
             return MPCController(dt=self.LOOP_TIME)
         elif controller_type == "test":
             return TestController()
+        elif controller_type == "xbox":
+            return HighLevelXboxController()
         else:
             raise ValueError(f"Unsupported controller type: {controller_type}")
 
@@ -288,9 +292,11 @@ class RobotSystem:
 
             self._update_ema_control_input(control_input)
 
+            # TODO: This needs updating to specify multiple torque limits
             torques = self.controller.get_torques(
                 self.ema_control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
+            
             timer_tele.control_decision = time.time() - loop_start_time
 
             ## DELAY UNTIL FIXED POINT ##
@@ -475,6 +481,8 @@ class RobotSystem:
             await self._handle_pid_command(command, value)
         elif command == "controller":
             await self._handle_controller_switch(command, value)
+        elif command == "yaw":
+            self.yaw_controller.update_yaw_command(value)
         else:
             logger.error(f"Unrecognized command: {command}")
 
@@ -507,6 +515,7 @@ class RobotSystem:
         else:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
+        
 
     async def _handle_pid_command(self, command: str, value: float):
         if self.controller_type != "pid":
