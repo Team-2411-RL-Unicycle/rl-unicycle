@@ -212,7 +212,7 @@ class RobotSystem:
             return HighLevelXboxController()
         else:
             raise ValueError(f"Unsupported controller type: {controller_type}")
-        
+
     """ ##################################################################
     Public Lifecycle Methods
     ################################################################## """
@@ -227,7 +227,7 @@ class RobotSystem:
             logger.info("Robot Loop received shutdown signal.")
             shutdown_event.set()
             raise
-        
+
     async def shutdown(self):
         """
         Shutdown the robot system and its components.
@@ -239,7 +239,7 @@ class RobotSystem:
             logger.info("Motors shut down successfully.")
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
-            
+
     """ ##################################################################
     Main Control Loop
     ################################################################## """
@@ -262,7 +262,7 @@ class RobotSystem:
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
             self.itr += 1
-            
+
             # Create a timing/telemetry structure to measure performance
             timer_tele = td.LoopTimer()
 
@@ -309,18 +309,19 @@ class RobotSystem:
             timer_tele.duty_cycle_delay_time = time.time() - loop_start_time
 
             # ---- Apply torques if not calibrating ----
-            is_calibrating = (self.itr < self.sensor_calibration_delay / self.LOOP_TIME)
+            is_calibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
             if not is_calibrating and self.motor_config is not EnabledMotors.NONE:
                 await self._apply_control(torques)
 
             timer_tele.torque_application = time.time() - loop_start_time
 
-
             # ---- 6) Send telemetry (downsample if desired) ----
             # Convert loop timer intervals to periods, track leftover time
             timer_tele.convert_to_periods()
-            timer_tele.end_loop_buffer = self.LOOP_TIME - (time.time() - loop_start_time)
-            
+            timer_tele.end_loop_buffer = self.LOOP_TIME - (
+                time.time() - loop_start_time
+            )
+
             if (self.itr % 1) == 0:
                 await self._send_telemetry(
                     imudata1,
@@ -338,7 +339,7 @@ class RobotSystem:
             end_time = loop_start_time + self.LOOP_TIME
             self._precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
-            
+
     """ ##################################################################
     Helper Methods (Reading Sensors, Updating Motors, Commands, etc.)
     ################################################################## """
@@ -352,7 +353,7 @@ class RobotSystem:
         imudata1 = td.IMUData(1, *data1)
         imudata2 = td.IMUData(2, *data2)
         return imudata1, imudata2
-    
+
     def _update_sensor_fusion(
         self, imudata1: td.IMUData, delta_time: float
     ) -> Tuple[List[float], List[float], List[float]]:
@@ -376,13 +377,13 @@ class RobotSystem:
         eulers = self.sensor_fusion.euler_angles  # DEGREES
         euler_rates = self.sensor_fusion.euler_rates  # RADS/S
         return quaternion, eulers, euler_rates
-    
+
     async def _update_motors(self):
         """Asynchronously query each motor to update its internal state."""
         for motor in self.motors:
             if motor is not None:
                 await motor.update_state()
-                
+
     def _calculate_control_input(
         self,
         eulers_deg: Tuple[float, float, float],
@@ -394,7 +395,7 @@ class RobotSystem:
         """
         roll_deg, pitch_deg, yaw_deg = eulers_deg
         roll_rate, pitch_rate, yaw_rate = euler_rates_rads
-        
+
         # Build EulerAngles for telemetry
         rigid_body_state = td.EulerAngles(
             roll_deg,
@@ -436,7 +437,7 @@ class RobotSystem:
         )
 
         return control_input, rigid_body_state
-    
+
     def _update_ema_control_input(self, control_input: ControlInput):
         """
         Exponential Moving Average on selected fields for smoother control.
@@ -453,8 +454,7 @@ class RobotSystem:
             for key, val in current_dict.items():
                 if key in fields_to_smooth:
                     ema_dict[key] = (
-                        self.ema_alpha * ema_dict[key]
-                        + (1 - self.ema_alpha) * val
+                        self.ema_alpha * ema_dict[key] + (1 - self.ema_alpha) * val
                     )
                 else:
                     ema_dict[key] = val
@@ -551,7 +551,9 @@ class RobotSystem:
         # Include motor states
         for motor in self.motors:
             if motor is not None:
-                data_list.append(td.MotorState.from_dict(data=motor.state, name=motor.name))
+                data_list.append(
+                    td.MotorState.from_dict(data=motor.state, name=motor.name)
+                )
 
         self.send_queue.put(data_list)
 
