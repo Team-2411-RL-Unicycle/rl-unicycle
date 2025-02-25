@@ -569,8 +569,6 @@ class RobotSystem:
         """Execute a specific command."""
         if command == "power":
             await self._handle_power_command(command, value)
-        elif command in {"P", "I", "D"}:
-            await self._handle_pid_command(command, value)
         elif command == "controller":
             await self._handle_controller_switch(command, value)
         elif command == "yaw":
@@ -607,23 +605,6 @@ class RobotSystem:
         else:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
-
-    async def _handle_pid_command(self, command: str, value: float):
-        if self.controller_type != "pid":
-            logger.warning(
-                f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command."
-            )
-            return
-        if not isinstance(value, float):
-            logger.warning(
-                f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command."
-            )
-            return
-
-        self.controller.update_parameter(command, value)
-        msg = f"Setting PID parameter {command} to value {value}."
-        logger.info(msg)
-        return
 
     async def _handle_controller_switch(self, command: str, value: str):
         """
