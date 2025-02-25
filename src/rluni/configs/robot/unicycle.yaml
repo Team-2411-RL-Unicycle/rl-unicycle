@@ -8,4 +8,4 @@ RobotSystem:
   imu_config1: "configs/imu/full-robot-imu1.yaml"  # Relative path to IMU configuration file
   imu_config2: "configs/imu/full-robot-imu2.yaml"
   rlmodel_path: "configs/rlmodels/broomy-balance-export.onnx"  # Relative path to RL model file
-  pid_config: "configs/controllers/pid_projectfair.yaml"  # Relative path to PID controller configuration file
+

@@ -17,7 +17,6 @@ from rluni.controller.fullrobot import (
     Controller,
     LQRController,
     MPCController,
-    PIDController,
     RLController,
     TestController,
     HighLevelXboxController,
@@ -72,7 +71,7 @@ class RobotSystem:
         self,
         send_queue: Queue,
         receive_queue: Queue,
-        start_motors=True,
+        run_motors: bool = True,
         controller_type: str = "test",
         config_file=None,
         motor_config=None,
@@ -94,6 +93,7 @@ class RobotSystem:
         self.motors: Tuple[Motor, ...] = None
         self.motor_config = EnabledMotors.NONE
         self._initialize_motors(motor_config)
+        self.run_motors = run_motors
 
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
@@ -310,7 +310,11 @@ class RobotSystem:
 
             # ---- Apply torques if not calibrating ----
             is_calibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
-            if not is_calibrating and self.motor_config is not EnabledMotors.NONE:
+            if (
+                not is_calibrating
+                and (self.motor_config is not EnabledMotors.NONE)
+                and self.run_motors
+            ):
                 await self._apply_control(torques)
 
             timer_tele.torque_application = time.time() - loop_start_time
@@ -568,15 +572,33 @@ class RobotSystem:
                 logger.error(f"Invalid command format: {message}")
 
     async def _execute_command(self, command: str, value):
-        """Execute a specific command."""
+        """
+        Dispatch commands to either internal RobotSystem handlers (like 'power' or 'controller')
+        or pass them on to the active controller if it supports command handling.
+        """
+        handled = False
+
         if command == "power":
+            handled = True
             await self._handle_power_command(command, value)
+
         elif command == "controller":
+            handled = True
             await self._handle_controller_switch(command, value)
-        elif command == "yaw":
-            self.yaw_controller.update_yaw_command(value)
-        else:
-            logger.error(f"Unrecognized command: {command}")
+
+        # Check if a control that listens for commands is active
+        if not handled and hasattr(self.controller, "handle_command"):
+            try:
+                self.controller.handle_command(command, value)
+                handled = True
+            except Exception as ex:
+                logger.error(
+                    f"Active controller failed to handle command '{command}': {ex}"
+                )
+
+        # 3) If still not handled, log an error or do nothing
+        if not handled:
+            logger.error(f"Unrecognized or unhandled command: {command}")
 
     # TODO: Remove this use for now
     async def _handle_power_command(self, command: str, value: bool):
@@ -590,7 +612,7 @@ class RobotSystem:
         if isinstance(value, bool):
             if value:
                 if self.motor_config is not EnabledMotors.NONE:
-                    # logger.info(f"Motors power enabled for {str(self.xmotor)}.")
+                    self.run_motors = True
                     logger.info("Motors power enabled for all motors.")
                 else:
                     logger.info(f"No motor to turn on.")
@@ -600,6 +622,7 @@ class RobotSystem:
                     for motor in self.motors:
                         if motor is not None:
                             await motor.stop()
+                        self.run_motors = False
                     # logger.info(f"Motor power disabled to {str(self.xmotor)}.")
                     logger.info("Motor power disabled to all motors.")
                 else:
