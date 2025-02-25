@@ -47,6 +47,7 @@ class EnabledMotors(Enum):
 
 
 MotorsTuple = namedtuple("motors", ["roll", "pitch", "yaw"])
+MotorSpeedsNegativeCompensation = namedtuple("negative_motor_speed_factors", ["roll", "pitch", "yaw"])
 
 
 class RobotSystem:
@@ -91,6 +92,7 @@ class RobotSystem:
         )
 
         self.motors: Tuple[Motor, ...] = None
+        self.negative_motor_speed_factors = MotorSpeedsNegativeCompensation(1,1,-1)
         self.motor_config = EnabledMotors.NONE
         self._initialize_motors(motor_config)
         self.run_motors = run_motors
@@ -421,17 +423,17 @@ class RobotSystem:
             motor_speeds_pitch_rads_s=(
                 0.0
                 if self.motors.pitch is None
-                else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
+                else self.negative_motor_speed_factors.pitch * self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
             ),
             motor_speeds_roll_rads_s=(
                 0.0
                 if self.motors.roll is None
-                else -self.motors.roll.state["VELOCITY"] * REV_TO_RAD
+                else self.negative_motor_speed_factors.roll * self.motors.roll.state["VELOCITY"] * REV_TO_RAD
             ),
             motor_speeds_yaw_rads_s=(
                 0.0
                 if self.motors.yaw is None
-                else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
+                else  self.negative_motor_speed_factors.yaw * self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
             ),
             motor_position_pitch_rads=(
                 0.0
