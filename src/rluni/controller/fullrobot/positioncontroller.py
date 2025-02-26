@@ -4,6 +4,7 @@ from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils.utils import call_super_first
 
 WHEEL_RADIUS = 0.0565 # [m]
+DEGREE_TO_RAD = np.pi / 180
 
 class PositionController(Controller):
 
@@ -11,6 +12,7 @@ class PositionController(Controller):
     def __init__(self) -> None:
         self.P = 1
         self.D = 0
+        self.max_bias = 5 * DEGREE_TO_RAD
 
     @call_super_first
     def get_torques(self, robot_state, max_torque):
@@ -32,4 +34,6 @@ class PositionController(Controller):
         derror = robot_state.motor_speeds_pitch_rads_s * WHEEL_RADIUS
 
         pitch_bias = error * self.P + derror * self.D
+
+        return np.clip(pitch_bias, a_min=-self.max_bias, a_max=self.max_bias)
 
