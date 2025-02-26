@@ -98,11 +98,11 @@ class AHRSfusion:
         return self.transformation_matrix @ np.array([x, y, z])
 
     def update_state_from_quaternion(self, gyro_data):
-        """Compute and retururn ZYX Euler angles and rotation matrix A q_dot = gyro"""
+        """Compute and return ZYX Euler angles and rotation matrix A q_dot = gyro"""
         angles = euler.quat2euler(self.ahrs.quaternion.wxyz, axes="rzxy")
         self.euler_angles = np.rad2deg(angles)
 
-        z, x, y = angles
+        z, x, y = angles # In radians
         mat = np.array(
             [
                 [np.cos(y), 0, np.sin(y)],
@@ -112,7 +112,9 @@ class AHRSfusion:
         )
         self.euler_rates = mat @ (
             gyro_data * np.pi / 180
-        )  # convert from deg/s to rad/s
+        )  # convert from deg/s to rad/s before multiplying
+        
+        #NOTE: The angles are in degrees and rates are in rads/s
 
     def update(self, gyro_data, accel_data, mag_data=None, delta_time=0.001):
 
