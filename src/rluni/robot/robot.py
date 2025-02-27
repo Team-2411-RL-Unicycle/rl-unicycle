@@ -630,6 +630,7 @@ class RobotSystem:
         else:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
+        
 
     async def _handle_controller_switch(self, command: str, value: str):
         """
