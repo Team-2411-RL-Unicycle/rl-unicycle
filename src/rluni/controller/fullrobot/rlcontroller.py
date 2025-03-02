@@ -26,8 +26,8 @@ class RLController(Controller):
         obs[:, 0] = robot_state.motor_speeds_roll_rads_s
         obs[:, 1] = robot_state.motor_speeds_pitch_rads_s
         obs[:, 2] = robot_state.motor_speeds_yaw_rads_s
-        obs[:, 4] = robot_state.euler_angle_pitch_rads+1.0*np.pi/180 #was 1
-        obs[:, 3] = robot_state.euler_angle_roll_rads+0.1*np.pi/180
+        obs[:, 4] = robot_state.euler_angle_pitch_rads +1.55*np.pi/180 #1.8
+        obs[:, 3] = robot_state.euler_angle_roll_rads -1.3*np.pi/180 #1.3 is best
         # obs[:, 5] = robot_state.euler_angle_yaw_rads
         obs[:, 5] = robot_state.euler_rate_yaw_rads_s
         obs[:, 7] = robot_state.euler_rate_pitch_rads_s
@@ -50,7 +50,7 @@ class RLController(Controller):
 
         self.out_state = output[3]
         self.hidden_state = output[4]
-        max_torque = 1.6
+        max_torque = 1.4
         roll = -np.clip(
             2.0 * actions[0], a_min=-max_torque, a_max=max_torque
         )  # CHECK SIGNS @JACKSON
