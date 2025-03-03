@@ -10,7 +10,9 @@ import pygame
 class MQTTClient:
     COMMAND_TOPIC = "robot/commands"
 
-    def __init__(self, send_queue: mp.Queue, receive_queue: mp.Queue, shutdown_event: mp.Event):
+    def __init__(
+        self, send_queue: mp.Queue, receive_queue: mp.Queue, shutdown_event: mp.Event
+    ):
         self.broker_address = "172.22.1.1"  # Lenovo Mosquitto Broker Address
         self.port = 1883
         self.loop_time = 0.001  # 1ms
@@ -42,6 +44,7 @@ class MQTTClient:
         """Stops the MQTT client."""
         self.client.loop_stop()
         self.client.disconnect()
+
 
 # Xbox Controller Handling
 class XboxController:
@@ -78,23 +81,28 @@ class XboxController:
 
         pygame.event.pump()  # Process events
 
-        yaw_value = self.joystick.get_axis(3)  # Right stick X-axis
+        yaw_value = self.joystick.get_axis(2)  # Right stick X-axis
         yaw_value = max(-1, min(yaw_value, 1))  # Normalize to -1 to 1
         if abs(yaw_value) < 0.02:
             yaw_value = 0
-        
-        pitch_value = self.joystick.get_axis(1) # Left stick Y-axis
+
+        roll_value = yaw_value
+
+        pitch_value = self.joystick.get_axis(1)  # Left stick Y-axis
         pitch_value = max(-1, min(pitch_value, 1))
         if abs(pitch_value) < 0.02:
             pitch_value = 0
-        
+
         pitch_value = -pitch_value
 
         command = {"yaw": yaw_value}
         self.mqtt_client.publish_command(command)
         command = {"pitch": pitch_value}
         self.mqtt_client.publish_command(command)
-        print(pitch_value)
+        command = {"roll": roll_value}
+        self.mqtt_client.publish_command(command)
+        print(roll_value)
+
 
 # Main function
 def main():
@@ -108,11 +116,12 @@ def main():
     try:
         while True:
             controller.read_stick_and_publish()
-            time.sleep(0.04)  # 10 Hz update rate
+            time.sleep(0.02)  # Update rate
     except KeyboardInterrupt:
         print("\nShutting down...")
         mqtt_client.stop()
         pygame.quit()
+
 
 if __name__ == "__main__":
     main()

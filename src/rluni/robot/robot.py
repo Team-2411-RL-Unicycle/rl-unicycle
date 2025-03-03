@@ -86,9 +86,13 @@ class RobotSystem:
         # Initialize IMU and sensor fusion
         self.imu1 = ICM20948(config_file=self.imu_config1)
         self.imu2 = ICM20948(config_file=self.imu_config2)
-        self.sensor_fusion = AHRSfusion(
+        self.sensor_fusion1 = AHRSfusion(
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config1
         )
+        self.sensor_fusion2 = AHRSfusion(
+            sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config2
+        )
+        
 
         self.motors: Tuple[Motor, ...] = None
         self.motor_config = EnabledMotors.NONE
@@ -100,7 +104,7 @@ class RobotSystem:
 
         # For exponential smoothing of certain fields in control input
         self.ema_control_input = None
-        self.ema_alpha = 0.7  # .72 roll
+        self.ema_alpha = 0.72  # .72 roll
 
         self.itr = int(0)  # Cycle counter
 
@@ -275,9 +279,16 @@ class RobotSystem:
             timer_tele.imu_read = time.time() - loop_start_time
 
             # ---- 2) Update sensor fusion to get orientation ----
-            quaternion, eulers_deg, euler_rates_rads = self._update_sensor_fusion(
-                imudata1, loop_period
+            quaternions, eulers_deg_list, euler_rates_rads_list = self._update_sensor_fusion(
+                imudata1, imudata2, loop_period
             )
+            # Combine estimates from both sensors (list of quaternions, eulers, rates)
+            eulers_deg = np.mean(eulers_deg_list, axis=0)
+            euler_rates_rads = np.mean(euler_rates_rads_list, axis=0)
+            
+            eulers_deg = eulers_deg_list[0]
+            euler_rates_rads = euler_rates_rads_list[0]
+            
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
             # ---- 3) Update motor states ----
@@ -359,29 +370,43 @@ class RobotSystem:
         return imudata1, imudata2
 
     def _update_sensor_fusion(
-        self, imudata1: td.IMUData, delta_time: float
+        self, imudata1: td.IMUData, imudata2: td.IMUData, delta_time: float
     ) -> Tuple[List[float], List[float], List[float]]:
         """
         Update sensor fusion using the first IMU’s data (or fuse with second if desired).
         Returns:
             (quaternion, euler_angles, euler_rates)
         """
-        gyro = imudata1.get_gyro()
-        accel = imudata1.get_accel()
-        mag = imudata1.get_mag()
+        imus = [imudata1, imudata2]
+        fusions = [self.sensor_fusion1, self.sensor_fusion2]
+        
+        quaternions = []
+        eulers_all = []
+        euler_rates_all = []
+        
+        for imu, fusion in zip(imus, fusions):
+        
+            gyro = imu.get_gyro()
+            accel = imu.get_accel()
+            mag = imu.get_mag()
 
-        quaternion, internal_states, flags = self.sensor_fusion.update(
-            gyro_data=gyro,
-            accel_data=accel,
-            mag_data=mag,
-            delta_time=delta_time,
-        )
+            quaternion, internal_states, flags = fusion.update(
+                gyro_data=gyro,
+                accel_data=accel,
+                mag_data=mag,
+                delta_time=delta_time,
+            )
 
-        # Euler angles and rates are stored in self.sensor_fusion
-        eulers = self.sensor_fusion.euler_angles  # DEGREES
-        euler_rates = self.sensor_fusion.euler_rates  # RADS/S
-        return quaternion, eulers, euler_rates
-
+            # Euler angles and rates are stored in self.sensor_fusion
+            eulers = self.sensor_fusion1.euler_angles  # DEGREES
+            euler_rates = self.sensor_fusion1.euler_rates  # RADS/S
+            
+            quaternions.append(quaternion)
+            eulers_all.append(eulers)
+            euler_rates_all.append(euler_rates)
+            
+        return quaternions, eulers_all, euler_rates_all
+    
     async def _update_motors(self):
         """Asynchronously query each motor to update its internal state."""
         for motor in self.motors:
