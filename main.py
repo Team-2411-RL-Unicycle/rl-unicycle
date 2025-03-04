@@ -114,8 +114,8 @@ def parse_args() -> argparse.Namespace:
         "--controller",
         type=str,
         default="test",
-        choices=["pid", "rl", "mpc", "test", "lqr"],
-        help="Select the type of controller: pid, lqr, or rl.",
+        choices=[ "rl", "mpc", "test", "lqr", "xbox"],
+        help="Select the type of controller: lqr, or rl.",
     )
     parser.add_argument(
         "-cfg",
