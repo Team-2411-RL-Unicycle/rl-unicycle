@@ -593,9 +593,10 @@ class RobotSystem:
         """Handle commands from the receive queue."""
         while not self.receive_queue.empty():
             message = self.receive_queue.get()
-            if isinstance(message, dict) and len(message) == 1:
-                command, value = next(iter(message.items()))
-                await self._execute_command(command, value)
+            
+            if isinstance(message, dict):
+                for command, value in message.items():
+                    await self._execute_command(command, value)
             else:
                 logger.error(f"Invalid command format: {message}")
 
