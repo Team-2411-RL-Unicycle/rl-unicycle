@@ -170,7 +170,7 @@ class RobotSystem:
             self.motors = MotorsTuple(
                 None,
                 None,
-                MN2806(5, "yaw", self.transport),
+                MN2806(7, "yaw", self.transport),
             )
 
         elif motor_config == "pitch":
@@ -194,7 +194,7 @@ class RobotSystem:
             self.motors = MotorsTuple(
                 MN6007(4, "roll", self.transport),
                 MN6007(6, "pitch", self.transport),
-                MN2806(5, "yaw", self.transport),
+                MN2806(7, "yaw", self.transport),
             )
 
         else:
