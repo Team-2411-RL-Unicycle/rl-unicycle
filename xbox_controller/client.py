@@ -4,6 +4,7 @@ import time
 import multiprocessing as mp
 import paho.mqtt.client as mqtt
 import pygame
+import numpy as np
 
 
 # MQTT Client Class
@@ -83,25 +84,25 @@ class XboxController:
 
         yaw_value = self.joystick.get_axis(2)  # Right stick X-axis
         yaw_value = max(-1, min(yaw_value, 1))  # Normalize to -1 to 1
-        if abs(yaw_value) < 0.02:
-            yaw_value = 0
+        if abs(yaw_value) < 0.03:
+            yaw_value = 0 + np.random.normal(0, 0.0001)
 
-        roll_value = yaw_value
+        roll_value = self.joystick.get_axis(0)  # Right stick X-axis
+        roll_value = max(-1, min(roll_value, 1))  # Normalize to -1 to 1
+        if abs(roll_value) < 0.03:
+            roll_value = 0 + np.random.normal(0, 0.0001)
 
         pitch_value = self.joystick.get_axis(1)  # Left stick Y-axis
         pitch_value = max(-1, min(pitch_value, 1))
-        if abs(pitch_value) < 0.02:
-            pitch_value = 0
+        if abs(pitch_value) < 0.03:
+            pitch_value = 0 + np.random.normal(0, 0.0001)
 
         pitch_value = -pitch_value
 
-        command = {"yaw": yaw_value}
+        # Send all values in a single command
+        command = {"yaw": yaw_value, "pitch": pitch_value, "roll": roll_value}
         self.mqtt_client.publish_command(command)
-        command = {"pitch": pitch_value}
-        self.mqtt_client.publish_command(command)
-        command = {"roll": roll_value}
-        self.mqtt_client.publish_command(command)
-        print(roll_value)
+        print(yaw_value)
 
 
 # Main function
@@ -116,7 +117,7 @@ def main():
     try:
         while True:
             controller.read_stick_and_publish()
-            time.sleep(0.02)  # Update rate
+            time.sleep(0.05)  # 10 Hz update rate
     except KeyboardInterrupt:
         print("\nShutting down...")
         mqtt_client.stop()
