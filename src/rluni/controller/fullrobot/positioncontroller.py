@@ -12,23 +12,28 @@ class PositionController(Controller):
     def __init__(self) -> None:
         self.P = 1
         self.D = 0
-        self.max_bias = 5 * DEGREE_TO_RAD
+        self.max_bias = 3 * DEGREE_TO_RAD
 
     @call_super_first
     def get_torques(self, robot_state, max_torque):
         return super().get_torques(robot_state, max_torque)
     
-    def get_angle_bias(self, robot_state: ControlInput, position_setpoint: float) -> float:
+    def get_angle_bias(self, robot_state: ControlInput, position_setpoint: float, initial_pitch: float) -> float:
         """
         Calculates the pitch angle bias by multiplying the pitch state by gains to compute
         an offset to bias the pitch angle. The biased pitch angle is to be fed into the
         low level controller causing the robot to move.
+        
+        Args:
+            robot_state: The nominal robot state
+            position_setpoint: The desired (relative) setpoint for the wheel position
+            initial_pitch: The initial offset of the pitch position upon start
 
         Returns:
             pitch_bias (float): The required pitch angle bias to reach the setpoint.
         """
 
-        position = robot_state.motor_position_pitch_rads * WHEEL_RADIUS
+        position = (robot_state.motor_position_pitch_rads - initial_pitch) * WHEEL_RADIUS
         error = position_setpoint - position
 
         derror = robot_state.motor_speeds_pitch_rads_s * WHEEL_RADIUS

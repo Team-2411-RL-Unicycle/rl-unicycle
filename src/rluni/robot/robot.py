@@ -260,7 +260,6 @@ class RobotSystem:
           8) Sleep until next iteration
         """
         loop_period = self.LOOP_TIME
-        pitch_absition = 0.0  # [rads * s]
 
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
