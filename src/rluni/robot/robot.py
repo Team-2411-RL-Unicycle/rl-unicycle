@@ -209,6 +209,8 @@ class RobotSystem:
             return LQRController()
         elif controller_type == "mpc":
             return MPCController(dt=self.LOOP_TIME)
+        elif controller_type == "position":
+            return PositionController()
         elif controller_type == "test":
             return TestController()
         elif controller_type == "xbox":
