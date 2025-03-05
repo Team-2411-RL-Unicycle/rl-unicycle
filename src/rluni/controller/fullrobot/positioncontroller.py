@@ -1,4 +1,5 @@
 from collections import namedtuple
+from importlib.resources import files
 import numpy as np
 
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
@@ -13,13 +14,13 @@ class PositionController(Controller):
 
     @call_super_first
     def __init__(self) -> None:
-        self.logger.info(f"{self.__name__.__class__} initialized.")
+        self.logger.info(f"{self.__class__.__name__} initialized.")
         self.lqr_controller = LQRController()
-        self.P = 1
+        self.P = 0.1
         self.D = 0
         self.max_bias = 3 * DEGREE_TO_RAD
         self.initial_pitch = None
-        config = load_config_file("unicycle.yaml")
+        config = self._load_config("unicycle.yaml")
         self.PITCH_RADIUS = gvcv(
             config, "RobotSystem.pitch_wheel_radius", float, required=True)
 
@@ -28,7 +29,7 @@ class PositionController(Controller):
         if not self.initial_pitch:
             self.initial_pitch = robot_state.motor_position_pitch_rads
 
-        robot_state.euler_angle_pitch_rads -= self._update_pitch(
+        robot_state.euler_angle_pitch_rads += self._update_pitch(
             robot_state.motor_position_pitch_rads,
             robot_state.motor_speeds_pitch_rads_s,
             0,
@@ -38,6 +39,20 @@ class PositionController(Controller):
 
         torques = namedtuple("torques", ["roll", "pitch", "yaw"])
         return torques(roll, pitch, yaw)
+
+    def _load_config(self, config_file):
+        """
+        Private method to load and parse the robot configuration file.
+        """
+        # Load the robot configuration file (use the default if none provided)
+        if config_file is None:
+            config_file = "unicycle.yaml"
+
+        config_file_path = files("rluni.configs.robot").joinpath(config_file)
+        config_file = str(config_file_path)
+
+        config = load_config_file(config_file)
+        return config
 
     def _update_pitch(self,
                       motor_position_pitch_rads: float,
@@ -66,5 +81,6 @@ class PositionController(Controller):
         derror = motor_speeds_pitch_rads_s * self.PITCH_RADIUS
 
         pitch_bias = error * self.P + derror * self.D
+        self.logger.info(f"bias = {pitch_bias}")
 
         return np.clip(pitch_bias, a_min=-self.max_bias, a_max=self.max_bias)
