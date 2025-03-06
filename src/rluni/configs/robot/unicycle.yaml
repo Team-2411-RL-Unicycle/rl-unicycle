@@ -7,5 +7,5 @@ RobotSystem:
 
   imu_config1: "configs/imu/full-robot-imu1.yaml"  # Relative path to IMU configuration file
   imu_config2: "configs/imu/full-robot-imu2.yaml"
-  rlmodel_path: "configs/rlmodels/broomy-rnn-feb15th.onnx"  # Relative path to RL model file
+  rlmodel_path: "configs/rlmodels/2025-03-05-broomy-rnn-pp.onnx"  # Relative path to RL model file
   pid_config: "configs/controllers/pid_projectfair.yaml"  # Relative path to PID controller configuration file
