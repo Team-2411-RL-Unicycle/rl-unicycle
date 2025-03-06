@@ -5,7 +5,6 @@ import time
 from collections import namedtuple
 from dataclasses import asdict
 from enum import Enum
-# For importing data files from the source, independent of the installation method
 from importlib.resources import files
 from multiprocessing import Queue
 from typing import Callable, List, Tuple, Union
@@ -13,10 +12,15 @@ from typing import Callable, List, Tuple, Union
 import moteus
 import numpy as np
 
-from rluni.controller.fullrobot import (ControlInput, Controller,
-                                        LQRController, MPCController,
-                                        PIDController, RLController,
-                                        TestController)
+from rluni.controller.fullrobot import (
+    ControlInput,
+    Controller,
+    LQRController,
+    MPCController,
+    RLController,
+    TestController,
+    HighLevelXboxController,
+)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
@@ -26,11 +30,10 @@ from rluni.utils import load_config_file
 from . import safety_buffer as sb
 from . import teledata as td
 
+logger = logging.getLogger(__name__)
+
 DEG_TO_RAD = math.pi / 180
 REV_TO_RAD = 2 * math.pi
-
-# Create a logger
-logger = logging.getLogger(__name__)
 
 
 class EnabledMotors(Enum):
@@ -43,28 +46,32 @@ class EnabledMotors(Enum):
     NUM_CONFIGS = 6
 
 
-motors = namedtuple("motors", ["roll", "pitch", "yaw"])
-torques = namedtuple("torques", ["roll", "pitch", "yaw"])
+MotorsTuple = namedtuple("motors", ["roll", "pitch", "yaw"])
 
 
 class RobotSystem:
     """
-    The RobotSystem class manages the core functionalities of a robot, including initializing sensors,
-    actuators, and handling the control loop for real-time operations.
+    The RobotSystem class manages core robot functions including:
+      - Sensors (IMUs)
+      - Sensor fusion
+      - Control loop
+      - Motors and torque commands
+      - Command handling via queues
+      - Telemetry publishing
 
     Attributes:
-        LOOP_TIME (float): The fixed period for the control loop in seconds (e.g., 0.01 for 100Hz).
-        WRITE_DUTY (float): The fraction of the loop period before actuators are updated
-        MAX_TORQUE (float): The maximum torque to request from motors, used for testing and safety constraints.
-        xmotor (MN6007 or None): The motor controller instance, if motors are started.
-        itr (int): An iteration counter for the control loop.
+        LOOP_TIME (float): The fixed period for the control loop in seconds.
+        WRITE_DUTY (float): The fraction of the loop period before actuators are updated.
+        MAX_TORQUE_ROLL_PITCH (float): Max torque used for roll/pitch motors.
+        MAX_TORQUE_YAW (float): Max torque used for yaw motor.
+        itr (int): Loop counter.
     """
 
     def __init__(
         self,
         send_queue: Queue,
         receive_queue: Queue,
-        start_motors=True,
+        run_motors: bool = True,
         controller_type: str = "test",
         config_file=None,
         motor_config=None,
@@ -84,69 +91,30 @@ class RobotSystem:
         )
 
         self.motors: Tuple[Motor, ...] = None
+        self.motor_config = EnabledMotors.NONE
         self._initialize_motors(motor_config)
+        self.run_motors = run_motors
 
-        # Initialize controller type based on argument
         self.controller_type = controller_type
         self.controller = self._get_controller(controller_type)
+
+        # For exponential smoothing of certain fields in control input
         self.ema_control_input = None
         self.ema_alpha = 0.7  # .72 roll
+
         self.itr = int(0)  # Cycle counter
 
-    def _initialize_motors(self, motor_config):
-        # CHECK THIS
-        self.transport = moteus.Fdcanusb(
-            "/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00"
-        )
-        # set self.motor_config using arg string
-        if motor_config == "none" or None:
-            self.motor_config = EnabledMotors.NONE
-            self.motors = motors(None, None, None)
-        elif motor_config == "roll":
-            self.motors = motors(MN6007(4, "roll", self.transport), None, None)
-            self.motor_config = EnabledMotors.ROLL
-        elif motor_config == "yaw":
-            self.motors = motors(None, None, MN2806(5, "yaw"), self.transport)
-            self.motor_config = EnabledMotors.YAW
-        elif motor_config == "pitch":
-            self.motors = motors(None, MN6007(6, "pitch", self.transport), None)
-            self.motor_config = EnabledMotors.PITCH
-        elif motor_config == "roll_pitch" or motor_config == "pitch_roll":
-            self.motors = motors(
-                MN6007(4, "roll", self.transport),
-                MN6007(6, "pitch", self.transport),
-                None,
-            )
-            self.motor_config = EnabledMotors.ROLL_PITCH
-        elif motor_config == "all":
-            self.motors = motors(
-                MN6007(4, "roll", self.transport),
-                MN6007(6, "pitch", self.transport),
-                MN2806(5, "yaw", self.transport),
-            )
-            self.motor_config = EnabledMotors.ALL
-
-            self.enabled_motors = [motor for motor in self.motors if motor is not None]
-        else:  # catch-all
-            logger.warning("No valid motor configuration provided. Disabling motors.")
-            self.motors = motors(None, None, None)
-            self.motor_config = EnabledMotors.NONE
-            self.enabled_motors = []
-
     def _load_config(self, config_file):
-        """
-        Private method to load and parse the robot configuration file.
-        """
+        """Load the robot configuration file and set relevant parameters."""
         # Load the robot configuration file (use the default if none provided)
         if config_file is None:
             config_file = "unicycle.yaml"
             logger.warning(
-                f"No configuration file provided. Using default configuration: {config_file}"
+                f"No configuration file provided. Using default: {config_file}"
             )
 
         config_file_path = files("rluni.configs.robot").joinpath(config_file)
         config_file = str(config_file_path)
-
         config = load_config_file(config_file)
 
         # Validate and set configuration values for control parameters
@@ -171,19 +139,68 @@ class RobotSystem:
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
         )
+        if self.rlmodel_path is not None:
+            self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
 
-        self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
-
-        self.pid_config_path = gvcv(
-            config, "RobotSystem.pid_config", str, required=False
+    def _initialize_motors(self, motor_config):
+        """Initialize motors based on string 'motor_config'."""
+        self.transport = moteus.Fdcanusb(
+            "/dev/serial/by-id/usb-mjbots_fdcanusb_5A70499D-if00"
         )
-        self.pid_config_path = str(files("rluni").joinpath(self.pid_config_path))
+
+        # Decide which motors to enable
+        if motor_config == "none" or motor_config is None:
+            self.motor_config = EnabledMotors.NONE
+            self.motors = MotorsTuple(None, None, None)
+
+        elif motor_config == "roll":
+            self.motor_config = EnabledMotors.ROLL
+            self.motors = MotorsTuple(
+                MN6007(4, "roll", self.transport),
+                None,
+                None,
+            )
+
+        elif motor_config == "yaw":
+            self.motor_config = EnabledMotors.YAW
+            self.motors = MotorsTuple(
+                None,
+                None,
+                MN2806(7, "yaw", self.transport),
+            )
+
+        elif motor_config == "pitch":
+            self.motor_config = EnabledMotors.PITCH
+            self.motors = MotorsTuple(
+                None,
+                MN6007(6, "pitch", self.transport),
+                None,
+            )
+
+        elif motor_config in ("roll_pitch", "pitch_roll"):
+            self.motor_config = EnabledMotors.ROLL_PITCH
+            self.motors = MotorsTuple(
+                MN6007(4, "roll", self.transport),
+                MN6007(6, "pitch", self.transport),
+                None,
+            )
+
+        elif motor_config == "all":
+            self.motor_config = EnabledMotors.ALL
+            self.motors = MotorsTuple(
+                MN6007(4, "roll", self.transport),
+                MN6007(6, "pitch", self.transport),
+                MN2806(7, "yaw", self.transport),
+            )
+
+        else:
+            logger.warning("No valid motor configuration provided. Disabling motors.")
+            self.motors = MotorsTuple(None, None, None)
+            self.motor_config = EnabledMotors.NONE
 
     def _get_controller(self, controller_type: str) -> Controller:
-        """Initialize the controller based on the type ('pid', 'rl', 'lqr', 'test')."""
-        if controller_type == "pid":
-            return PIDController(config_file=self.pid_config_path)
-        elif controller_type == "rl":
+        """Initialize the controller based on the type ('rl', 'lqr', 'test', 'xbox')."""
+        if controller_type == "rl":
             return RLController(model_pth=self.rlmodel_path)
         elif controller_type == "lqr":
             return LQRController()
@@ -191,195 +208,306 @@ class RobotSystem:
             return MPCController(dt=self.LOOP_TIME)
         elif controller_type == "test":
             return TestController()
+        elif controller_type == "xbox":
+            return HighLevelXboxController()
         else:
             raise ValueError(f"Unsupported controller type: {controller_type}")
 
-    async def start(self, shutdown_event):
+    """ ##################################################################
+    Public Lifecycle Methods
+    ################################################################## """
+
+    async def start(self, shutdown_event: asyncio.Event):
         """
-        Starts the control loop.
+        Start the main control loop, continue until `shutdown_event` is set.
         """
         try:
             await self.control_loop(shutdown_event)
         except asyncio.CancelledError:
-            logger.info("Robot Loop Shutdown Signal.")
-            # Set the shutdown event to ensure control_loop exits
+            logger.info("Robot Loop received shutdown signal.")
             shutdown_event.set()
             raise
 
+    async def shutdown(self):
+        """
+        Shutdown the robot system and its components.
+        """
+        try:
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.shutdown()
+            logger.info("Motors shut down successfully.")
+        except Exception as e:
+            logger.exception(f"Error during RobotSystem shutdown: {e}")
+
+    """ ##################################################################
+    Main Control Loop
+    ################################################################## """
+
     async def control_loop(self, shutdown_event):
         """
-        The main control loop for the robot. Executes sensor reading, state estimation, control decision making,
-        and actuator commands at a fixed rate defi                if self.motors.roll is not None:
-                    await self.motors.roll.set_torque(torques.roll, self.MAX_TORQUE_ROLL_PITCH - 0.001)
-                if self.motors.pitch is not None:
-                    await self.motors.pitch.set_torque(torques.pitch, self.MAX_TORQUE_ROLL_PITCH - 0.001)
-                if self.motors.yaw is not None:
-                    await self.motors.yaw.set_torque(torques.yaw, self.MAX_TORQUE_YAW - 0.001)ned by LOOP_TIME.
+        Core robot control loop. Executes at a fixed rate defined by LOOP_TIME:
+          1) Read sensors
+          2) Update fusion
+          3) Read motor states
+          4) Calculate control input
+          5) Apply torque if safe and not calibrating
+          6) Send telemetry
+          7) Handle commands
+          8) Sleep until next iteration
         """
         loop_period = self.LOOP_TIME
 
         while not shutdown_event.is_set():
             # Start Loop Timer and increment loop iteration
             loop_start_time = time.time()
-            timer_tele = td.LoopTimer()
             self.itr += 1
+
+            # Create a timing/telemetry structure to measure performance
+            timer_tele = td.LoopTimer()
 
             # Debugging Data Example (add more data as needed)
             tele_debug_data = td.DebugData()
             tele_debug_data.add_data(example_debug_data=99)
-            tele_debug_data.add_data(another_debug_data=42)
 
-            # Sensor reading and fusion
-            imudata1 = td.IMUData(1, *self.imu1.read_sensor_data(convert=True))
-            imudata2 = td.IMUData(2, *self.imu2.read_sensor_data(convert=True))
+            # ---- 1) Read raw sensor data ----
+            imudata1, imudata2 = self._read_sensors()
             timer_tele.imu_read = time.time() - loop_start_time
 
-            quaternion, internal_states, flags = self.sensor_fusion.update(
-                imudata1.get_gyro(),
-                imudata1.get_accel(),
-                mag_data=imudata1.get_mag(),
-                delta_time=loop_period,
-            )
-            rigid_body_state = td.EulerAngles(
-                *self.sensor_fusion.euler_angles, *self.sensor_fusion.euler_rates
+            # ---- 2) Update sensor fusion to get orientation ----
+            quaternion, eulers_deg, euler_rates_rads = self._update_sensor_fusion(
+                imudata1, loop_period
             )
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
-            # TODO: Try to get all 3 motor states in one call
-            # Update robot state and parameters
-            for motor in self.motors:
-                if motor is not None:
-                    await motor.update_state()
+            # ---- 3) Update motor states ----
+            await self._update_motors()
             timer_tele.motor_states = time.time() - loop_start_time
 
-            control_input = ControlInput(
-                euler_angle_roll_rads=rigid_body_state.x * DEG_TO_RAD,
-                euler_angle_pitch_rads=rigid_body_state.y * DEG_TO_RAD,
-                euler_angle_yaw_rads=rigid_body_state.z * DEG_TO_RAD,
-                euler_rate_roll_rads_s=rigid_body_state.x_dot,
-                euler_rate_pitch_rads_s=rigid_body_state.y_dot,
-                euler_rate_yaw_rads_s=rigid_body_state.z_dot,
-                motor_speeds_pitch_rads_s=(
-                    0.0
-                    if self.motors.pitch is None
-                    else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
-                ),
-                motor_speeds_roll_rads_s=(
-                    0.0
-                    if self.motors.roll is None
-                    else -self.motors.roll.state["VELOCITY"] * REV_TO_RAD
-                ),
-                motor_speeds_yaw_rads_s=(
-                    0.0
-                    if self.motors.yaw is None
-                    else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
-                ),
-                motor_position_pitch_rads=(
-                    0.0
-                    if self.motors.pitch is None
-                    else self.motors.pitch.state["POSITION"] * REV_TO_RAD
-                ),
+            # ---- 4) Build control input (and optionally smooth it) ----
+            control_input, rigid_body_state = self._calculate_control_input(
+                eulers_deg, euler_rates_rads
             )
 
+            # Evaluate system safety
             safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
-            if safe_state == False:
+            if not safe_state:
                 logger.warning(f"Robot is not in a safe state: {safe_msg}")
                 shutdown_event.set()
 
             self._update_ema_control_input(control_input)
 
+            # ---- 5) Obtain torques from the controller ----
+            # TODO: This needs updating to specify multiple torque limits
             torques = self.controller.get_torques(
                 self.ema_control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
             timer_tele.control_decision = time.time() - loop_start_time
 
-            ## DELAY UNTIL FIXED POINT ##
-            self.precise_delay_until(loop_start_time + loop_period * self.WRITE_DUTY)
+            # ---- Wait until Write Duty point to apply torque ----
+            self._precise_delay_until(loop_start_time + loop_period * self.WRITE_DUTY)
             timer_tele.duty_cycle_delay_time = time.time() - loop_start_time
 
-            # Apply control decision to robot actuators
-            # SET TORQUE
-            # Only set the torque if not in sensor fusion calibration mode
-            #  TODO: Can all motors be set in one transport or more efficiently?
-            isCalibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
+            # ---- Apply torques if not calibrating ----
+            is_calibrating = self.itr < self.sensor_calibration_delay / self.LOOP_TIME
+            if (
+                not is_calibrating
+                and (self.motor_config is not EnabledMotors.NONE)
+                and self.run_motors
+            ):
+                await self._apply_control(torques)
 
-            # Control decision - but using transports
-            if not isCalibrating and self.motor_config is not EnabledMotors.NONE:
-                commands = []
-                if self.motors.roll is not None:
-                    commands.append(
-                        self.motors.roll._c.make_position(
-                            position=math.nan,
-                            kp_scale=0.0,
-                            kd_scale=0.0,
-                            feedforward_torque=torques.roll,
-                            maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                        )
-                    )
-                if self.motors.pitch is not None:
-                    commands.append(
-                        self.motors.pitch._c.make_position(
-                            position=math.nan,
-                            kp_scale=0.0,
-                            kd_scale=0.0,
-                            feedforward_torque=torques.pitch,
-                            maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                        )
-                    )
-                if self.motors.yaw is not None:
-                    commands.append(
-                        self.motors.yaw._c.make_position(
-                            position=math.nan,
-                            kp_scale=0.0,
-                            kd_scale=0.0,
-                            feedforward_torque=torques.yaw,
-                            maximum_torque=self.MAX_TORQUE_YAW - 0.001,
-                        )
-                    )
-
-                await self.transport.cycle(commands)
-
-            # Handle loop timer telemetry data processing
             timer_tele.torque_application = time.time() - loop_start_time
-            timer_tele.convert_to_periods()  # convert clocked times to intervals (periods)
+
+            # ---- 6) Send telemetry (downsample if desired) ----
+            # Convert loop timer intervals to periods, track leftover time
+            timer_tele.convert_to_periods()
             timer_tele.end_loop_buffer = self.LOOP_TIME - (
                 time.time() - loop_start_time
             )
 
-            ### SEND COMMS ###
-            # Send out all data downsampled to (optional lower) rate
             if (self.itr % 1) == 0:
-                control_data = td.ControlData(
-                    loop_time=loop_period,
-                    torque_roll=float(torques.roll),
-                    torque_pitch=float(torques.pitch),
-                    torque_yaw=float(torques.yaw),
-                )
-                data_list = [
+                await self._send_telemetry(
                     imudata1,
                     imudata2,
                     rigid_body_state,
-                    control_data,
+                    torques,
                     timer_tele,
-                    tele_debug_data,
-                ]
-                for motor in self.motors:
-                    if motor is not None:
-                        data_list.append(
-                            td.MotorState.from_dict(data=motor.state, name=motor.name)
-                        )
-                await self._send_telemetry(data_packet=data_list)
+                )
 
             ### RECEIVE COMMS ###
             # Check for and handle new commands sent in via MQTT
             await self._handle_commands()
 
-            ### CLOSE LOOP DELAY ###
+            # ---- 8) Sleep to maintain loop rate ----
             end_time = loop_start_time + self.LOOP_TIME
-            loop_delay = self.precise_delay_until(end_time)
+            self._precise_delay_until(end_time)
             loop_period = time.time() - loop_start_time
 
-    def precise_delay_until(self, end_time):
+    """ ##################################################################
+    Helper Methods (Reading Sensors, Updating Motors, Commands, etc.)
+    ################################################################## """
+
+    def _read_sensors(self) -> Tuple[td.IMUData, td.IMUData]:
+        """
+        Read raw data from IMUs and return them as TelemetryData objects.
+        """
+        data1 = self.imu1.read_sensor_data(convert=True)
+        data2 = self.imu2.read_sensor_data(convert=True)
+        imudata1 = td.IMUData(1, *data1)
+        imudata2 = td.IMUData(2, *data2)
+        return imudata1, imudata2
+
+    def _update_sensor_fusion(
+        self, imudata1: td.IMUData, delta_time: float
+    ) -> Tuple[List[float], List[float], List[float]]:
+        """
+        Update sensor fusion using the first IMU’s data (or fuse with second if desired).
+        Returns:
+            (quaternion, euler_angles, euler_rates)
+        """
+        gyro = imudata1.get_gyro()
+        accel = imudata1.get_accel()
+        mag = imudata1.get_mag()
+
+        quaternion, internal_states, flags = self.sensor_fusion.update(
+            gyro_data=gyro,
+            accel_data=accel,
+            mag_data=mag,
+            delta_time=delta_time,
+        )
+
+        # Euler angles and rates are stored in self.sensor_fusion
+        eulers = self.sensor_fusion.euler_angles  # DEGREES
+        euler_rates = self.sensor_fusion.euler_rates  # RADS/S
+        return quaternion, eulers, euler_rates
+
+    async def _update_motors(self):
+        """Asynchronously query each motor to update its internal state."""
+        for motor in self.motors:
+            if motor is not None:
+                await motor.update_state()
+
+    def _calculate_control_input(
+        self,
+        eulers_deg: Tuple[float, float, float],
+        euler_rates_rads: Tuple[float, float, float],
+    ) -> Tuple[ControlInput, td.EulerAngles]:
+        """
+        Convert sensor-fusion euler angles/rates into the `ControlInput` structure
+        used by the controllers, and also build a Telemetry structure (EulerAngles).
+        """
+        roll_deg, pitch_deg, yaw_deg = eulers_deg
+        roll_rate, pitch_rate, yaw_rate = euler_rates_rads
+
+        # Build EulerAngles for telemetry
+        rigid_body_state = td.EulerAngles(
+            roll_deg,
+            pitch_deg,
+            yaw_deg,
+            roll_rate,
+            pitch_rate,
+            yaw_rate,
+        )
+
+        # Build ControlInput
+        control_input = ControlInput(
+            euler_angle_roll_rads=rigid_body_state.x * DEG_TO_RAD,
+            euler_angle_pitch_rads=rigid_body_state.y * DEG_TO_RAD,
+            euler_angle_yaw_rads=rigid_body_state.z * DEG_TO_RAD,
+            euler_rate_roll_rads_s=rigid_body_state.x_dot,
+            euler_rate_pitch_rads_s=rigid_body_state.y_dot,
+            euler_rate_yaw_rads_s=rigid_body_state.z_dot,
+            motor_speeds_pitch_rads_s=(
+                0.0
+                if self.motors.pitch is None
+                else self.motors.pitch.state["VELOCITY"] * REV_TO_RAD
+            ),
+            motor_speeds_roll_rads_s=(
+                0.0
+                if self.motors.roll is None
+                else -self.motors.roll.state["VELOCITY"] * REV_TO_RAD
+            ),
+            motor_speeds_yaw_rads_s=(
+                0.0
+                if self.motors.yaw is None
+                else -self.motors.yaw.state["VELOCITY"] * REV_TO_RAD
+            ),
+            motor_position_pitch_rads=(
+                0.0
+                if self.motors.pitch is None
+                else self.motors.pitch.state["POSITION"] * REV_TO_RAD
+            ),
+        )
+
+        return control_input, rigid_body_state
+
+    def _update_ema_control_input(self, control_input: ControlInput):
+        """
+        Exponential Moving Average on selected fields for smoother control.
+        """
+        fields_to_smooth = {"euler_rate_roll_rads_s"}
+
+        # Convert dataclass to dictionary
+        current_dict = asdict(control_input)
+
+        if self.ema_control_input is None:
+            self.ema_control_input = control_input
+        else:
+            ema_dict = asdict(self.ema_control_input)
+            for key, val in current_dict.items():
+                if key in fields_to_smooth:
+                    ema_dict[key] = (
+                        self.ema_alpha * ema_dict[key] + (1 - self.ema_alpha) * val
+                    )
+                else:
+                    ema_dict[key] = val
+
+            # Convert back to a dataclass
+            self.ema_control_input = ControlInput(**ema_dict)
+
+    async def _apply_control(self, torques):
+        """
+        Build and send the torque commands to each motor via the transport.
+        """
+        commands = []
+        if self.motors.roll is not None:
+            commands.append(
+                self.motors.roll._c.make_position(
+                    position=math.nan,
+                    kp_scale=0.0,
+                    kd_scale=0.0,
+                    feedforward_torque=torques.roll,
+                    maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
+                    watchdog_timeout=0.1
+                )
+            )
+        if self.motors.pitch is not None:
+            commands.append(
+                self.motors.pitch._c.make_position(
+                    position=math.nan,
+                    kp_scale=0.0,
+                    kd_scale=0.0,
+                    feedforward_torque=torques.pitch,
+                    maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
+                    watchdog_timeout=0.1
+                )
+            )
+        if self.motors.yaw is not None:
+            commands.append(
+                self.motors.yaw._c.make_position(
+                    position=math.nan,
+                    kp_scale=0.0,
+                    kd_scale=0.0,
+                    feedforward_torque=torques.yaw,
+                    maximum_torque=self.MAX_TORQUE_YAW - 0.001,
+                    watchdog_timeout=0.1
+                )
+            )
+
+        await self.transport.cycle(commands)
+
+    def _precise_delay_until(self, end_time):
         """
         Sleep until the specified end time, then return the delay time (overshoot)
         """
@@ -397,65 +525,44 @@ class RobotSystem:
             if delay >= 0:
                 return delay
 
-    """ Shutdown Methods """
-
-    async def shutdown(self):
-        """
-        Shutdown the robot system and its components.
-        """
-        try:
-            for motor in self.motors:
-                if motor is not None:
-                    await motor.shutdown()
-            logger.info("Motors shut down successfully.")
-        except Exception as e:
-            logger.exception(f"Error during RobotSystem shutdown: {e}")
-
-    def _update_ema_control_input(self, control_input):
-        ema_fields = {
-            # "euler_angle_roll_rads",
-            # "euler_angle_pitch_rads",
-            "euler_rate_roll_rads_s",
-            # "euler_rate_pitch_rads_s",
-        }
-
-        # Convert dataclass to dictionary for compact EMA update
-        control_input_dict = asdict(control_input)
-        # Apply Exponential Moving Average (EMA)
-        if self.ema_control_input is None:
-            self.ema_control_input = control_input  # Initialize EMA with first input
-        else:
-            ema_dict = asdict(self.ema_control_input)
-
-            # Apply EMA only to selected fields, copy the rest
-            for key in control_input_dict:
-                if key in ema_fields:
-                    ema_dict[key] = (
-                        self.ema_alpha * ema_dict[key]
-                        + (1 - self.ema_alpha) * control_input_dict[key]
-                    )
-                else:
-                    ema_dict[key] = control_input_dict[
-                        key
-                    ]  # Direct copy for non-smoothed fields
-
-            # Convert updated dictionary back to ControlInput dataclass
-            self.ema_control_input = ControlInput(**ema_dict)
-
-    """ ####################### 
-        Command Handling Methods
-        #######################  """
+    """ ##################################################################
+        Telemetry & Command Handling
+        ################################################################## """
 
     async def _send_telemetry(
-        self, data_packet: Union[List[td.TelemetryData], td.TelemetryData]
-    ) -> None:
+        self,
+        imudata1: td.IMUData,
+        imudata2: td.IMUData,
+        rigid_body_state: td.EulerAngles,
+        torques,
+        timer_tele: td.LoopTimer,
+    ):
         """
-        Send telemetry data to the telemetry queue.
+        Compose telemetry data objects and send them via the `send_queue`.
+        """
+        control_data = td.ControlData(
+            loop_time=self.LOOP_TIME,
+            torque_roll=float(torques.roll),
+            torque_pitch=float(torques.pitch),
+            torque_yaw=float(torques.yaw),
+        )
 
-        Args:
-            data_list (Union[List[TelemetryData], TelemetryData]): The telemetry data to send (list or singletons)
-        """
-        self.send_queue.put(data_packet)
+        data_list = [
+            imudata1,
+            imudata2,
+            rigid_body_state,
+            control_data,
+            timer_tele,
+        ]
+
+        # Include motor states
+        for motor in self.motors:
+            if motor is not None:
+                data_list.append(
+                    td.MotorState.from_dict(data=motor.state, name=motor.name)
+                )
+
+        self.send_queue.put(data_list)
 
     async def _handle_commands(self):
         """Handle commands from the receive queue."""
@@ -468,15 +575,33 @@ class RobotSystem:
                 logger.error(f"Invalid command format: {message}")
 
     async def _execute_command(self, command: str, value):
-        """Execute a specific command."""
+        """
+        Dispatch commands to either internal RobotSystem handlers (like 'power' or 'controller')
+        or pass them on to the active controller if it supports command handling.
+        """
+        handled = False
+
         if command == "power":
+            handled = True
             await self._handle_power_command(command, value)
-        elif command in {"P", "I", "D"}:
-            await self._handle_pid_command(command, value)
+
         elif command == "controller":
+            handled = True
             await self._handle_controller_switch(command, value)
-        else:
-            logger.error(f"Unrecognized command: {command}")
+
+        # Check if a control that listens for commands is active
+        if not handled and hasattr(self.controller, "handle_command"):
+            try:
+                self.controller.handle_command(command, value)
+                handled = True
+            except Exception as ex:
+                logger.error(
+                    f"Active controller failed to handle command '{command}': {ex}"
+                )
+
+        # 3) If still not handled, log an error or do nothing
+        if not handled:
+            logger.error(f"Unrecognized or unhandled command: {command}")
 
     # TODO: Remove this use for now
     async def _handle_power_command(self, command: str, value: bool):
@@ -490,7 +615,7 @@ class RobotSystem:
         if isinstance(value, bool):
             if value:
                 if self.motor_config is not EnabledMotors.NONE:
-                    # logger.info(f"Motors power enabled for {str(self.xmotor)}.")
+                    self.run_motors = True
                     logger.info("Motors power enabled for all motors.")
                 else:
                     logger.info(f"No motor to turn on.")
@@ -500,6 +625,7 @@ class RobotSystem:
                     for motor in self.motors:
                         if motor is not None:
                             await motor.stop()
+                        self.run_motors = False
                     # logger.info(f"Motor power disabled to {str(self.xmotor)}.")
                     logger.info("Motor power disabled to all motors.")
                 else:
@@ -507,23 +633,6 @@ class RobotSystem:
         else:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
-
-    async def _handle_pid_command(self, command: str, value: float):
-        if self.controller_type != "pid":
-            logger.warning(
-                f"WARNING: Received PID command, but controller type is: {self.controller_type}. Ignoring command."
-            )
-            return
-        if not isinstance(value, float):
-            logger.warning(
-                f"WARNING: Expected a float for the pid command, but got: {value}. Ignoring command."
-            )
-            return
-
-        self.controller.update_parameter(command, value)
-        msg = f"Setting PID parameter {command} to value {value}."
-        logger.info(msg)
-        return
 
     async def _handle_controller_switch(self, command: str, value: str):
         """

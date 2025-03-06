@@ -29,7 +29,8 @@ class Motor:
         # Motor system state (Dictionary of register values)
         self.state = None
         self.isfaulted = False
-        self.fault_codes = self.load_fault_codes()
+        self.FAULT_CODES = None
+        self.load_fault_codes()
         self.name = name
         self.torque_permitted = False
 
@@ -115,7 +116,7 @@ class Motor:
         # Check if the motor is faulted
         if self.state["FAULT"] != 0 and not self.isfaulted:
             # Get the fault code from the dictionary
-            fault_code = self.fault_codes.get(str(self.state["FAULT"]), "Unknown fault")
+            fault_code = self.FAULT_CODES.get(str(self.state["FAULT"]), "Unknown fault")
             logger.error(f"Motor fault detected: {fault_code}")
             self.isfaulted = True
 

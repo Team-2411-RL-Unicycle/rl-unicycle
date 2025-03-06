@@ -156,7 +156,7 @@ async def main():
     robot = RobotSystem(
         telemetry_queue,
         command_queue,
-        start_motors=not args.no_motors,
+        run_motors=not args.no_motors,
         controller_type=args.controller,
         config_file=args.config_file,
         motor_config=args.motor_config,
