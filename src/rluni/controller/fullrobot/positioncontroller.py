@@ -17,9 +17,9 @@ class PositionController(Controller):
     def __init__(self) -> None:
         self.logger.info(f"{self.__class__.__name__} initialized.")
         self.lqr_controller = LQRController()
-        self.P = 0.1
-        self.D = 0
-        self.max_bias = 3 * DEGREE_TO_RAD
+        self.P = 0.2
+        self.D = -0.2
+        self.max_bias = 5 * DEGREE_TO_RAD
         self.initial_pitch = None
         config = self._load_config("unicycle.yaml")
         self.PITCH_RADIUS = gvcv(
@@ -46,12 +46,15 @@ class PositionController(Controller):
         if not self.initial_pitch:
             self.initial_pitch = robot_state.motor_position_pitch_rads
 
-        robot_state.euler_angle_pitch_rads += self._update_pitch(
+        pitch_bias = self._update_pitch(
             robot_state.motor_position_pitch_rads,
             robot_state.motor_speeds_pitch_rads_s,
             0,
             self.initial_pitch,
         )
+        print("get torques: bias: ", pitch_bias)
+
+        robot_state.euler_angle_pitch_rads += pitch_bias
 
         roll, pitch, yaw = self.lqr_controller.get_torques(robot_state, max_torque)
 
@@ -96,8 +99,20 @@ class PositionController(Controller):
         position = (motor_position_pitch_rads - initial_pitch) * self.PITCH_RADIUS
         error = position_setpoint - position
 
+        print("_update_pitch: position", position)
+
         # target velocity always zero
         derror = motor_speeds_pitch_rads_s * self.PITCH_RADIUS
+
+        prop_error = error * self.P
+        deriv_error = derror * self.D
+
+        print("P * error: ", prop_error)
+        print("D * derror: ", deriv_error)
+
+        deriv_error = np.clip(deriv_error, a_min=-0.02, a_max=0.02)
+
+        print("clipped D * derror: ", deriv_error)
 
         pitch_bias = error * self.P + derror * self.D
         self.logger.info(f"bias = {pitch_bias}")
