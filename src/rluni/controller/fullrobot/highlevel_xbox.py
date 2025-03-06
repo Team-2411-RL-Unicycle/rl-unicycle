@@ -3,10 +3,11 @@ from collections import namedtuple
 import numpy as np
 import scipy.linalg as spla
 
+from rluni.controller.fullrobot import LQRController, YawController
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
-from rluni.controller.fullrobot import YawController, LQRController
 from rluni.utils.utils import call_super_first
+
 
 class HighLevelXboxController(Controller):
     @call_super_first
@@ -21,10 +22,10 @@ class HighLevelXboxController(Controller):
                 "robot_state must be an instance of RobotState from the controller module"
             )
         return 0
-    
+
     def handle_command(self, command: str, value):
         """
-        Handle incoming commands (from MQTT, or some external pipeline) 
+        Handle incoming commands (from MQTT, or some external pipeline)
         specific to the high-level logic for the Xbox controller.
         """
         if command == "xbox_button_a":
@@ -35,4 +36,4 @@ class HighLevelXboxController(Controller):
             pass
         else:
             # Optional: raise or log an unrecognized command
-            pass  
+            pass

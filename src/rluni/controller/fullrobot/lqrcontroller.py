@@ -187,7 +187,9 @@ class LQRController(Controller):
 
         return K_full
 
-    def pitch_drift_correction(self, angle_limit: float, motor_position: float) -> float:
+    def pitch_drift_correction(
+        self, angle_limit: float, motor_position: float
+    ) -> float:
         """
         Corrects the pitch angle drift by adding a bias on either side of a local point.
 

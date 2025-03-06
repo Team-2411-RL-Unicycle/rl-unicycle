@@ -1,11 +1,12 @@
 from collections import namedtuple
 from importlib.resources import files
+
 import numpy as np
 
-from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot import LQRController
-from rluni.utils.utils import call_super_first, load_config_file
+from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils.utils import call_super_first, load_config_file
 
 DEGREE_TO_RAD = np.pi / 180
 
@@ -22,10 +23,26 @@ class PositionController(Controller):
         self.initial_pitch = None
         config = self._load_config("unicycle.yaml")
         self.PITCH_RADIUS = gvcv(
-            config, "RobotSystem.pitch_wheel_radius", float, required=True)
+            config, "RobotSystem.pitch_wheel_radius", float, required=True
+        )
 
     @call_super_first
     def get_torques(self, robot_state: ControlInput, max_torque):
+        """
+        Get the torques to apply to the robot to reach the desired position.
+
+        First, the pitch angle is updated based on the pitch wheel position and speed.
+        Then, the LQR controller is used to compute the torques to apply to the robot.
+
+        Args:
+            robot_state: The current state of the robot.
+            max_torque: The maximum torque that can be applied to the robot.
+
+        Returns:
+            torques: The torques to apply to the robot.
+        """
+        # TODO: Handle the MQTT message to set the pitch setpoint (similar to xbox)
+
         if not self.initial_pitch:
             self.initial_pitch = robot_state.motor_position_pitch_rads
 
@@ -33,7 +50,8 @@ class PositionController(Controller):
             robot_state.motor_position_pitch_rads,
             robot_state.motor_speeds_pitch_rads_s,
             0,
-            self.initial_pitch)
+            self.initial_pitch,
+        )
 
         roll, pitch, yaw = self.lqr_controller.get_torques(robot_state, max_torque)
 
@@ -54,11 +72,13 @@ class PositionController(Controller):
         config = load_config_file(config_file)
         return config
 
-    def _update_pitch(self,
-                      motor_position_pitch_rads: float,
-                      motor_speeds_pitch_rads_s: float,
-                      position_setpoint: float,
-                      initial_pitch: float) -> float:
+    def _update_pitch(
+        self,
+        motor_position_pitch_rads: float,
+        motor_speeds_pitch_rads_s: float,
+        position_setpoint: float,
+        initial_pitch: float,
+    ) -> float:
         """
         Calculates the pitch euler angle bias by multiplying the pitch state by gains to compute
         an offset to bias the pitch angle. The biased pitch angle is to be fed into the
@@ -73,8 +93,7 @@ class PositionController(Controller):
             pitch_bias (float): The required pitch angle bias to reach the setpoint.
         """
 
-        position = (motor_position_pitch_rads -
-                    initial_pitch) * self.PITCH_RADIUS
+        position = (motor_position_pitch_rads - initial_pitch) * self.PITCH_RADIUS
         error = position_setpoint - position
 
         # target velocity always zero

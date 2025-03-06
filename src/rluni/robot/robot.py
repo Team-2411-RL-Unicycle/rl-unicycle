@@ -12,24 +12,16 @@ from typing import Callable, List, Tuple, Union
 import moteus
 import numpy as np
 
-from rluni.controller.fullrobot import (
-    ControlInput,
-    Controller,
-    LQRController,
-    MPCController,
-    RLController,
-                                        PositionController,
-    TestController,
-    HighLevelXboxController,
-)
+from rluni.controller.fullrobot import (ControlInput, Controller,
+                                        HighLevelXboxController, LQRController,
+                                        MPCController, PositionController,
+                                        RLController, TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
-from . import safety_buffer as sb
-from . import teledata as td
 from . import safety_buffer as sb
 from . import teledata as td
 
@@ -293,8 +285,6 @@ class RobotSystem:
             control_input, rigid_body_state = self._calculate_control_input(
                 eulers_deg, euler_rates_rads
             )
-            if abs(control_input.motor_position_pitch_rads) > 0.01:
-                pitch_absition += control_input.motor_position_pitch_rads
 
             # Evaluate system safety
             safe_state, safe_msg = self.safety_buffer.evaluate_state(control_input)
@@ -309,9 +299,6 @@ class RobotSystem:
             torques = self.controller.get_torques(
                 self.ema_control_input, self.MAX_TORQUE_ROLL_PITCH - 0.001
             )
-
-            # Integrate error
-            torques.pitch += 0.001 * pitch_absition
 
             timer_tele.control_decision = time.time() - loop_start_time
 
@@ -490,7 +477,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.roll,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    watchdog_timeout=0.1
+                    watchdog_timeout=0.1,
                 )
             )
         if self.motors.pitch is not None:
@@ -501,7 +488,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.pitch,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    watchdog_timeout=0.1
+                    watchdog_timeout=0.1,
                 )
             )
         if self.motors.yaw is not None:
@@ -512,7 +499,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.yaw,
                     maximum_torque=self.MAX_TORQUE_YAW - 0.001,
-                    watchdog_timeout=0.1
+                    watchdog_timeout=0.1,
                 )
             )
 
