@@ -104,7 +104,7 @@ class RobotSystem:
 
         # For exponential smoothing of certain fields in control input
         self.ema_control_input = None
-        self.ema_alpha = 0.72  # .72 roll
+        self.ema_alpha = 0.68  # .72 roll
 
         self.itr = int(0)  # Cycle counter
 
@@ -286,8 +286,8 @@ class RobotSystem:
             eulers_deg = np.mean(eulers_deg_list, axis=0)
             euler_rates_rads = np.mean(euler_rates_rads_list, axis=0)
             
-            eulers_deg = eulers_deg_list[0]
-            euler_rates_rads = euler_rates_rads_list[0]
+            # eulers_deg = eulers_deg_list[0]
+            # euler_rates_rads = euler_rates_rads_list[0]
             
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
@@ -504,7 +504,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.roll,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    watchdog_timeout=0.1
+                    # watchdog_timeout=0.1
                 )
             )
         if self.motors.pitch is not None:
@@ -515,7 +515,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.pitch,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    watchdog_timeout=0.1
+                    # watchdog_timeout=0.1
                 )
             )
         if self.motors.yaw is not None:
@@ -526,7 +526,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.yaw,
                     maximum_torque=self.MAX_TORQUE_YAW - 0.001,
-                    watchdog_timeout=0.1
+                    # watchdog_timeout=0.1
                 )
             )
 
