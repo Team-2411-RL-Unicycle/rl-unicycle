@@ -398,8 +398,8 @@ class RobotSystem:
             )
 
             # Euler angles and rates are stored in self.sensor_fusion
-            eulers = self.sensor_fusion1.euler_angles  # DEGREES
-            euler_rates = self.sensor_fusion1.euler_rates  # RADS/S
+            eulers = fusion.euler_angles  # DEGREES
+            euler_rates = fusion.euler_rates  # RADS/S
             
             quaternions.append(quaternion)
             eulers_all.append(eulers)
