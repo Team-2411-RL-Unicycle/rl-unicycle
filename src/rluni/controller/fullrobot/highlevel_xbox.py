@@ -6,7 +6,8 @@ import scipy.linalg as spla
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
 from rluni.controller.fullrobot import YawController, LQRController
-from rluni.utils.utils import call_super_first
+from rluni.utils import get_validated_config_value as gvcv
+from rluni.utils.utils import call_super_first, load_config_file
 
 
 class HighLevelXboxController(Controller):
@@ -17,7 +18,10 @@ class HighLevelXboxController(Controller):
         self.yaw_controller = YawController(self.MAX_TORQUE_YAW)
         self.lqr_controller = LQRController()
         self.current_pitch = 0.0
-        self.PITCH_WHEEL_RADIUS = 0.055
+        config = self._load_config("unicycle.yaml")
+        self.PITCH_RADIUS = gvcv(
+            config, "RobotSystem.pitch_wheel_radius", float, required=True
+        )
 
         self.current_roll = 0.0
 
