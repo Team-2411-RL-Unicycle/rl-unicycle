@@ -55,7 +55,7 @@ Calibration:
 
   # Gyroscope X, Y, Z Bias Calibration
   # Default: 0.0, 0.0, 0.0
-  gyro_bias: [-0.4, 0.0, 0.1]
+  gyro_bias: [-0.25, -0.4, 0.7]
 
   # Rotation Matrix for IMU (3x3 matrix)
   # Maps the IMU's axes to the vehicle's axes
@@ -64,9 +64,9 @@ Calibration:
     - [0, 1, 0]
     - [0, 0, -1]
 
-  # Adjustment angles for pitch and roll, in degrees
-  x_adj: 3.1
-  y_adj: 5.5
+  # Adjustment angles for roll and pitch, in degrees
+  x_adj: 4.3 #roll
+  y_adj: 4.0 #pitch
 
   # A, b for magnetometer calibration in numpy file or None in imu config folder
   # magnetometer: 'imu1_calibration.npz'
