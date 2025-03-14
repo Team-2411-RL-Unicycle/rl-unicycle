@@ -39,7 +39,7 @@ class HighLevelXboxController(Controller):
 
         # Bias on the positive pitch direction
         if pitch > 0:
-            pitch = pitch * 1.4
+            pitch = pitch * 1.1
 
         self.current_pitch = 3 * pitch * np.pi / 180
 

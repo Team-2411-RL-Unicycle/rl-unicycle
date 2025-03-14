@@ -1,6 +1,6 @@
 RobotSystem:
   loop_time: 0.0125         # Control loop time period (in seconds) (#60Hz)
-  write_duty: 0.68             # Fraction of the loop period before actuator updates
+  write_duty: 0.60             # Fraction of the loop period before actuator updates
   max_torque_roll_pitch: 1.4              # Maximum torque for roll and pitch motors
   max_torque_yaw: 0.1             # Maximum torque for yaw motor
   calibration_delay: 5.0       # Sensor calibration delay in seconds
