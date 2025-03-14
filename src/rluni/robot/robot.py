@@ -283,11 +283,9 @@ class RobotSystem:
                 imudata1, imudata2, loop_period
             )
             # Combine estimates from both sensors (list of quaternions, eulers, rates)
-            eulers_deg = np.mean(eulers_deg_list, axis=0)
-            euler_rates_rads = np.mean(euler_rates_rads_list, axis=0)
-            
-            # eulers_deg = eulers_deg_list[0]
-            # euler_rates_rads = euler_rates_rads_list[0]
+            w1, w2 = 0.3, 0.7
+            eulers_deg = w1 * eulers_deg_list[0] + w2 * eulers_deg_list[1]
+            euler_rates_rads = w1 * euler_rates_rads_list[0] + w2 * euler_rates_rads_list[1]    
             
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
