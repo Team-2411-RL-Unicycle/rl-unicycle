@@ -33,13 +33,16 @@ class YawController(Controller):
             yaw_torque = max(-self.max_torque_yaw, min(yaw_torque, self.max_torque_yaw))
         
         self.current_torque = yaw_torque
-        logger.info(f"Yaw torque updated to: {self.current_torque}")
 
-    def get_torques(self, *args, **kwargs):
+    def get_torques(self, yaw_input: float):
         """
         Returns the current yaw torque.
         
         Returns:
             tuple: A tuple with (0.0, 0.0, current_torque) as we only control yaw here.
         """
+        # Make sure in range [-1, 1]
+        yaw_input = max(-1.0, min(yaw_input, 1.0))
+        self.update_yaw_command(yaw_input)
+        
         return self.current_torque
