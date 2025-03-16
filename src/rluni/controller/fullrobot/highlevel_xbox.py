@@ -97,15 +97,15 @@ class HighLevelXboxController(Controller):
         else:
             # Optional: raise or log an unrecognized command
             pass
-        
+
     def _load_config(self, config_file):
         """Load the robot configuration file and set relevant parameters."""
         # Load the robot configuration file (use the default if none provided)
         if config_file is None:
             config_file = "unicycle.yaml"
-        
+
         config_file_path = files("rluni.configs.robot").joinpath(config_file)
-        
+
         # Load the configuration file
         config = load_config_file(config_file_path)
         return config
