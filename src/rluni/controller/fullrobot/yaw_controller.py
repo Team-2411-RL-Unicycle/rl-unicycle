@@ -1,4 +1,5 @@
 import logging
+
 from rluni.controller.fullrobot import Controller
 
 logger = logging.getLogger(__name__)

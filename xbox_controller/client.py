@@ -1,10 +1,11 @@
-import os
 import json
-import time
 import multiprocessing as mp
+import os
+import time
+
+import numpy as np
 import paho.mqtt.client as mqtt
 import pygame
-import numpy as np
 
 
 # MQTT Client Class

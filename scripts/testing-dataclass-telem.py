@@ -4,8 +4,8 @@ import signal
 import time
 
 from rluni.communication.mqtt import MQTTClient
-from rluni.robot import teledata as td
 from rluni.controller.fullrobot import LQRController
+from rluni.robot import teledata as td
 
 
 def start_mqtt_process(telemetry_queue, command_queue):

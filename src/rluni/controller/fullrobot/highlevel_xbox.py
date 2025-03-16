@@ -1,14 +1,14 @@
 from collections import namedtuple
+from importlib.resources import files
 
 import numpy as np
 import scipy.linalg as spla
 
+from rluni.controller.fullrobot import LQRController, YawController
 from rluni.controller.fullrobot.controllerABC import ControlInput, Controller
 from rluni.controller.fullrobot.torque_filter import TorqueFilter
-from rluni.controller.fullrobot import YawController, LQRController
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils.utils import call_super_first, load_config_file
-from importlib.resources import files
 
 
 class HighLevelXboxController(Controller):

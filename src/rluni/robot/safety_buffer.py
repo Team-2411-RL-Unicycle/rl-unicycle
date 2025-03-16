@@ -1,7 +1,6 @@
 import math
 from collections import deque
 
-
 from rluni.controller.fullrobot.controllerABC import ControlInput
 
 PITCH_MOTOR_SPEED_LIM = 15  # rads/s
