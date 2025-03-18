@@ -14,7 +14,7 @@ import moteus
 import numpy as np
 
 from rluni.controller.fullrobot import (ControlInput, Controller,
-                                        HighLevelXboxController, LQRController,
+                                        LQRController, HighLevelXboxController,
                                         MPCController, RLController,
                                         TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -22,7 +22,6 @@ from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
-from rluni.utils.csv_logger import CSVLogger
 
 from . import csv_logger as csvl
 from . import safety_buffer as sb
@@ -73,7 +72,6 @@ class RobotSystem:
         controller_type: str = "test",
         config_file=None,
         motor_config=None,
-        csv_logging: bool = False,
     ):
         self.send_queue = send_queue
         self.receive_queue = receive_queue
@@ -104,13 +102,10 @@ class RobotSystem:
         self.ema_control_input = None
         self.ema_alpha = 0.68  # .72 roll
         
-        #CSV logger
-        self.csv_logger = CSVLogger(filename="robot_log.csv", enabled=True)
 
         self.itr = int(0)  # Cycle counter
 
-        self.csv_logging = csv_logging
-        if self.csv_logging:
+        if self.csv_logging_enabled:
             self.csv_logger = csvl.CSVLogger()
             self.csv_logger.open()
 
@@ -151,6 +146,8 @@ class RobotSystem:
         )
         if self.rlmodel_path is not None:
             self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
+            
+        self.csv_logging_enabled = gvcv(config, "RobotSystem.csv_logging", bool, required=True)
 
     def _initialize_motors(self, motor_config):
         """Initialize motors based on string 'motor_config'."""
@@ -248,7 +245,7 @@ class RobotSystem:
                     await motor.shutdown()
             logger.info("Motors shut down successfully.")
 
-            if self.csv_logging and hasattr(self, "csv_logger"):
+            if self.csv_logging_enabled and hasattr(self, "csv_logger"):
                 self.csv_logger.close()
 
         except Exception as e:
@@ -300,6 +297,7 @@ class RobotSystem:
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
             # ---- 3) Update motor states ----
+            # Pass iter to do async update of single motor
             await self._update_motors(iter = self.itr)
             timer_tele.motor_states = time.time() - loop_start_time
 
@@ -338,17 +336,14 @@ class RobotSystem:
 
             timer_tele.torque_application = time.time() - loop_start_time
 
-            if self.csv_logging:
+            # ---- 6) Send telemetry (downsample if desired) ----
+            if self.csv_logging_enabled:
                 self._log_to_csv(
                     control_input,
                     torques,
                     is_calibrating,
                     timestamp=datetime.now().isoformat(),
                 )
-
-            # ---- 6) Send telemetry (downsample if desired) ----
-            if self.csv_logger.enabled:
-                self.csv_logger.log(self.itr, control_input, torques)
 
             # Convert loop timer intervals to periods, track leftover time
             timer_tele.convert_to_periods()

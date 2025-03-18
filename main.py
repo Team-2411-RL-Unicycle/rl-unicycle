@@ -160,7 +160,6 @@ async def main():
         controller_type=args.controller,
         config_file=args.config_file,
         motor_config=args.motor_config,
-        csv_logging=True,
     )
 
     try:
