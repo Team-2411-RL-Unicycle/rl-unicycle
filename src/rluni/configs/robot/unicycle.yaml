@@ -11,5 +11,9 @@ RobotSystem:
 
   csv_logging: False        # Enable CSV logging
 
-  pitch_wheel_radius: 0.05395
+  pitch_wheel_radius: 0.
+  
+  # imu stuff
+  ema_alpha: 0.50
+  imu1_weight: 0.2  #(1 - imu1_weight) is the weight for imu2
   

@@ -99,9 +99,7 @@ class RobotSystem:
         self.controller = self._get_controller(controller_type)
 
         # For exponential smoothing of certain fields in control input
-        self.ema_control_input = None
-        self.ema_alpha = 0.60  # .72 roll
-        
+        self.ema_control_input = None        
 
         self.itr = int(0)  # Cycle counter
 
@@ -140,6 +138,12 @@ class RobotSystem:
         self.imu_config1 = str(files("rluni").joinpath(self.imu_config1))
         self.imu_config2 = gvcv(config, "RobotSystem.imu_config2", str, required=True)
         self.imu_config2 = str(files("rluni").joinpath(self.imu_config2))
+
+        self.ema_alpha = gvcv(config, "RobotSystem.ema_alpha", float, required=False)
+        self.ema_alpha = 0.60 if self.ema_alpha is None else self.ema_alpha
+
+        self.imu1_weight = gvcv(config, "RobotSystem.imu1_weight", float, required=False)
+        self.imu1_weight = 0.5 if self.imu1_weight is None else self.imu1_weight
 
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
@@ -290,7 +294,7 @@ class RobotSystem:
                 self._update_sensor_fusion(imudata1, imudata2, loop_period)
             )
             # Combine estimates from both sensors (list of quaternions, eulers, rates)
-            w1 = 0.2
+            w1 = self.imu1_weight
             w2 = 1.0-w1
             eulers_deg = w1 * eulers_deg_list[0] + w2 * eulers_deg_list[1]
             euler_rates_rads = w1 * euler_rates_rads_list[0] + w2 * euler_rates_rads_list[1]    
