@@ -100,7 +100,7 @@ class RobotSystem:
 
         # For exponential smoothing of certain fields in control input
         self.ema_control_input = None
-        self.ema_alpha = 0.68  # .72 roll
+        self.ema_alpha = 0.60  # .72 roll
         
 
         self.itr = int(0)  # Cycle counter
@@ -290,7 +290,8 @@ class RobotSystem:
                 self._update_sensor_fusion(imudata1, imudata2, loop_period)
             )
             # Combine estimates from both sensors (list of quaternions, eulers, rates)
-            w1, w2 = 0.3, 0.7
+            w1 = 0.2
+            w2 = 1.0-w1
             eulers_deg = w1 * eulers_deg_list[0] + w2 * eulers_deg_list[1]
             euler_rates_rads = w1 * euler_rates_rads_list[0] + w2 * euler_rates_rads_list[1]    
             
