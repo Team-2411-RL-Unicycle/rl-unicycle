@@ -22,6 +22,7 @@ from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
+from rluni.utils.csv_logger import CSVLogger
 
 from . import csv_logger as csvl
 from . import safety_buffer as sb
@@ -102,6 +103,9 @@ class RobotSystem:
         # For exponential smoothing of certain fields in control input
         self.ema_control_input = None
         self.ema_alpha = 0.68  # .72 roll
+        
+        #CSV logger
+        self.csv_logger = CSVLogger(filename="robot_log.csv", enabled=True)
 
         self.itr = int(0)  # Cycle counter
 
@@ -296,7 +300,7 @@ class RobotSystem:
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
             # ---- 3) Update motor states ----
-            await self._update_motors()
+            await self._update_motors(iter = self.itr)
             timer_tele.motor_states = time.time() - loop_start_time
 
             # ---- 4) Build control input (and optionally smooth it) ----
@@ -343,6 +347,9 @@ class RobotSystem:
                 )
 
             # ---- 6) Send telemetry (downsample if desired) ----
+            if self.csv_logger.enabled:
+                self.csv_logger.log(self.itr, control_input, torques)
+
             # Convert loop timer intervals to periods, track leftover time
             timer_tele.convert_to_periods()
             timer_tele.end_loop_buffer = self.LOOP_TIME - (
@@ -418,12 +425,23 @@ class RobotSystem:
             euler_rates_all.append(euler_rates)
 
         return quaternions, eulers_all, euler_rates_all
-
-    async def _update_motors(self):
+    
+    async def _update_motors(self, iter = None):        
         """Asynchronously query each motor to update its internal state."""
-        for motor in self.motors:
+        n_motors = len(self.motors)
+
+        # Update a single motor
+        if iter is not None and (iter > 5):
+            motor_idx = iter % n_motors
+            motor = self.motors[motor_idx]
             if motor is not None:
                 await motor.update_state()
+        
+        # Update all motors        
+        else:        
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.update_state()
 
     def _calculate_control_input(
         self,
