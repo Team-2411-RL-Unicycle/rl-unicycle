@@ -14,7 +14,7 @@ import moteus
 import numpy as np
 
 from rluni.controller.fullrobot import (ControlInput, Controller,
-                                        LQRController, HighLevelXboxController,
+                                        HighLevelXboxController, LQRController,
                                         MPCController, RLController,
                                         TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
@@ -22,8 +22,8 @@ from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
-
 from rluni.utils.csv_logger import CSVLogger
+
 from . import safety_buffer as sb
 from . import teledata as td
 
