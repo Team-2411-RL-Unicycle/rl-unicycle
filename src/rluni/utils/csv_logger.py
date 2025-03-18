@@ -1,105 +1,97 @@
 import csv
 import logging
 import os
+from datetime import datetime
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class CSVLogger:
     """
-    Logs control loop data to a CSV file. Writes iteration number, control input values, 
-    and torques on each loop cycle while keeping the file open for efficiency.
-
-    The file is automatically closed on shutdown.
+    Logger that writes control state and actions to a CSV file.
 
     Attributes:
-        filename (str): The path of the CSV file.
-        enabled (bool): Whether logging is active.
+        filename (str): The name of the CSV file to write to.
+        fieldnames (List[str]): The column headers for the CSV file.
+        file (file): The file object for the CSV file.
+        writer (csv.DictWriter): The CSV writer object.
     """
 
-    def __init__(self, filename="robot_log.csv", enabled=False):
+    def __init__(self, directory: str = "log/csv_logs", filename: Optional[str] = None):
         """
         Initialize the CSV logger.
 
         Args:
-            filename (str): The path to the CSV file.
-            enabled (bool): If True, logging is enabled; otherwise, no data is written.
+            directory (str): Directory to save the CSV file.
+            filename (str, optional): Name of the CSV file. If None, a timestamp will be used.
         """
-        self.filename = filename
-        self.enabled = enabled
+        # Create the logs directory if it doesn't exist
+        os.makedirs(directory, exist_ok=True)
+
+        # Generate a filename with timestamp if not provided
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"robot_control_log_{timestamp}.csv"
+
+        self.filepath = os.path.join(directory, filename)
+        self.fieldnames = [
+            "timestamp",
+            "iteration",
+            "roll_rads",
+            "pitch_rads",
+            "yaw_rads",
+            "roll_rate_rads",
+            "pitch_rate_rads",
+            "yaw_rate_rads",
+            "motor_speed_roll_rads",
+            "motor_speed_pitch_rads",
+            "motor_speed_yaw_rads",
+            "motor_position_pitch_rads",
+            "torque_roll",
+            "torque_pitch",
+            "torque_yaw",
+            "is_calibrating",
+        ]
+
         self.file = None
         self.writer = None
+        logger.info(f"CSV logger initialized. Will write to {self.filepath}")
 
-        if self.enabled:
-            self._open_file()
-
-    def _open_file(self):
-        """Open the CSV file and prepare for writing."""
+    def open(self):
+        """Open the CSV file and write the header."""
         try:
-            # Ensure the directory exists
-            os.makedirs(os.path.dirname(self.filename), exist_ok=True)
-
-            # Open file in append mode and create a writer
-            self.file = open(self.filename, mode="a", newline="")
-            self.writer = csv.writer(self.file)
-
-            # If file is empty, write the header
-            if self.file.tell() == 0:
-                self.writer.writerow(
-                    [
-                        "Iteration",
-                        "Euler_Roll", "Euler_Pitch", "Euler_Yaw",
-                        "EulerRate_Roll", "EulerRate_Pitch", "EulerRate_Yaw",
-                        "MotorSpeed_Pitch", "MotorSpeed_Roll", "MotorSpeed_Yaw",
-                        "MotorTorque_Roll", "MotorTorque_Pitch", "MotorTorque_Yaw"
-                    ]
-                )
-
-            logger.info(f"CSV logging enabled, writing to {self.filename}")
+            self.file = open(self.filepath, "w", newline="")
+            self.writer = csv.DictWriter(self.file, fieldnames=self.fieldnames)
+            self.writer.writeheader()
+            logger.info(f"CSV file opened: {self.filepath}")
+            return True
         except Exception as e:
             logger.error(f"Failed to open CSV file: {e}")
-            self.enabled = False
+            return False
 
-    def log(self, iteration, control_input, torques):
+    def log(self, data: Dict):
         """
-        Write a new row to the CSV file with control input and torques.
+        Log a row of data to the CSV file.
 
         Args:
-            iteration (int): The control loop iteration number.
-            control_input (ControlInput): The current control input state.
-            torques (tuple): A tuple of (roll_torque, pitch_torque, yaw_torque).
+            data (Dict): Dictionary containing the data to log.
         """
-        if not self.enabled or self.writer is None:
-            return
+        if self.writer is None:
+            logger.error("CSV logger not initialized. Call open() first.")
+            return False
 
         try:
-            self.writer.writerow(
-                [
-                    iteration,
-                    control_input.euler_angle_roll_rads,
-                    control_input.euler_angle_pitch_rads,
-                    control_input.euler_angle_yaw_rads,
-                    control_input.euler_rate_roll_rads_s,
-                    control_input.euler_rate_pitch_rads_s,
-                    control_input.euler_rate_yaw_rads_s,
-                    control_input.motor_speeds_pitch_rads_s,
-                    control_input.motor_speeds_roll_rads_s,
-                    control_input.motor_speeds_yaw_rads_s,
-                    torques.roll,
-                    torques.pitch,
-                    torques.yaw,
-                ]
-            )
+            self.writer.writerow(data)
+            return True
         except Exception as e:
-            logger.error(f"Error writing to CSV: {e}")
+            logger.error(f"Failed to write to CSV file: {e}")
+            return False
 
     def close(self):
-        """Close the CSV file properly."""
+        """Close the CSV file."""
         if self.file:
-            try:
-                self.file.close()
-                logger.info("CSV file closed.")
-            except Exception as e:
-                logger.error(f"Error closing CSV file: {e}")
-            finally:
-                self.file = None
-                self.writer = None
+            self.file.close()
+            logger.info(f"CSV file closed: {self.filepath}")
+            self.file = None
+            self.writer = None

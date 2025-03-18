@@ -23,7 +23,7 @@ from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
 
-from . import csv_logger as csvl
+from rluni.utils.csv_logger import CSVLogger
 from . import safety_buffer as sb
 from . import teledata as td
 
@@ -106,7 +106,7 @@ class RobotSystem:
         self.itr = int(0)  # Cycle counter
 
         if self.csv_logging_enabled:
-            self.csv_logger = csvl.CSVLogger()
+            self.csv_logger = CSVLogger()
             self.csv_logger.open()
 
     def _load_config(self, config_file):
