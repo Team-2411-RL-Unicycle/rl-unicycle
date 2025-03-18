@@ -566,7 +566,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.roll,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
         if self.motors.pitch is not None:
@@ -577,7 +577,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.pitch,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
         if self.motors.yaw is not None:
@@ -588,7 +588,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.yaw,
                     maximum_torque=self.MAX_TORQUE_YAW - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
 
