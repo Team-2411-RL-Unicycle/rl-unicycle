@@ -1,7 +1,6 @@
 import math
 from collections import deque
 
-
 from rluni.controller.fullrobot.controllerABC import ControlInput
 
 PITCH_MOTOR_SPEED_LIM = 15  # rads/s
@@ -69,24 +68,24 @@ class SafetyBuffer:
         for state in self.state_buffer:
             if (state.euler_angle_roll_rads < ROLL_ANGLE_LIM * DEG_TO_RAD) and (
                 state.euler_angle_roll_rads > -ROLL_ANGLE_LIM * DEG_TO_RAD
-            ): # if the robot is upright
+            ):  # if the robot is upright
                 safe_state = True
                 return safe_state
             elif (
                 state.motor_speeds_roll_rads_s > -ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
             ) and (
                 state.motor_speeds_roll_rads_s < ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
-            ): # if the robot is not spooled up
+            ):  # if the robot is not spooled up
                 safe_state = True
                 return safe_state
             elif (state.euler_angle_roll_rads > 0) and (
                 state.motor_speeds_roll_rads_s < 0
-            ): # if we still have control authority
+            ):  # if we still have control authority
                 safe_state = True
                 return safe_state
             elif (state.euler_angle_roll_rads < 0) and (
                 state.motor_speeds_roll_rads_s > 0
-            ): # if we still have control authority
+            ):  # if we still have control authority
                 safe_state = True
                 return safe_state
         return safe_state

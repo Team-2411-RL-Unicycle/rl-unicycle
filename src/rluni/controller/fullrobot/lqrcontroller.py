@@ -30,7 +30,11 @@ class LQRController(Controller):
             self._K[0, 6] * 1.0,
         )
         # overide pitch (angle, rate, motor)
-        self._K[1, 1], self._K[1, 4], self._K[1, 7] = -10.6 / 3, -2.5392 / 12, 0.0059/1.2
+        self._K[1, 1], self._K[1, 4], self._K[1, 7] = (
+            -10.6 / 3,
+            -2.5392 / 12,
+            0.0059 / 1.2,
+        )
 
         self.logger.info(f"{self.__class__.__name__} initialized")
 
