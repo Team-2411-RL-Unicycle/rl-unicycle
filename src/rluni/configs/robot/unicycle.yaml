@@ -11,7 +11,7 @@ RobotSystem:
 
   csv_logging: False        # Enable CSV logging
 
-  pitch_wheel_radius: 0.
+  pitch_wheel_radius: 0.55
   
   # imu stuff
   ema_alpha: 0.50
