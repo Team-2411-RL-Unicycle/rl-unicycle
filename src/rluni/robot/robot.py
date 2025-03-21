@@ -4,6 +4,7 @@ import math
 import time
 from collections import namedtuple
 from dataclasses import asdict
+from datetime import datetime
 from enum import Enum
 from importlib.resources import files
 from multiprocessing import Queue
@@ -12,20 +13,16 @@ from typing import Callable, List, Tuple, Union
 import moteus
 import numpy as np
 
-from rluni.controller.fullrobot import (
-    ControlInput,
-    Controller,
-    LQRController,
-    MPCController,
-    RLController,
-    TestController,
-    HighLevelXboxController,
-)
+from rluni.controller.fullrobot import (ControlInput, Controller,
+                                        HighLevelXboxController, LQRController,
+                                        MPCController, RLController,
+                                        TestController)
 from rluni.fusion.AHRSfusion import AHRSfusion
 from rluni.icm20948.imu_lib import ICM20948
 from rluni.motors.motors import MN2806, MN6007, Motor
 from rluni.utils import get_validated_config_value as gvcv
 from rluni.utils import load_config_file
+from rluni.utils.csv_logger import CSVLogger
 
 from . import safety_buffer as sb
 from . import teledata as td
@@ -92,7 +89,6 @@ class RobotSystem:
         self.sensor_fusion2 = AHRSfusion(
             sample_rate=int(1 / self.LOOP_TIME), config_file=self.imu_config2
         )
-        
 
         self.motors: Tuple[Motor, ...] = None
         self.motor_config = EnabledMotors.NONE
@@ -103,10 +99,13 @@ class RobotSystem:
         self.controller = self._get_controller(controller_type)
 
         # For exponential smoothing of certain fields in control input
-        self.ema_control_input = None
-        self.ema_alpha = 0.68  # .72 roll
+        self.ema_control_input = None        
 
         self.itr = int(0)  # Cycle counter
+
+        if self.csv_logging_enabled:
+            self.csv_logger = CSVLogger()
+            self.csv_logger.open()
 
     def _load_config(self, config_file):
         """Load the robot configuration file and set relevant parameters."""
@@ -140,11 +139,19 @@ class RobotSystem:
         self.imu_config2 = gvcv(config, "RobotSystem.imu_config2", str, required=True)
         self.imu_config2 = str(files("rluni").joinpath(self.imu_config2))
 
+        self.ema_alpha = gvcv(config, "RobotSystem.ema_alpha", float, required=False)
+        self.ema_alpha = 0.60 if self.ema_alpha is None else self.ema_alpha
+
+        self.imu1_weight = gvcv(config, "RobotSystem.imu1_weight", float, required=False)
+        self.imu1_weight = 0.5 if self.imu1_weight is None else self.imu1_weight
+
         self.rlmodel_path = gvcv(
             config, "RobotSystem.rlmodel_path", str, required=False
         )
         if self.rlmodel_path is not None:
             self.rlmodel_path = str(files("rluni").joinpath(self.rlmodel_path))
+            
+        self.csv_logging_enabled = gvcv(config, "RobotSystem.csv_logging", bool, required=True)
 
     def _initialize_motors(self, motor_config):
         """Initialize motors based on string 'motor_config'."""
@@ -241,6 +248,10 @@ class RobotSystem:
                 if motor is not None:
                     await motor.shutdown()
             logger.info("Motors shut down successfully.")
+
+            if self.csv_logging_enabled and hasattr(self, "csv_logger"):
+                self.csv_logger.close()
+
         except Exception as e:
             logger.exception(f"Error during RobotSystem shutdown: {e}")
 
@@ -279,20 +290,20 @@ class RobotSystem:
             timer_tele.imu_read = time.time() - loop_start_time
 
             # ---- 2) Update sensor fusion to get orientation ----
-            quaternions, eulers_deg_list, euler_rates_rads_list = self._update_sensor_fusion(
-                imudata1, imudata2, loop_period
+            quaternions, eulers_deg_list, euler_rates_rads_list = (
+                self._update_sensor_fusion(imudata1, imudata2, loop_period)
             )
             # Combine estimates from both sensors (list of quaternions, eulers, rates)
-            eulers_deg = np.mean(eulers_deg_list, axis=0)
-            euler_rates_rads = np.mean(euler_rates_rads_list, axis=0)
-            
-            # eulers_deg = eulers_deg_list[0]
-            # euler_rates_rads = euler_rates_rads_list[0]
+            w1 = self.imu1_weight
+            w2 = 1.0-w1
+            eulers_deg = w1 * eulers_deg_list[0] + w2 * eulers_deg_list[1]
+            euler_rates_rads = w1 * euler_rates_rads_list[0] + w2 * euler_rates_rads_list[1]    
             
             timer_tele.sensor_fusion = time.time() - loop_start_time
 
             # ---- 3) Update motor states ----
-            await self._update_motors()
+            # Pass iter to do async update of single motor
+            await self._update_motors(iter = self.itr)
             timer_tele.motor_states = time.time() - loop_start_time
 
             # ---- 4) Build control input (and optionally smooth it) ----
@@ -331,6 +342,14 @@ class RobotSystem:
             timer_tele.torque_application = time.time() - loop_start_time
 
             # ---- 6) Send telemetry (downsample if desired) ----
+            if self.csv_logging_enabled:
+                self._log_to_csv(
+                    control_input,
+                    torques,
+                    is_calibrating,
+                    timestamp=datetime.now().isoformat(),
+                )
+
             # Convert loop timer intervals to periods, track leftover time
             timer_tele.convert_to_periods()
             timer_tele.end_loop_buffer = self.LOOP_TIME - (
@@ -379,13 +398,13 @@ class RobotSystem:
         """
         imus = [imudata1, imudata2]
         fusions = [self.sensor_fusion1, self.sensor_fusion2]
-        
+
         quaternions = []
         eulers_all = []
         euler_rates_all = []
-        
+
         for imu, fusion in zip(imus, fusions):
-        
+
             gyro = imu.get_gyro()
             accel = imu.get_accel()
             mag = imu.get_mag()
@@ -400,18 +419,29 @@ class RobotSystem:
             # Euler angles and rates are stored in self.sensor_fusion
             eulers = fusion.euler_angles  # DEGREES
             euler_rates = fusion.euler_rates  # RADS/S
-            
+
             quaternions.append(quaternion)
             eulers_all.append(eulers)
             euler_rates_all.append(euler_rates)
-            
+
         return quaternions, eulers_all, euler_rates_all
     
-    async def _update_motors(self):
+    async def _update_motors(self, iter = None):        
         """Asynchronously query each motor to update its internal state."""
-        for motor in self.motors:
+        n_motors = len(self.motors)
+
+        # Update a single motor
+        if iter is not None and (iter > 5):
+            motor_idx = iter % n_motors
+            motor = self.motors[motor_idx]
             if motor is not None:
                 await motor.update_state()
+        
+        # Update all motors        
+        else:        
+            for motor in self.motors:
+                if motor is not None:
+                    await motor.update_state()
 
     def _calculate_control_input(
         self,
@@ -491,6 +521,43 @@ class RobotSystem:
             # Convert back to a dataclass
             self.ema_control_input = ControlInput(**ema_dict)
 
+    def _log_to_csv(self, control_input, torques, is_calibrating: bool, timestamp: str):
+        """
+        Log the current state and control actions to the CSV file.
+
+        Args:
+            control_input: The current control input state.
+            torques: The torques applied to the motors.
+            is_calibrating: Whether the robot is calibrating.
+            timestamp: The current timestamp.
+        """
+        if not hasattr(self, "csv_logger"):
+            logger.warning("CSV logger not initialized")
+            return
+
+        # Create a dictionary with all the data we want to log
+        data = {
+            "timestamp": timestamp,
+            "iteration": self.itr,
+            "roll_rads": control_input.euler_angle_roll_rads,
+            "pitch_rads": control_input.euler_angle_pitch_rads,
+            "yaw_rads": control_input.euler_angle_yaw_rads,
+            "roll_rate_rads": control_input.euler_rate_roll_rads_s,
+            "pitch_rate_rads": control_input.euler_rate_pitch_rads_s,
+            "yaw_rate_rads": control_input.euler_rate_yaw_rads_s,
+            "motor_speed_roll_rads": control_input.motor_speeds_roll_rads_s,
+            "motor_speed_pitch_rads": control_input.motor_speeds_pitch_rads_s,
+            "motor_speed_yaw_rads": control_input.motor_speeds_yaw_rads_s,
+            "motor_position_pitch_rads": control_input.motor_position_pitch_rads,
+            "torque_roll": float(torques.roll) if hasattr(torques, "roll") else 0.0,
+            "torque_pitch": float(torques.pitch) if hasattr(torques, "pitch") else 0.0,
+            "torque_yaw": float(torques.yaw) if hasattr(torques, "yaw") else 0.0,
+            "is_calibrating": int(is_calibrating),
+        }
+
+        # Log the data
+        self.csv_logger.log(data)
+
     async def _apply_control(self, torques):
         """
         Build and send the torque commands to each motor via the transport.
@@ -504,7 +571,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.roll,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
         if self.motors.pitch is not None:
@@ -515,7 +582,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.pitch,
                     maximum_torque=self.MAX_TORQUE_ROLL_PITCH - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
         if self.motors.yaw is not None:
@@ -526,7 +593,7 @@ class RobotSystem:
                     kd_scale=0.0,
                     feedforward_torque=torques.yaw,
                     maximum_torque=self.MAX_TORQUE_YAW - 0.001,
-                    # watchdog_timeout=0.1
+                    watchdog_timeout=0.1
                 )
             )
 
@@ -593,7 +660,7 @@ class RobotSystem:
         """Handle commands from the receive queue."""
         while not self.receive_queue.empty():
             message = self.receive_queue.get()
-            
+
             if isinstance(message, dict):
                 for command, value in message.items():
                     await self._execute_command(command, value)
@@ -659,7 +726,6 @@ class RobotSystem:
         else:
             # Log an error or handle the case where the value is not a boolean
             logger.error(f"Expected a boolean for the power command, but got: {value}")
-        
 
     async def _handle_controller_switch(self, command: str, value: str):
         """

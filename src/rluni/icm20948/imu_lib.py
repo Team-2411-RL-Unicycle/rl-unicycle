@@ -124,13 +124,16 @@ class ICM20948:
 
         # Set Accel and Gyro on
         self.write(self.reg.PWR_MGMT_2, 0x00)
+        time.sleep(0.01)
 
         # Set range and low pass filtering for accel and gyro
         self.set_accel_range(self._accel_range)
         self.set_accel_LPF(dlpf_cfg=self._accel_LPF_CFG, enable=self._accel_LPF)
+        time.sleep(0.01)
 
         self.set_gyro_range(self._gyro_range)
         self.set_gyro_LPF(dlpf_cfg=self._gyro_LPF_CFG, enable=self._gyro_LPF)
+        time.sleep(0.01)
 
         # TODO: Understand implications of setting samplerate, RWIP did not set any
         # self.set_accel_samplerate(self._accel_rate)

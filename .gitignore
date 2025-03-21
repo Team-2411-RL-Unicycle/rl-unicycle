@@ -5,6 +5,7 @@ __pycache__/
 .vscode/
 log/saved_logs/*.log
 log/*.log
+log/csv_logs/*.csv
 **/__pycache__
 **/*.pyc
 *.egg-info/
