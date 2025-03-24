@@ -7,13 +7,13 @@ RobotSystem:
 
   imu_config1: "configs/imu/full-robot-imu1.yaml"  # Relative path to IMU configuration file
   imu_config2: "configs/imu/full-robot-imu2.yaml"
-  rlmodel_path: "configs/rlmodels/2025-03-15-broomy-mlp-moredr.onnx"  # Relative path to RL model file
+  rlmodel_path: "configs/rlmodels/broomy-rnn-feb15th.onnx"  # Relative path to RL model file
 
   csv_logging: False        # Enable CSV logging
 
   pitch_wheel_radius: 0.55
   
   # imu stuff
-  ema_alpha: 0.50
-  imu1_weight: 0.2  #(1 - imu1_weight) is the weight for imu2
+  ema_alpha: 0.72
+  imu1_weight: 1.0  #(1 - imu1_weight) is the weight for imu2
   
