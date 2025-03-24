@@ -1,14 +1,16 @@
 import math
 from collections import deque
 
-
 from rluni.controller.fullrobot.controllerABC import ControlInput
 
+STATE_BUFFER_SIZE = 10
 PITCH_MOTOR_SPEED_LIM = 15  # rads/s
-ROLL_ANGLE_LIM = 10  # degrees
+ROLL_ANGLE_LIM = 20  # degrees
+PITCH_ANGLE_LIM = 25  # degrees
 DEG_TO_RAD = math.pi / 180
-ROLL_MOTOR_SPEED_LIM = 250  # RPM
+ROLL_MOTOR_SPEED_LIM = 2500  # RPM
 RPM_TO_RADS_S = 2 * math.pi / 60
+
 
 
 class SafetyBuffer:
@@ -20,7 +22,10 @@ class SafetyBuffer:
 
     def __init__(self):
         """Initialize the SafetyBuffer object."""
-        self.state_buffer = deque(maxlen=10)
+        self.state_buffer = deque(maxlen=STATE_BUFFER_SIZE)
+        
+        # Add a single state to the buffer to avoid empty buffer checks
+        self.state_buffer.append(ControlInput(0,0,0,0,0,0,0,0,0,0))
 
     def add_state(self, robot_state: ControlInput):
         """Add the state of the robot to the buffer."""
@@ -37,8 +42,10 @@ class SafetyBuffer:
         # run checks but return False if any check fails with an appropriate message
         if not self.check_pitch_speed():
             return False, "Pitch motor speed too high, shutting down."
-        # if not self.check_roll_spool():
-        #     return False, "Roll motor spooled up, shutting down."
+        if not self.check_roll_spool():
+            return False, "Roll motor spooled up, shutting down."
+        if not self.check_tipped_over():
+            return False, "Robot tipped over, shutting down."
 
         return True, ""
 
@@ -56,6 +63,21 @@ class SafetyBuffer:
                 return safe_state
 
         return safe_state
+    
+    def check_tipped_over(self) -> bool:
+        safe_state = False
+        
+        # Check if the robot is upright
+        last_state = self.state_buffer[-1]        
+        tipped_roll = (abs(last_state.euler_angle_roll_rads) > ROLL_ANGLE_LIM * DEG_TO_RAD)
+        tipped_pitch = (abs(last_state.euler_angle_pitch_rads) > PITCH_ANGLE_LIM * DEG_TO_RAD)
+        if (tipped_roll or tipped_pitch):
+            safe_state = False
+            return safe_state
+        
+        else:
+            safe_state = True
+            return safe_state
 
     def check_roll_spool(self) -> bool:
         """Check the roll wheel spool up against the angle and return a boolean value indicating if the robot is
@@ -64,29 +86,20 @@ class SafetyBuffer:
 
         Returns:
             safe_state (bool): True = safe, False = not safe.
-        """
+        """            
         safe_state = False
+        
+        # Check if the robot is spooled up, consecutive state above max
+        spooled_up = True
+        # Require one state not to be spooled up
         for state in self.state_buffer:
-            if (state.euler_angle_roll_rads < ROLL_ANGLE_LIM * DEG_TO_RAD) and (
-                state.euler_angle_roll_rads > -ROLL_ANGLE_LIM * DEG_TO_RAD
-            ): # if the robot is upright
-                safe_state = True
-                return safe_state
-            elif (
-                state.motor_speeds_roll_rads_s > -ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
-            ) and (
-                state.motor_speeds_roll_rads_s < ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S
-            ): # if the robot is not spooled up
-                safe_state = True
-                return safe_state
-            elif (state.euler_angle_roll_rads > 0) and (
-                state.motor_speeds_roll_rads_s < 0
-            ): # if we still have control authority
-                safe_state = True
-                return safe_state
-            elif (state.euler_angle_roll_rads < 0) and (
-                state.motor_speeds_roll_rads_s > 0
-            ): # if we still have control authority
-                safe_state = True
-                return safe_state
-        return safe_state
+            if (state.motor_speeds_roll_rads_s < ROLL_MOTOR_SPEED_LIM * RPM_TO_RADS_S *.98):
+                spooled_up = False
+                break
+        if spooled_up:
+            safe_state = False
+            return safe_state
+        
+        else:
+            safe_state = True
+            return safe_state

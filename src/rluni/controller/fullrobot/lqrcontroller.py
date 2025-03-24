@@ -26,11 +26,15 @@ class LQRController(Controller):
         # Temporary overide roll (angle, rate, motor)
         self._K[0, 0], self._K[0, 3], self._K[0, 6] = (
             self._K[0, 0] * 0.70,  # .75 old
-            self._K[0, 3] * 0.52,  # .65 old
+            self._K[0, 3] * 0.58,  # .65 old
             self._K[0, 6] * 1.0,
         )
         # overide pitch (angle, rate, motor)
-        self._K[1, 1], self._K[1, 4], self._K[1, 7] = -10.6 / 3, -2.5392 / 12, 0.0059/1.2
+        self._K[1, 1], self._K[1, 4], self._K[1, 7] = (
+            -10.6 / 3,
+            -2.5392 / 12,
+            0.0059 / 1.2,
+        )
 
         self.logger.info(f"{self.__class__.__name__} initialized")
 

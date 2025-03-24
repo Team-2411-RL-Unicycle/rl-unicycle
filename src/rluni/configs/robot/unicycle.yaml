@@ -1,6 +1,6 @@
 RobotSystem:
   loop_time: 0.0125         # Control loop time period (in seconds) (#60Hz)
-  write_duty: 0.68             # Fraction of the loop period before actuator updates
+  write_duty: 0.60             # Fraction of the loop period before actuator updates
   max_torque_roll_pitch: 1.4              # Maximum torque for roll and pitch motors
   max_torque_yaw: 0.1             # Maximum torque for yaw motor
   calibration_delay: 5.0       # Sensor calibration delay in seconds
@@ -9,5 +9,11 @@ RobotSystem:
   imu_config2: "configs/imu/full-robot-imu2.yaml"
   rlmodel_path: "configs/rlmodels/2025-03-15-broomy-mlp-moredr.onnx"  # Relative path to RL model file
 
-  pitch_wheel_radius: 0.05395
+  csv_logging: False        # Enable CSV logging
+
+  pitch_wheel_radius: 0.55
+  
+  # imu stuff
+  ema_alpha: 0.50
+  imu1_weight: 0.2  #(1 - imu1_weight) is the weight for imu2
   
