@@ -14,6 +14,6 @@ RobotSystem:
   pitch_wheel_radius: 0.55
   
   # imu stuff
-  ema_alpha: 0.50
+  ema_alpha: 0.5
   imu1_weight: 0.2  #(1 - imu1_weight) is the weight for imu2
   
