@@ -45,8 +45,11 @@ class RLController(Controller):
         actions = output[0][0]
         sigmas = np.exp(output[1][0])
 
-        roll_action_scaled = np.random.normal(actions[0], sigmas[0])
-        pitch_action_scaled = np.random.normal(actions[1], sigmas[1])
+        # roll_action_scaled = np.random.normal(actions[0], sigmas[0])
+        # pitch_action_scaled = np.random.normal(actions[1], sigmas[1])
+
+        roll_action_scaled = actions[0]
+        pitch_action_scaled = actions[1]
 
         # self.out_state = output[3]
         # self.hidden_state = output[4]
