@@ -25,8 +25,8 @@ class RLController(Controller):
     @call_super_first
     def get_torques(self, robot_state: ControlInput, max_torque: float):
         obs = np.zeros((1, 8))
-        obs[:, 0] = robot_state.motor_speeds_roll_rads_s #/2.5
-        obs[:, 1] = robot_state.motor_speeds_pitch_rads_s #/2.5
+        obs[:, 0] = robot_state.motor_speeds_roll_rads_s #/ 2
+        obs[:, 1] = robot_state.motor_speeds_pitch_rads_s #* 2
         obs[:, 2] = robot_state.motor_speeds_yaw_rads_s*0
         obs[:, 3] = robot_state.euler_angle_roll_rads - 0.2*np.pi/180 # -0.2 is current best
         obs[:, 4] = robot_state.euler_angle_pitch_rads + 3.0*np.pi/180 # + 3.0 current best, 3.3 similar
