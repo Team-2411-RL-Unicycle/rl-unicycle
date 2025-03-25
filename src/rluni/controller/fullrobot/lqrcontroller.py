@@ -111,9 +111,7 @@ class LQRController(Controller):
             ]
         )
 
-        scale = 0.5
-        # if abs(state_vector) < 0.03:
-        #     state_vector[3] *= scale
+        scale = 1.0
         out = scale * self._K @ state_vector
 
         # DEBUG
