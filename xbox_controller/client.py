@@ -83,12 +83,12 @@ class XboxController:
 
         pygame.event.pump()  # Process events
 
-        yaw_value = self.joystick.get_axis(2)  # Right stick X-axis
+        yaw_value = self.joystick.get_axis(0)  # Right stick X-axis
         yaw_value = max(-1, min(yaw_value, 1))  # Normalize to -1 to 1
         if abs(yaw_value) < 0.03:
             yaw_value = 0 + np.random.normal(0, 0.0001)
 
-        roll_value = self.joystick.get_axis(0)  # Right stick X-axis
+        roll_value = self.joystick.get_axis(2)  # Right stick X-axis
         roll_value = max(-1, min(roll_value, 1))  # Normalize to -1 to 1
         if abs(roll_value) < 0.03:
             roll_value = 0 + np.random.normal(0, 0.0001)
