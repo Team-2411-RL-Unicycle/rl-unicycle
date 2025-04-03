@@ -42,7 +42,7 @@ class HighLevelXboxController(Controller):
         if pitch > 0:
             pitch = pitch * 1.1
 
-        self.current_pitch = 3 * pitch * np.pi / 180
+        self.current_pitch = 2.0 * pitch * np.pi / 180
 
     def _update_roll(self, roll: float):
         """Clamp roll to [-1, 1] and update the current roll."""
@@ -53,7 +53,7 @@ class HighLevelXboxController(Controller):
             self.logger.warning(f"Roll value {roll} is above 1.0. Clamping to 1.0.")
             roll = 1.0
 
-        self.current_roll = -3 * roll * np.pi / 180
+        self.current_roll = -2.0 * roll * np.pi / 180
 
     def _update_yaw(self, yaw: float):
         """Clamp yaw to [-1, 1] and update the current yaw."""
@@ -64,7 +64,7 @@ class HighLevelXboxController(Controller):
             self.logger.warning(f"Yaw value {yaw} is above 1.0. Clamping to 1.0.")
             yaw = 1.0
 
-        self.current_yaw = yaw
+        self.current_yaw = 0.7 * yaw
 
     def get_torques(self, robot_state: ControlInput, max_torque: float) -> float:
         # Update the pitch target based on the current pitch value
