@@ -17,7 +17,7 @@ This is **Broomy**, a fully autonomous, self-balancing reaction-wheel unicycle r
 
 We extended the well-known [Wheelbot](https://sites.google.com/view/wheelbot) design to add:
 - ✅ Additional axis of control (yaw)
-- ✅ Point-to-point navigation
+- ✅ Supervised point-to-point navigation
 - ✅ Full telemetry and remote control
 - ✅ Direct sim-to-real testing for RL policies
 
