@@ -11,7 +11,7 @@
 
 ---
 
-## 🚀 Overview
+## Overview
 
 This is **Broomy**, a fully autonomous, self-balancing reaction-wheel unicycle robot, built as a platform to benchmark classical and reinforcement learning (RL) control algorithms in real hardware.
 
@@ -27,7 +27,7 @@ The robot balances on a single wheel with internal reaction wheels for roll, pit
 
 ---
 
-## 🛠️ Features
+## Features
 
 - **Mechanical**
   - Compact 3D-printed PLA chassis (~28cm tall, ~2.05kg)
@@ -47,7 +47,7 @@ The robot balances on a single wheel with internal reaction wheels for roll, pit
 
 ---
 
-## 📈 Control Algorithms
+## Control Algorithms
 
 Implemented and benchmarked controllers:
 - **LQR (Linear Quadratic Regulator)**  
@@ -72,7 +72,7 @@ Implemented and benchmarked controllers:
 
 ---
 
-## 📈 Results
+## Results
 
 - **LQR**: Stable balancing indefinitely in hardware.
 - **RL**: Learned balancing in simulation, with ~14s average balance time in real hardware (Table 2). Sim2real transfer works but not robust.
@@ -91,7 +91,7 @@ Implemented and benchmarked controllers:
 
 ---
 
-## 📦 Deliverables
+## Deliverables
 
 - [Source Code](https://github.com/Team-2411-RL-Unicycle/rl-unicycle)
 - [CAD Models](https://cad.onshape.com/documents/27067af86761df480433867d/w/ca003f62e35d04177fe80dab/e/33b2234cbc6cbee04529d19a?renderMode=0&uiState=67f60f11e058a23a9165561d)
@@ -102,7 +102,7 @@ Implemented and benchmarked controllers:
 
 ---
 
-## ⚠️ Known Limitations
+## Limitations
 
 - Yaw axis **not** actively controlled yet. Expect uncontrolled spins.
 - RL policy underperforms in real hardware due to sim2real gap.
@@ -110,7 +110,7 @@ Implemented and benchmarked controllers:
 
 ---
 
-## 🗺️ Future Improvements
+## Future Improvements
 
 - Active yaw control implementation
 - Chassis reinforcement to dampen vibrations
@@ -120,7 +120,7 @@ Implemented and benchmarked controllers:
 
 ---
 
-## 📝 Citations
+## Citations
 
 See full [2454 report](./media/2454_report.pdf) for detailed references and appendices.
 
