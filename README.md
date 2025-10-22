@@ -126,7 +126,7 @@ See full [2454 report](./media/2454_report.pdf) for detailed references and appe
 
 ---
 
-## 🤝 Acknowledgements
+## Acknowledgements
 
 Sponsored by [UBC Engineering Physics Project Lab](https://projectlab.engphys.ubc.ca/), with support from [Cyrus Neary](https://www.cyrusneary.com/).
 
